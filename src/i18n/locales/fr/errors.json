@@ -1,0 +1,13 @@
+{
+    "network": "Erreur réseau. Veuillez vérifier votre connexion.",
+    "required": "Ce champ est requis",
+    "invalidEmail": "Veuillez entrer une adresse email valide",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordsNotMatch": "Les mots de passe ne correspondent pas",
+    "generic": "Une erreur est survenue. Veuillez réessayer.",
+    "serverError": "Erreur serveur. Veuillez réessayer plus tard.",
+    "unauthorized": "Vous n'êtes pas autorisé à effectuer cette action.",
+    "forbidden": "Accès refusé.",
+    "notFound": "La ressource demandée n'a pas été trouvée.",
+    "timeout": "Délai d'attente dépassé. Veuillez réessayer."
+}
