@@ -2,14 +2,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import {
-    ActivityIndicator,
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SignupFormData, signupSchema } from "../../lib/auth";
 import { useAuthStore } from "../../store/authStore";
@@ -17,6 +18,7 @@ import { useAuthStore } from "../../store/authStore";
 export default function SignupScreen() {
   const router = useRouter();
   const { signUp, isLoading } = useAuthStore();
+  const { t } = useTranslation(['common', 'auth']);
 
   const {
     control,
@@ -30,38 +32,34 @@ export default function SignupScreen() {
     const { error } = await signUp(data.email, data.password, data.name);
 
     if (error) {
-      let errorMessage = "Failed to create account";
+      let errorMessage = t("auth:signupFailed");
 
       // Specific Supabase error messages
       if (error.message?.includes("User already registered")) {
-        errorMessage = "An account with this email already exists";
+        errorMessage = t("auth:userAlreadyExists");
       } else if (error.message?.includes("Password should be")) {
-        errorMessage = "Password does not meet the requirements";
+        errorMessage = t("auth:passwordRequirements");
       } else if (error.message?.includes("Invalid email")) {
-        errorMessage = "Please enter a valid email address";
+        errorMessage = t("auth:invalidEmail");
       } else if (error.message) {
         errorMessage = error.message;
       }
 
-      Alert.alert("Error", errorMessage);
+      Alert.alert(t("error"), errorMessage);
     } else {
-      Alert.alert(
-        "Success",
-        "Account created successfully! Please check your email to verify your account.",
-        [
-          {
-            text: "OK",
-            onPress: () => router.replace("/auth/login" as any),
-          },
-        ],
-      );
+      Alert.alert(t("success"), t("auth:signupSuccess"), [
+        {
+          text: t("ok"),
+          onPress: () => router.replace("/auth/login" as any),
+        },
+      ]);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
-      <Text style={styles.subtitle}>Sign up to get started</Text>
+      <Text style={styles.title}>{t("auth:createYourAccount")}</Text>
+      <Text style={styles.subtitle}>{t("auth:signup")}</Text>
 
       <Controller
         control={control}
@@ -70,7 +68,7 @@ export default function SignupScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={[styles.input, errors.name && styles.inputError]}
-              placeholder="Full Name"
+              placeholder={t("auth:name")}
               autoComplete="name"
               textContentType="name"
               onBlur={onBlur}
@@ -91,7 +89,7 @@ export default function SignupScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={[styles.input, errors.email && styles.inputError]}
-              placeholder="Email"
+              placeholder={t("auth:email")}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -114,7 +112,7 @@ export default function SignupScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={[styles.input, errors.password && styles.inputError]}
-              placeholder="Password"
+              placeholder={t("auth:password")}
               secureTextEntry
               autoComplete="new-password"
               textContentType="newPassword"
@@ -139,7 +137,7 @@ export default function SignupScreen() {
                 styles.input,
                 errors.confirmPassword && styles.inputError,
               ]}
-              placeholder="Confirm Password"
+              placeholder={t("auth:confirmPassword")}
               secureTextEntry
               autoComplete="new-password"
               textContentType="newPassword"
@@ -164,7 +162,7 @@ export default function SignupScreen() {
         {isLoading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Sign Up</Text>
+          <Text style={styles.buttonText}>{t("auth:signup")}</Text>
         )}
       </TouchableOpacity>
 
@@ -173,8 +171,8 @@ export default function SignupScreen() {
         onPress={() => router.push("/auth/login" as any)}
       >
         <Text style={styles.linkText}>
-          Already have an account?{" "}
-          <Text style={styles.linkTextBold}>Login</Text>
+          {t("auth:alreadyHaveAccount")}{" "}
+          <Text style={styles.linkTextBold}>{t("auth:login")}</Text>
         </Text>
       </TouchableOpacity>
     </View>

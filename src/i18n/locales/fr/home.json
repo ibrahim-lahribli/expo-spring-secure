@@ -1,0 +1,6 @@
+{
+    "title": "Bienvenue",
+    "welcomeMessage": "Bienvenue, {name}!",
+    "email": "Email",
+    "signOut": "Se déconnecter"
+}

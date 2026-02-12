@@ -2,14 +2,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import {
-    ActivityIndicator,
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { LoginFormData, loginSchema } from "../../lib/auth";
 import { useAuthStore } from "../../store/authStore";
@@ -17,6 +18,7 @@ import { useAuthStore } from "../../store/authStore";
 export default function LoginScreen() {
   const router = useRouter();
   const { signIn, isLoading } = useAuthStore();
+  const { t } = useTranslation(['common', 'auth']);
 
   const {
     control,
@@ -30,20 +32,20 @@ export default function LoginScreen() {
     const { error } = await signIn(data.email, data.password);
 
     if (error) {
-      let errorMessage = "Failed to login";
+      let errorMessage = t("auth:loginFailed");
 
       // Specific Supabase error messages
       if (error.message?.includes("Invalid login credentials")) {
-        errorMessage = "Invalid email or password";
+        errorMessage = t("auth:invalidCredentials");
       } else if (error.message?.includes("Email not confirmed")) {
-        errorMessage = "Please verify your email address";
+        errorMessage = t("auth:emailNotConfirmed");
       } else if (error.message?.includes("Too many requests")) {
-        errorMessage = "Too many login attempts. Please try again later";
+        errorMessage = t("auth:tooManyAttempts");
       } else if (error.message) {
         errorMessage = error.message;
       }
 
-      Alert.alert("Error", errorMessage);
+      Alert.alert(t("error"), errorMessage);
     } else {
       router.replace("/");
     }
@@ -51,8 +53,8 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome Back</Text>
-      <Text style={styles.subtitle}>Sign in to continue</Text>
+      <Text style={styles.title}>{t("auth:signInToAccount")}</Text>
+      <Text style={styles.subtitle}>{t("auth:login")}</Text>
 
       <Controller
         control={control}
@@ -61,7 +63,7 @@ export default function LoginScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={[styles.input, errors.email && styles.inputError]}
-              placeholder="Email"
+              placeholder={t("auth:email")}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -84,7 +86,7 @@ export default function LoginScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={[styles.input, errors.password && styles.inputError]}
-              placeholder="Password"
+              placeholder={t("auth:password")}
               secureTextEntry
               autoComplete="password"
               textContentType="password"
@@ -107,7 +109,7 @@ export default function LoginScreen() {
         {isLoading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Login</Text>
+          <Text style={styles.buttonText}>{t("auth:login")}</Text>
         )}
       </TouchableOpacity>
 
@@ -116,8 +118,8 @@ export default function LoginScreen() {
         onPress={() => router.push("/auth/signup" as any)}
       >
         <Text style={styles.linkText}>
-          Don't have an account?{" "}
-          <Text style={styles.linkTextBold}>Sign Up</Text>
+          {t("auth:dontHaveAccount")}{" "}
+          <Text style={styles.linkTextBold}>{t("auth:signup")}</Text>
         </Text>
       </TouchableOpacity>
     </View>
