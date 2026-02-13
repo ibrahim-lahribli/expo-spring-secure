@@ -1,4 +1,4 @@
-import { Redirect, Stack } from "expo-router";
+import { Redirect } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 import { useAuthStore } from "../../store/authStore";
 
@@ -18,12 +18,6 @@ export default function AppLayout() {
     return <Redirect href="/(public)" />;
   }
 
-  return (
-    <Stack>
-      <Stack.Screen
-        name="index"
-        options={{ headerShown: false, title: "Home" }}
-      />
-    </Stack>
-  );
+  // Redirect authenticated users to tabs
+  return <Redirect href="/(tabs)/home" />;
 }

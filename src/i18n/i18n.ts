@@ -12,17 +12,23 @@ import type { SupportedLanguage } from "../types/i18n";
 import enAuth from "./locales/en/auth.json";
 import enCommon from "./locales/en/common.json";
 import enErrors from "./locales/en/errors.json";
+import enHistory from "./locales/en/history.json";
 import enHome from "./locales/en/home.json";
+import enProfile from "./locales/en/profile.json";
 // Arabic
 import arAuth from "./locales/ar/auth.json";
 import arCommon from "./locales/ar/common.json";
 import arErrors from "./locales/ar/errors.json";
+import arHistory from "./locales/ar/history.json";
 import arHome from "./locales/ar/home.json";
+import arProfile from "./locales/ar/profile.json";
 // French
 import frAuth from "./locales/fr/auth.json";
 import frCommon from "./locales/fr/common.json";
 import frErrors from "./locales/fr/errors.json";
+import frHistory from "./locales/fr/history.json";
 import frHome from "./locales/fr/home.json";
+import frProfile from "./locales/fr/profile.json";
 
 // Language storage key
 const LANGUAGE_STORAGE_KEY = "@app_language_v3"; // Bumped version for new structure
@@ -37,18 +43,24 @@ const resources = {
     auth: enAuth,
     home: enHome,
     errors: enErrors,
+    history: enHistory,
+    profile: enProfile,
   },
   ar: {
     common: arCommon,
     auth: arAuth,
     home: arHome,
     errors: arErrors,
+    history: arHistory,
+    profile: arProfile,
   },
   fr: {
     common: frCommon,
     auth: frAuth,
     home: frHome,
     errors: frErrors,
+    history: frHistory,
+    profile: frProfile,
   },
 };
 
@@ -125,7 +137,7 @@ export const initializeI18n = async (): Promise<void> => {
       },
       supportedLngs: SUPPORTED_LANGUAGES,
       compatibilityJSON: "v4", // Adjusted to match current library types
-      ns: ["common", "auth", "home", "errors"],
+      ns: ["common", "auth", "home", "errors", "history", "profile"],
       defaultNS: "common",
       interpolation: {
         escapeValue: false, // React already escapes values
@@ -166,7 +178,7 @@ export const changeLanguage = async (
           "RTL change detected. In production, the app will reload automatically.",
         );
         // Even in dev, we should probably reload if we want to see it work
-        // but it might disconnect the debugger. 
+        // but it might disconnect the debugger.
         // For now, let's just change language and warn.
         await i18n.changeLanguage(language);
       }
