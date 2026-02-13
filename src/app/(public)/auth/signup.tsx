@@ -12,49 +12,76 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { LoginFormData, loginSchema } from "../../lib/auth";
-import { useAuthStore } from "../../store/authStore";
+import { SignupFormData, signupSchema } from "../../../lib/auth";
+import { useAuthStore } from "../../../store/authStore";
 
-export default function LoginScreen() {
+export default function SignupScreen() {
   const router = useRouter();
-  const { signIn, isLoading } = useAuthStore();
-  const { t } = useTranslation(['common', 'auth']);
+  const { signUp, isLoading } = useAuthStore();
+  const { t } = useTranslation(["common", "auth"]);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
   });
 
-  const onLogin = async (data: LoginFormData) => {
-    const { error } = await signIn(data.email, data.password);
+  const onSignup = async (data: SignupFormData) => {
+    const { error } = await signUp(data.email, data.password, data.name);
 
     if (error) {
-      let errorMessage = t("auth:loginFailed");
+      let errorMessage = t("auth:signupFailed");
 
       // Specific Supabase error messages
-      if (error.message?.includes("Invalid login credentials")) {
-        errorMessage = t("auth:invalidCredentials");
-      } else if (error.message?.includes("Email not confirmed")) {
-        errorMessage = t("auth:emailNotConfirmed");
-      } else if (error.message?.includes("Too many requests")) {
-        errorMessage = t("auth:tooManyAttempts");
+      if (error.message?.includes("User already registered")) {
+        errorMessage = t("auth:userAlreadyExists");
+      } else if (error.message?.includes("Password should be")) {
+        errorMessage = t("auth:passwordRequirements");
+      } else if (error.message?.includes("Invalid email")) {
+        errorMessage = t("auth:invalidEmail");
       } else if (error.message) {
         errorMessage = error.message;
       }
 
       Alert.alert(t("error"), errorMessage);
     } else {
-      router.replace("/");
+      Alert.alert(t("success"), t("auth:signupSuccess"), [
+        {
+          text: t("ok"),
+          onPress: () => router.replace("/(app)"),
+
+        },
+      ]);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{t("auth:signInToAccount")}</Text>
-      <Text style={styles.subtitle}>{t("auth:login")}</Text>
+      <Text style={styles.title}>{t("auth:createYourAccount")}</Text>
+      <Text style={styles.subtitle}>{t("auth:signup")}</Text>
+
+      <Controller
+        control={control}
+        name="name"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[styles.input, errors.name && styles.inputError]}
+              placeholder={t("auth:name")}
+              autoComplete="name"
+              textContentType="name"
+              onBlur={onBlur}
+              onChangeText={onChange}
+              value={value}
+            />
+            {errors.name && (
+              <Text style={styles.errorText}>{errors.name.message}</Text>
+            )}
+          </View>
+        )}
+      />
 
       <Controller
         control={control}
@@ -88,8 +115,8 @@ export default function LoginScreen() {
               style={[styles.input, errors.password && styles.inputError]}
               placeholder={t("auth:password")}
               secureTextEntry
-              autoComplete="password"
-              textContentType="password"
+              autoComplete="new-password"
+              textContentType="newPassword"
               onBlur={onBlur}
               onChangeText={onChange}
               value={value}
@@ -101,25 +128,52 @@ export default function LoginScreen() {
         )}
       />
 
+      <Controller
+        control={control}
+        name="confirmPassword"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[
+                styles.input,
+                errors.confirmPassword && styles.inputError,
+              ]}
+              placeholder={t("auth:confirmPassword")}
+              secureTextEntry
+              autoComplete="new-password"
+              textContentType="newPassword"
+              onBlur={onBlur}
+              onChangeText={onChange}
+              value={value}
+            />
+            {errors.confirmPassword && (
+              <Text style={styles.errorText}>
+                {errors.confirmPassword.message}
+              </Text>
+            )}
+          </View>
+        )}
+      />
+
       <TouchableOpacity
         style={[styles.button, isLoading && styles.buttonDisabled]}
-        onPress={handleSubmit(onLogin)}
+        onPress={handleSubmit(onSignup)}
         disabled={isLoading}
       >
         {isLoading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>{t("auth:login")}</Text>
+          <Text style={styles.buttonText}>{t("auth:signup")}</Text>
         )}
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.linkButton}
-        onPress={() => router.push("/auth/signup" as any)}
+        onPress={() => router.push("/auth/login" as any)}
       >
         <Text style={styles.linkText}>
-          {t("auth:dontHaveAccount")}{" "}
-          <Text style={styles.linkTextBold}>{t("auth:signup")}</Text>
+          {t("auth:alreadyHaveAccount")}{" "}
+          <Text style={styles.linkTextBold}>{t("auth:login")}</Text>
         </Text>
       </TouchableOpacity>
     </View>

@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { View } from "react-native";
-import { NavigationStack } from "../components/NavigationStack";
 import i18n, { initializeI18n } from "../i18n/i18n";
 import { useAuthStore } from "../store/authStore";
 
@@ -45,16 +45,21 @@ export default function RootLayout() {
     }
   }, [appIsReady]);
 
-  if (!appIsReady) {
-    return null; // Return null so the splash screen remains visible
-  }
+  // We no longer return null here to ensure the Root Layout navigator is always mounted
+  // Expo Router for web requires the navigator to be present on the first render
 
   return (
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
         <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
           <StatusBar style="auto" />
-          <NavigationStack />
+          <Stack
+            screenOptions={{ headerShown: false }}
+            initialRouteName="(public)"
+          >
+            <Stack.Screen name="(public)" />
+            <Stack.Screen name="(app)" />
+          </Stack>
         </View>
       </QueryClientProvider>
     </I18nextProvider>
