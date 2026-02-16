@@ -20,7 +20,7 @@ interface TabItem {
 }
 
 const TABS: TabItem[] = [
-  { name: "Home", icon: "home", route: "/home" },
+  { name: "Calculate", icon: "calculator", route: "/calculate" },
   { name: "History", icon: "history", route: "/history" },
   { name: "Profile", icon: "account", route: "/profile" },
 ];

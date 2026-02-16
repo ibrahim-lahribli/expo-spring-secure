@@ -35,6 +35,23 @@ export interface TranslationResources {
     name: string;
     welcome: string;
   };
+  calculate: {
+    title: string;
+    continueDraft: string;
+    quickUpdated: string;
+    draftPlaceholder: string;
+    resume: string;
+    nisabNotSet: string;
+    nisabBody: string;
+    goToSettings: string;
+    chooseMethod: string;
+    quickCalculate: string;
+    quickCalculateDesc: string;
+    guidedWizard: string;
+    guidedWizardDesc: string;
+    businessMode: string;
+    businessModeDesc: string;
+  };
   auth: {
     login: string;
     signup: string;
@@ -98,7 +115,7 @@ export interface TranslationResources {
 /**
  * Supported language types
  */
-export type SupportedLanguage = 'ar' | 'fr' | 'en';
+export type SupportedLanguage = "ar" | "fr" | "en";
 
 /**
  * Language switcher hook return type
@@ -122,11 +139,11 @@ export interface LanguageSwitcherProps {
 /**
  * RTL utility return types
  */
-export type TextAlignment = 'left' | 'right' | 'center';
-export type FlexDirectionType = 'row' | 'row-reverse';
-export type MarginType = 'marginLeft' | 'marginRight';
-export type PaddingType = 'paddingLeft' | 'paddingRight';
-export type WritingDirection = 'ltr' | 'rtl';
+export type TextAlignment = "left" | "right" | "center";
+export type FlexDirectionType = "row" | "row-reverse";
+export type MarginType = "marginLeft" | "marginRight";
+export type PaddingType = "paddingLeft" | "paddingRight";
+export type WritingDirection = "ltr" | "rtl";
 
 /**
  * RTL styles interface
