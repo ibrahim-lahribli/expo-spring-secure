@@ -1,0 +1,17 @@
+{
+  "title": "Calculate",
+  "continueDraft": "Continue Draft",
+  "quickUpdated": "Demo  Quick  updated 2h ago",
+  "draftPlaceholder": "Drafts will appear here once available.",
+  "resume": "Resume",
+  "nisabNotSet": "Nisab not set",
+  "nisabBody": "Set your nisab method and value in Settings.",
+  "goToSettings": "Go to Settings",
+  "chooseMethod": "Choose method",
+  "quickCalculate": "Quick Calculate",
+  "quickCalculateDesc": "Simple assets like cash, savings, gold, and personal debts. Best for most individuals.",
+  "guidedWizard": "Guided Wizard",
+  "guidedWizardDesc": "Step-by-step help for complex assets like stocks, crops, livestock, or mixed income sources.",
+  "businessMode": "Business Mode",
+  "businessModeDesc": "Specialized for traders and companies. Calculate on inventory, receivables, and payables."
+}

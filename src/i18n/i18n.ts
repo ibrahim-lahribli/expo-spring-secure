@@ -10,6 +10,7 @@ import type { SupportedLanguage } from "../types/i18n";
 // Import all translation files for namespaces
 // English
 import enAuth from "./locales/en/auth.json";
+import enCalculate from "./locales/en/calculate.json";
 import enCommon from "./locales/en/common.json";
 import enErrors from "./locales/en/errors.json";
 import enHistory from "./locales/en/history.json";
@@ -17,6 +18,7 @@ import enHome from "./locales/en/home.json";
 import enProfile from "./locales/en/profile.json";
 // Arabic
 import arAuth from "./locales/ar/auth.json";
+import arCalculate from "./locales/ar/calculate.json";
 import arCommon from "./locales/ar/common.json";
 import arErrors from "./locales/ar/errors.json";
 import arHistory from "./locales/ar/history.json";
@@ -24,6 +26,7 @@ import arHome from "./locales/ar/home.json";
 import arProfile from "./locales/ar/profile.json";
 // French
 import frAuth from "./locales/fr/auth.json";
+import frCalculate from "./locales/fr/calculate.json";
 import frCommon from "./locales/fr/common.json";
 import frErrors from "./locales/fr/errors.json";
 import frHistory from "./locales/fr/history.json";
@@ -41,6 +44,7 @@ const resources = {
   en: {
     common: enCommon,
     auth: enAuth,
+    calculate: enCalculate,
     home: enHome,
     errors: enErrors,
     history: enHistory,
@@ -49,6 +53,7 @@ const resources = {
   ar: {
     common: arCommon,
     auth: arAuth,
+    calculate: arCalculate,
     home: arHome,
     errors: arErrors,
     history: arHistory,
@@ -57,6 +62,7 @@ const resources = {
   fr: {
     common: frCommon,
     auth: frAuth,
+    calculate: frCalculate,
     home: frHome,
     errors: frErrors,
     history: frHistory,
