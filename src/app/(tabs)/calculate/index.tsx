@@ -1,6 +1,13 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Appbar, Button, Card, Chip } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -71,6 +78,7 @@ interface MethodCardProps {
   title: string;
   description: string;
   showRecommended?: boolean;
+  onPress?: () => void;
 }
 
 function MethodCard({
@@ -78,39 +86,47 @@ function MethodCard({
   title,
   description,
   showRecommended = false,
+  onPress,
 }: MethodCardProps) {
   return (
-    <Card style={styles.methodCard}>
-      <View style={styles.methodCardContent}>
-        <View style={styles.iconContainer}>
-          <MaterialCommunityIcons name={icon} size={24} color="#1F7A6B" />
-        </View>
-        <View style={styles.methodCardMiddle}>
-          <View style={styles.titleRow}>
-            <Text style={styles.methodTitle}>{title}</Text>
-            {showRecommended && (
-              <Chip compact={true} style={styles.recommendedChip}>
-                Recommended
-              </Chip>
-            )}
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <Card style={styles.methodCard}>
+        <View style={styles.methodCardContent}>
+          <View style={styles.iconContainer}>
+            <MaterialCommunityIcons name={icon} size={24} color="#1F7A6B" />
           </View>
-          <Text style={styles.methodDescription}>{description}</Text>
+          <View style={styles.methodCardMiddle}>
+            <View style={styles.titleRow}>
+              <Text style={styles.methodTitle}>{title}</Text>
+              {showRecommended && (
+                <Chip compact={true} style={styles.recommendedChip}>
+                  Recommended
+                </Chip>
+              )}
+            </View>
+            <Text style={styles.methodDescription}>{description}</Text>
+          </View>
+          <View style={styles.methodCardRight}>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={24}
+              color="#9CA3AF"
+            />
+          </View>
         </View>
-        <View style={styles.methodCardRight}>
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={24}
-            color="#9CA3AF"
-          />
-        </View>
-      </View>
-    </Card>
+      </Card>
+    </TouchableOpacity>
   );
 }
 
 export default function CalculateScreen() {
   const { t } = useTranslation(["calculate"]);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  const handleQuickCalculatePress = () => {
+    router.push("/(tabs)/calculate/quick" as any);
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -148,6 +164,7 @@ export default function CalculateScreen() {
               "Simple assets like cash, savings, gold, and personal debts. Best for most individuals.",
           })}
           showRecommended={true}
+          onPress={handleQuickCalculatePress}
         />
 
         <View style={styles.spacer} />

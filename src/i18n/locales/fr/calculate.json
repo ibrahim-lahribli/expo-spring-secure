@@ -13,5 +13,46 @@
   "guidedWizard": "Guided Wizard",
   "guidedWizardDesc": "Step-by-step help for complex assets like stocks, crops, livestock, or mixed income sources.",
   "businessMode": "Business Mode",
-  "businessModeDesc": "Specialized for traders and companies. Calculate on inventory, receivables, and payables."
+  "businessModeDesc": "Specialized for traders and companies. Calculate on inventory, receivables, and payables.",
+  "liabilities": {
+    "title": "Passifs",
+    "helper": "Dettes et obligations",
+    "manage": "Gérer",
+    "addDebt": "Ajouter une dette",
+    "total": "Total des passifs",
+    "sheet": {
+      "title": "Ajout rapide de dette",
+      "amountLabel": "Montant",
+      "noteLabel": "Note",
+      "notePlaceholder": "Description optionnelle (ex: Carte de crédit)",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "done": "Terminé",
+      "addAnother": "+ Ajouter un autre"
+    },
+    "validation": {
+      "invalidAmount": "Entrez un montant valide supérieur à 0",
+      "maxNoteLength": "La note doit contenir au plus 60 caractères"
+    },
+    "toast": {
+      "added": "Dette ajoutée"
+    }
+  },
+  "assets": {
+    "title": "Actifs",
+    "helper": "Espèces, or, épargne, etc.",
+    "total": "Total des actifs",
+    "placeholder": "Appuyez sur + pour ajouter vos actifs"
+  },
+  "sections": {
+    "assets": "Vos Actifs",
+    "liabilities": "Vos Passifs"
+  },
+  "summary": {
+    "title": "Résumé Zakat",
+    "totalAssets": "Total des Actifs",
+    "totalLiabilities": "Total des Passifs",
+    "netWorth": "Valeur Nette",
+    "nisabCheck": "Nisab non configuré. Configurez-le dans les Paramètres."
+  }
 }

@@ -13,5 +13,46 @@
   "guidedWizard": "Guided Wizard",
   "guidedWizardDesc": "Step-by-step help for complex assets like stocks, crops, livestock, or mixed income sources.",
   "businessMode": "Business Mode",
-  "businessModeDesc": "Specialized for traders and companies. Calculate on inventory, receivables, and payables."
+  "businessModeDesc": "Specialized for traders and companies. Calculate on inventory, receivables, and payables.",
+  "liabilities": {
+    "title": "الخصوم",
+    "helper": "الديون والالتزامات",
+    "manage": "إدارة",
+    "addDebt": "إضافة دين",
+    "total": "إجمالي الخصوم",
+    "sheet": {
+      "title": "إضافة دين سريعة",
+      "amountLabel": "المبلغ",
+      "noteLabel": "ملاحظة",
+      "notePlaceholder": "وصف اختياري (مثال: بطاقة ائتمانية)",
+      "save": "حفظ",
+      "cancel": "إلغاء",
+      "done": "تم",
+      "addAnother": "+ إضافة آخر"
+    },
+    "validation": {
+      "invalidAmount": "أدخل مبلغًا صالحًا أكبر من 0",
+      "maxNoteLength": "يجب أن تكون الملاحظة 60 حرفًا أو أقل"
+    },
+    "toast": {
+      "added": "تمت إضافة الدين"
+    }
+  },
+  "assets": {
+    "title": "الأصول",
+    "helper": "النقد، الذهب، الادخارات، إلخ",
+    "total": "إجمالي الأصول",
+    "placeholder": "اضغط + لإضافة أصولك"
+  },
+  "sections": {
+    "assets": "أصولك",
+    "liabilities": "خصومك"
+  },
+  "summary": {
+    "title": "ملخص الزكاة",
+    "totalAssets": "إجمالي الأصول",
+    "totalLiabilities": "إجمالي الخصوم",
+    "netWorth": "صافي الثروة",
+    "nisabCheck": "لم يتم تحديد النصاب. يمكنك تهيئته في الإعدادات."
+  }
 }

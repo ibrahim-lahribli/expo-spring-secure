@@ -51,6 +51,47 @@ export interface TranslationResources {
     guidedWizardDesc: string;
     businessMode: string;
     businessModeDesc: string;
+    liabilities: {
+      title: string;
+      helper: string;
+      manage: string;
+      addDebt: string;
+      total: string;
+      sheet: {
+        title: string;
+        amountLabel: string;
+        noteLabel: string;
+        notePlaceholder: string;
+        save: string;
+        cancel: string;
+        done: string;
+        addAnother: string;
+      };
+      validation: {
+        invalidAmount: string;
+        maxNoteLength: string;
+      };
+      toast: {
+        added: string;
+      };
+    };
+    assets: {
+      title: string;
+      helper: string;
+      total: string;
+      placeholder: string;
+    };
+    sections: {
+      assets: string;
+      liabilities: string;
+    };
+    summary: {
+      title: string;
+      totalAssets: string;
+      totalLiabilities: string;
+      netWorth: string;
+      nisabCheck: string;
+    };
   };
   auth: {
     login: string;

@@ -13,5 +13,46 @@
   "guidedWizard": "Guided Wizard",
   "guidedWizardDesc": "Step-by-step help for complex assets like stocks, crops, livestock, or mixed income sources.",
   "businessMode": "Business Mode",
-  "businessModeDesc": "Specialized for traders and companies. Calculate on inventory, receivables, and payables."
+  "businessModeDesc": "Specialized for traders and companies. Calculate on inventory, receivables, and payables.",
+  "liabilities": {
+    "title": "Liabilities",
+    "helper": "Debts and obligations",
+    "manage": "Manage",
+    "addDebt": "Add debt",
+    "total": "Total liabilities",
+    "sheet": {
+      "title": "Quick Add Debt",
+      "amountLabel": "Amount",
+      "noteLabel": "Note",
+      "notePlaceholder": "Optional description (e.g., Credit card)",
+      "save": "Save",
+      "cancel": "Cancel",
+      "done": "Done",
+      "addAnother": "+ Add another"
+    },
+    "validation": {
+      "invalidAmount": "Enter a valid amount greater than 0",
+      "maxNoteLength": "Note must be 60 characters or less"
+    },
+    "toast": {
+      "added": "Debt added"
+    }
+  },
+  "assets": {
+    "title": "Assets",
+    "helper": "Cash, gold, savings, etc.",
+    "total": "Total assets",
+    "placeholder": "Tap + to add your assets"
+  },
+  "sections": {
+    "assets": "Your Assets",
+    "liabilities": "Your Liabilities"
+  },
+  "summary": {
+    "title": "Zakat Summary",
+    "totalAssets": "Total Assets",
+    "totalLiabilities": "Total Liabilities",
+    "netWorth": "Net Worth",
+    "nisabCheck": "Nisab not set. Configure in Settings."
+  }
 }
