@@ -29,6 +29,7 @@ export function LanguageSwitcher({
       {supportedLanguages.map((language) => (
         <TouchableOpacity
           key={language}
+          testID={`language-button-${language}`}
           style={[
             styles.languageButton,
             currentLanguage === language && styles.activeButton,

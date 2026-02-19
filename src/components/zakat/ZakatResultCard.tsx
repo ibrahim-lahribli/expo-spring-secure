@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { ZakatCalculationResult } from '../../lib/zakat-engine/src/core/types';
+import { ZakatCalculationResult } from '../../lib/zakat-calculation/types';
 
 interface ZakatResultCardProps {
     result: ZakatCalculationResult | null;

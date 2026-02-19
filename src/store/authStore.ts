@@ -21,7 +21,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       session: null,
       isLoading: true,
@@ -45,25 +45,13 @@ export const useAuthStore = create<AuthState>()(
           });
 
           // Set up real-time state synchronization
-          supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log("Auth state changed:", event, session?.user?.email);
-
+          supabase.auth.onAuthStateChange((_event, session) => {
             set({
               user: session?.user || null,
               session: session || null,
               isAuthenticated: !!session,
               isLoading: false,
             });
-
-            // Handle token refresh events
-            if (event === "TOKEN_REFRESHED") {
-              console.log("Token refreshed successfully");
-            }
-
-            // Handle sign out events
-            if (event === "SIGNED_OUT") {
-              console.log("User signed out");
-            }
           });
         } catch (error) {
           console.error("Error initializing auth:", error);
@@ -72,27 +60,34 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signIn: async (email: string, password: string) => {
+        set({ isLoading: true });
         try {
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
 
-          if (error) return { error };
+          if (error) {
+            set({ isLoading: false });
+            return { error };
+          }
 
           set({
             user: data.user,
             session: data.session,
             isAuthenticated: !!data.session,
+            isLoading: false,
           });
 
           return { error: null };
         } catch (error) {
+          set({ isLoading: false });
           return { error };
         }
       },
 
       signUp: async (email: string, password: string, name: string) => {
+        set({ isLoading: true });
         try {
           const { data, error } = await supabase.auth.signUp({
             email,
@@ -104,16 +99,21 @@ export const useAuthStore = create<AuthState>()(
             },
           });
 
-          if (error) return { error };
+          if (error) {
+            set({ isLoading: false });
+            return { error };
+          }
 
           set({
             user: data.user,
             session: data.session,
             isAuthenticated: !!data.session,
+            isLoading: false,
           });
 
           return { error: null };
         } catch (error) {
+          set({ isLoading: false });
           return { error };
         }
       },

@@ -1,9 +1,27 @@
 import React, { useState } from 'react';
 import { Button, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ZakatCalculationResult } from '../../lib/zakat-engine/src/core/types';
-import { mapQuickToEngineInput } from '../../lib/zakat-mappers/quick-mapping';
-import { runZakatCalculation } from '../../lib/zakat-mappers/run';
+import { ZakatCalculationResult } from '../../lib/zakat-calculation/types';
 import { ZakatResultCard } from './ZakatResultCard';
+
+const DEFAULT_SILVER_PRICE = 12;
+const SILVER_NISAB_GRAMS = 595;
+
+function calculateQuickResult(cash: number, goldValue: number, debt: number): ZakatCalculationResult {
+    const safeCash = Math.max(0, cash);
+    const safeGoldValue = Math.max(0, goldValue);
+    const safeDebt = Math.max(0, debt);
+    const totalWealth = Math.max(0, safeCash + safeGoldValue - safeDebt);
+    const nisab = DEFAULT_SILVER_PRICE * SILVER_NISAB_GRAMS;
+    const totalZakat = totalWealth >= nisab ? totalWealth * 0.025 : 0;
+
+    return {
+        nisab,
+        totalWealth,
+        totalZakat,
+        hasZakatDue: totalZakat > 0,
+        breakdown: {},
+    };
+}
 
 export function QuickCalculatorForm() {
     const [cash, setCash] = useState('');
@@ -12,19 +30,10 @@ export function QuickCalculatorForm() {
     const [result, setResult] = useState<ZakatCalculationResult | null>(null);
 
     const handleCalculate = () => {
-        const input = {
-            cash: parseFloat(cash) || 0,
-            goldValue: parseFloat(goldValue) || 0,
-            debt: parseFloat(debt) || 0,
-        };
-
-        // Ensure non-negative values
-        if (input.cash < 0) input.cash = 0;
-        if (input.goldValue < 0) input.goldValue = 0;
-        if (input.debt < 0) input.debt = 0;
-
-        const engineInput = mapQuickToEngineInput(input);
-        const calculationResult = runZakatCalculation(engineInput);
+        const parsedCash = parseFloat(cash) || 0;
+        const parsedGoldValue = parseFloat(goldValue) || 0;
+        const parsedDebt = parseFloat(debt) || 0;
+        const calculationResult = calculateQuickResult(parsedCash, parsedGoldValue, parsedDebt);
 
         setResult(calculationResult);
     };
