@@ -105,6 +105,7 @@ export default function LoginScreen() {
         style={[styles.button, isLoading && styles.buttonDisabled]}
         onPress={handleSubmit(onLogin)}
         disabled={isLoading}
+        testID="login-button"
       >
         {isLoading ? (
           <ActivityIndicator color="#fff" />

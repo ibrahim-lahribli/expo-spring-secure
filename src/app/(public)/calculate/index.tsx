@@ -1,4 +1,4 @@
-import { Link, Stack, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   SafeAreaView,
@@ -14,17 +14,6 @@ export default function CalculateScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: "Calculate Zakat" }} />
-
-      <View style={styles.header}>
-        <Text style={styles.title}>Calculate Zakat</Text>
-        <Link href="/(protected)/account" asChild>
-          <TouchableOpacity style={styles.testButton}>
-            <Text style={styles.testButtonText}>Account (Test)</Text>
-          </TouchableOpacity>
-        </Link>
-      </View>
-
       {/* Quick Calculator */}
       <View style={styles.content}>
         <QuickCalculatorForm />
@@ -34,7 +23,7 @@ export default function CalculateScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.detailedBtn}
-          onPress={() => router.push("/calculate/detailed")}
+          onPress={() => router.push("/(public)/calculate/detailed")}
         >
           <Text style={styles.detailedBtnText}>📋 Detailed Calculate</Text>
         </TouchableOpacity>
