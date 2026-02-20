@@ -1,17 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { calculateNisab, getNisabBreakdown } from '../../lib/zakat-calculation/nisab';
 import { ZakatCalculationResult } from '../../lib/zakat-calculation/types';
+import { useNisabSettingsStore } from '../../store/nisabSettingsStore';
 import { ZakatResultCard } from './ZakatResultCard';
 
-const DEFAULT_SILVER_PRICE = 12;
-const SILVER_NISAB_GRAMS = 595;
-
-function calculateQuickResult(cash: number, goldValue: number, debt: number): ZakatCalculationResult {
+function calculateQuickResult(cash: number, goldValue: number, debt: number, nisab: number): ZakatCalculationResult {
     const safeCash = Math.max(0, cash);
     const safeGoldValue = Math.max(0, goldValue);
     const safeDebt = Math.max(0, debt);
     const totalWealth = Math.max(0, safeCash + safeGoldValue - safeDebt);
-    const nisab = DEFAULT_SILVER_PRICE * SILVER_NISAB_GRAMS;
     const totalZakat = totalWealth >= nisab ? totalWealth * 0.025 : 0;
 
     return {
@@ -28,15 +26,41 @@ export function QuickCalculatorForm() {
     const [goldValue, setGoldValue] = useState('');
     const [debt, setDebt] = useState('');
     const [result, setResult] = useState<ZakatCalculationResult | null>(null);
+    const nisabMethod = useNisabSettingsStore((state) => state.nisabMethod);
+    const silverPricePerGram = useNisabSettingsStore((state) => state.silverPricePerGram);
+    const goldPricePerGram = useNisabSettingsStore((state) => state.goldPricePerGram);
+    const nisabOverride = useNisabSettingsStore((state) => state.nisabOverride);
 
-    const handleCalculate = () => {
+    const calculateResult = () => {
         const parsedCash = parseFloat(cash) || 0;
         const parsedGoldValue = parseFloat(goldValue) || 0;
         const parsedDebt = parseFloat(debt) || 0;
-        const calculationResult = calculateQuickResult(parsedCash, parsedGoldValue, parsedDebt);
-
-        setResult(calculationResult);
+        const nisab = calculateNisab({
+            nisabMethod,
+            silverPricePerGram,
+            goldPricePerGram,
+            nisabOverride,
+        });
+        return calculateQuickResult(parsedCash, parsedGoldValue, parsedDebt, nisab);
     };
+
+    const handleCalculate = () => {
+        setResult(calculateResult());
+    };
+
+    useEffect(() => {
+        if (!result) {
+            return;
+        }
+        setResult(calculateResult());
+    }, [nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride]);
+
+    const nisabExplanation = getNisabBreakdown({
+        nisabMethod,
+        silverPricePerGram,
+        goldPricePerGram,
+        nisabOverride,
+    }).detailSummary;
 
     return (
         <ScrollView style={styles.container}>
@@ -79,7 +103,7 @@ export function QuickCalculatorForm() {
 
             <Button title="Calculate Zakat" onPress={handleCalculate} />
 
-            <ZakatResultCard result={result} />
+            <ZakatResultCard result={result} nisabExplanation={nisabExplanation} />
         </ScrollView>
     );
 }
