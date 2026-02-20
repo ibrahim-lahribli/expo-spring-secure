@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,20 +13,185 @@ import {
   calculateSalaryZakat,
   type ZakatCalculationResult,
 } from "../../../lib/zakat-calculation";
-import { getNisabBreakdown } from "../../../lib/zakat-calculation/nisab";
+import { calculateNisab, getNisabBreakdown } from "../../../lib/zakat-calculation/nisab";
 import { useNisabSettingsStore } from "../../../store/nisabSettingsStore";
 
 const DEFAULT_SILVER_PRICE_PER_GRAM = 12;
 const DEFAULT_GOLD_PRICE_PER_GRAM = 800;
+const LIVESTOCK_UNIT_VALUE = 1200;
+const STANDARD_ZAKAT_RATE = 0.025;
 
 type DraftValue = {
   value?: number;
   isValid: boolean;
 };
 
+type CategoryId = "salary" | "livestock";
+
+type SalaryValues = {
+  monthlyIncome: string;
+  livingExpense: string;
+};
+
+type LivestockValues = {
+  animalCount: string;
+};
+
+type CategoryValuesMap = {
+  salary: SalaryValues;
+  livestock: LivestockValues;
+};
+
+type SalaryLineItem = {
+  id: string;
+  category: "salary";
+  values: SalaryValues;
+  result: ZakatCalculationResult;
+};
+
+type LivestockLineItem = {
+  id: string;
+  category: "livestock";
+  values: LivestockValues;
+  result: ZakatCalculationResult;
+};
+
+type LineItem = SalaryLineItem | LivestockLineItem;
+
+type NisabSettingsSnapshot = {
+  nisabMethod: "silver" | "gold";
+  silverPricePerGram: number;
+  goldPricePerGram: number;
+  nisabOverride: number;
+};
+
+type CategoryDefinition<K extends CategoryId> = {
+  label: string;
+  defaultValues: CategoryValuesMap[K];
+  validate: (values: CategoryValuesMap[K]) => string | null;
+  calculate: (
+    values: CategoryValuesMap[K],
+    nisabSettings: NisabSettingsSnapshot,
+  ) => ZakatCalculationResult;
+};
+
+const CATEGORY_ORDER: CategoryId[] = ["salary", "livestock"];
+
+const CATEGORY_DEFS: { [K in CategoryId]: CategoryDefinition<K> } = {
+  salary: {
+    label: "Salary",
+    defaultValues: {
+      monthlyIncome: "",
+      livingExpense: "",
+    },
+    validate: (values) => {
+      const monthlyIncomeValue = Number(values.monthlyIncome);
+      if (!Number.isFinite(monthlyIncomeValue) || monthlyIncomeValue <= 0) {
+        return "Please enter your monthly income.";
+      }
+      return null;
+    },
+    calculate: (values, nisabSettings) =>
+      calculateSalaryZakat({
+        nisabMethod: nisabSettings.nisabMethod,
+        silverPricePerGram:
+          nisabSettings.silverPricePerGram > 0
+            ? nisabSettings.silverPricePerGram
+            : undefined,
+        goldPricePerGram:
+          nisabSettings.goldPricePerGram > 0 ? nisabSettings.goldPricePerGram : undefined,
+        nisabOverride: nisabSettings.nisabOverride > 0 ? nisabSettings.nisabOverride : undefined,
+        salary: {
+          monthlyIncome: parseNonNegative(values.monthlyIncome),
+          livingExpense: parseOptionalPositive(values.livingExpense),
+        },
+      }),
+  },
+  livestock: {
+    label: "Livestock (mock)",
+    defaultValues: {
+      animalCount: "",
+    },
+    validate: (values) => {
+      const animalCount = Number(values.animalCount);
+      if (!Number.isFinite(animalCount) || animalCount <= 0) {
+        return "Please enter a livestock count greater than zero.";
+      }
+      return null;
+    },
+    calculate: (values, nisabSettings) => {
+      const animalCount = parseNonNegative(values.animalCount);
+      const totalWealth = animalCount * LIVESTOCK_UNIT_VALUE;
+      const nisab = calculateNisab({
+        nisabMethod: nisabSettings.nisabMethod,
+        silverPricePerGram:
+          nisabSettings.silverPricePerGram > 0
+            ? nisabSettings.silverPricePerGram
+            : undefined,
+        goldPricePerGram:
+          nisabSettings.goldPricePerGram > 0 ? nisabSettings.goldPricePerGram : undefined,
+        nisabOverride: nisabSettings.nisabOverride > 0 ? nisabSettings.nisabOverride : undefined,
+      });
+      const totalZakat = totalWealth >= nisab ? totalWealth * STANDARD_ZAKAT_RATE : 0;
+
+      return {
+        nisab,
+        totalWealth,
+        totalZakat,
+        hasZakatDue: totalZakat > 0,
+        breakdown: {},
+      };
+    },
+  },
+};
+
+function parseNonNegative(value: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+  return parsed;
+}
+
+function parseOptionalPositive(value: string): number | undefined {
+  if (!value.trim()) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+  return parsed;
+}
+
+function buildLineItemId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getInitialValuesByCategory(): CategoryValuesMap {
+  return {
+    salary: { ...CATEGORY_DEFS.salary.defaultValues },
+    livestock: { ...CATEGORY_DEFS.livestock.defaultValues },
+  };
+}
+
+function recalculateLineItem(
+  item: LineItem,
+  nisabSettings: NisabSettingsSnapshot,
+): ZakatCalculationResult {
+  if (item.category === "salary") {
+    return CATEGORY_DEFS.salary.calculate(item.values, nisabSettings);
+  }
+  return CATEGORY_DEFS.livestock.calculate(item.values, nisabSettings);
+}
+
 export default function DetailedCalculateScreen() {
-  const [monthlyIncome, setMonthlyIncome] = useState("");
-  const [livingExpense, setLivingExpense] = useState("");
+  const [activeCategory, setActiveCategory] = useState<CategoryId>("salary");
+  const [valuesByCategory, setValuesByCategory] = useState<CategoryValuesMap>(
+    getInitialValuesByCategory(),
+  );
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [isCategoryPickerVisible, setIsCategoryPickerVisible] = useState(false);
   const nisabMethod = useNisabSettingsStore((state) => state.nisabMethod);
   const silverPricePerGram = useNisabSettingsStore((state) => state.silverPricePerGram);
   const goldPricePerGram = useNisabSettingsStore((state) => state.goldPricePerGram);
@@ -34,9 +200,7 @@ export default function DetailedCalculateScreen() {
   const setSilverPricePerGram = useNisabSettingsStore(
     (state) => state.setSilverPricePerGram,
   );
-  const setGoldPricePerGram = useNisabSettingsStore(
-    (state) => state.setGoldPricePerGram,
-  );
+  const setGoldPricePerGram = useNisabSettingsStore((state) => state.setGoldPricePerGram);
   const setNisabOverride = useNisabSettingsStore((state) => state.setNisabOverride);
   const [isNisabAdvancedOpen, setIsNisabAdvancedOpen] = useState(false);
   const [draftNisabMethod, setDraftNisabMethod] = useState(nisabMethod);
@@ -44,27 +208,7 @@ export default function DetailedCalculateScreen() {
   const [draftGoldPriceInput, setDraftGoldPriceInput] = useState("");
   const [draftNisabOverrideInput, setDraftNisabOverrideInput] = useState("");
   const [showSavedToast, setShowSavedToast] = useState(false);
-  const [result, setResult] = useState<ZakatCalculationResult | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-
-  const parseNonNegative = (value: string): number => {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      return 0;
-    }
-    return parsed;
-  };
-
-  const parseOptionalPositive = (value: string): number | undefined => {
-    if (!value.trim()) {
-      return undefined;
-    }
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return undefined;
-    }
-    return parsed;
-  };
 
   const parseDraftOptionalPositive = (value: string): DraftValue => {
     if (!value.trim()) {
@@ -104,25 +248,6 @@ export default function DetailedCalculateScreen() {
     return () => clearTimeout(timeout);
   }, [showSavedToast]);
 
-  const calculateResultWithSavedSettings = () =>
-    calculateSalaryZakat({
-      nisabMethod,
-      silverPricePerGram: silverPricePerGram > 0 ? silverPricePerGram : undefined,
-      goldPricePerGram: goldPricePerGram > 0 ? goldPricePerGram : undefined,
-      nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
-      salary: {
-        monthlyIncome: parseNonNegative(monthlyIncome),
-        livingExpense: parseOptionalPositive(livingExpense),
-      },
-    });
-
-  useEffect(() => {
-    if (!result) {
-      return;
-    }
-    setResult(calculateResultWithSavedSettings());
-  }, [nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride]);
-
   const savedNisabBreakdown = useMemo(
     () =>
       getNisabBreakdown({
@@ -134,13 +259,38 @@ export default function DetailedCalculateScreen() {
     [nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride],
   );
 
+  const nisabSettings = useMemo(
+    () => ({
+      nisabMethod,
+      silverPricePerGram,
+      goldPricePerGram,
+      nisabOverride,
+    }),
+    [nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride],
+  );
+
+  useEffect(() => {
+    if (lineItems.length === 0) {
+      return;
+    }
+    setLineItems((prev) =>
+      prev.map((item) => ({
+        ...item,
+        result: recalculateLineItem(item, nisabSettings),
+      })),
+    );
+  }, [nisabSettings, lineItems.length]);
+
+  const combinedTotal = useMemo(
+    () => lineItems.reduce((sum, item) => sum + item.result.totalZakat, 0),
+    [lineItems],
+  );
+
   const draftSilverParsed = parseDraftOptionalPositive(draftSilverPriceInput);
   const draftGoldParsed = parseDraftOptionalPositive(draftGoldPriceInput);
   const draftOverrideParsed = parseDraftOptionalPositive(draftNisabOverrideInput);
   const advancedFormValid =
-    draftSilverParsed.isValid &&
-    draftGoldParsed.isValid &&
-    draftOverrideParsed.isValid;
+    draftSilverParsed.isValid && draftGoldParsed.isValid && draftOverrideParsed.isValid;
   const silverToSave = draftSilverParsed.value ?? DEFAULT_SILVER_PRICE_PER_GRAM;
   const goldToSave = draftGoldParsed.value ?? DEFAULT_GOLD_PRICE_PER_GRAM;
   const overrideToSave = draftOverrideParsed.value ?? 0;
@@ -176,23 +326,76 @@ export default function DetailedCalculateScreen() {
     setIsNisabAdvancedOpen(false);
   };
 
+  const resetCategoryForm = (category: CategoryId) => {
+    if (category === "salary") {
+      setValuesByCategory((prev) => ({
+        ...prev,
+        salary: { ...CATEGORY_DEFS.salary.defaultValues },
+      }));
+      return;
+    }
+    setValuesByCategory((prev) => ({
+      ...prev,
+      livestock: { ...CATEGORY_DEFS.livestock.defaultValues },
+    }));
+  };
+
+  const handleSelectCategory = (category: CategoryId) => {
+    setActiveCategory(category);
+    resetCategoryForm(category);
+    setValidationError(null);
+    setIsCategoryPickerVisible(false);
+  };
+
   const handleCalculate = () => {
     setValidationError(null);
-    setResult(null);
 
-    const monthlyIncomeValue = parseNonNegative(monthlyIncome);
-    if (monthlyIncomeValue <= 0) {
-      setValidationError("Please enter your monthly income.");
+    if (activeCategory === "salary") {
+      const salaryValues = valuesByCategory.salary;
+      const maybeError = CATEGORY_DEFS.salary.validate(salaryValues);
+      if (maybeError) {
+        setValidationError(maybeError);
+        return;
+      }
+      const result = CATEGORY_DEFS.salary.calculate(salaryValues, nisabSettings);
+      setLineItems((prev) => [
+        ...prev,
+        {
+          id: buildLineItemId(),
+          category: "salary",
+          values: { ...salaryValues },
+          result,
+        },
+      ]);
       return;
     }
 
-    setResult(calculateResultWithSavedSettings());
+    const livestockValues = valuesByCategory.livestock;
+    const maybeError = CATEGORY_DEFS.livestock.validate(livestockValues);
+    if (maybeError) {
+      setValidationError(maybeError);
+      return;
+    }
+    const result = CATEGORY_DEFS.livestock.calculate(livestockValues, nisabSettings);
+    setLineItems((prev) => [
+      ...prev,
+      {
+        id: buildLineItemId(),
+        category: "livestock",
+        values: { ...livestockValues },
+        result,
+      },
+    ]);
+  };
+
+  const handleRemoveLineItem = (id: string) => {
+    setLineItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Detailed Calculate</Text>
-      <Text style={styles.subtitle}>Salary category only</Text>
+      <Text style={styles.subtitle}>Single active form with stacked category results</Text>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Nisab Settings</Text>
@@ -235,10 +438,7 @@ export default function DetailedCalculateScreen() {
               </Text>
             </Pressable>
           </View>
-          <Pressable
-            hitSlop={8}
-            onPress={() => setIsNisabAdvancedOpen((prev) => !prev)}
-          >
+          <Pressable hitSlop={8} onPress={() => setIsNisabAdvancedOpen((prev) => !prev)}>
             <Text style={styles.advancedBtnText}>
               {isNisabAdvancedOpen ? "Collapse" : "Advanced"}
             </Text>
@@ -299,25 +499,64 @@ export default function DetailedCalculateScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Salary</Text>
+        <Text style={styles.sectionTitle}>Category</Text>
+        <Pressable style={styles.categoryPickerBtn} onPress={() => setIsCategoryPickerVisible(true)}>
+          <Text style={styles.categoryPickerText}>{CATEGORY_DEFS[activeCategory].label}</Text>
+          <Text style={styles.categoryPickerAction}>Change</Text>
+        </Pressable>
 
-        <Text style={styles.label}>Monthly Income</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="numeric"
-          value={monthlyIncome}
-          onChangeText={setMonthlyIncome}
-          placeholder="0.00"
-        />
+        {activeCategory === "salary" ? (
+          <>
+            <Text style={styles.label}>Monthly Income</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={valuesByCategory.salary.monthlyIncome}
+              onChangeText={(text) =>
+                setValuesByCategory((prev) => ({
+                  ...prev,
+                  salary: { ...prev.salary, monthlyIncome: text },
+                }))
+              }
+              placeholder="0.00"
+            />
 
-        <Text style={styles.label}>Monthly Living Expense (optional)</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="numeric"
-          value={livingExpense}
-          onChangeText={setLivingExpense}
-          placeholder="3266"
-        />
+            <Text style={styles.label}>Monthly Living Expense (optional)</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={valuesByCategory.salary.livingExpense}
+              onChangeText={(text) =>
+                setValuesByCategory((prev) => ({
+                  ...prev,
+                  salary: { ...prev.salary, livingExpense: text },
+                }))
+              }
+              placeholder="3266"
+            />
+          </>
+        ) : null}
+
+        {activeCategory === "livestock" ? (
+          <>
+            <Text style={styles.label}>Number of Livestock (mock)</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={valuesByCategory.livestock.animalCount}
+              onChangeText={(text) =>
+                setValuesByCategory((prev) => ({
+                  ...prev,
+                  livestock: { ...prev.livestock, animalCount: text },
+                }))
+              }
+              placeholder="0"
+            />
+            <Text style={styles.compactCaption}>
+              Mock category: each animal is treated as 1200 in wealth value.
+            </Text>
+          </>
+        ) : null}
       </View>
 
       {validationError ? (
@@ -330,30 +569,78 @@ export default function DetailedCalculateScreen() {
         <Text style={styles.calculateBtnText}>Calculate Zakat</Text>
       </TouchableOpacity>
 
-      {result ? (
+      {lineItems.length > 0 ? (
+        <TouchableOpacity
+          style={styles.secondaryBtn}
+          onPress={() => setIsCategoryPickerVisible(true)}
+        >
+          <Text style={styles.secondaryBtnText}>Add another category</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {lineItems.length > 0 ? (
         <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>Salary Result</Text>
-          <Row label="Nisab Threshold" value={result.nisab} />
+          <Text style={styles.resultTitle}>Category Breakdown</Text>
           <View style={styles.nisabBreakdownSection}>
             <Text style={styles.nisabBreakdownTitle}>How this was calculated</Text>
-            <Text style={styles.nisabBreakdownText}>
-              {savedNisabBreakdown.detailSummary}
-            </Text>
+            <Text style={styles.nisabBreakdownText}>{savedNisabBreakdown.detailSummary}</Text>
           </View>
-          <Row label="Net Yearly Wealth" value={result.totalWealth} />
-          <Row label="Total Zakat Due" value={result.totalZakat} />
-          {!result.hasZakatDue ? (
-            <Text style={styles.infoText}>
-              No Zakat is due because your net wealth is below Nisab.
-            </Text>
-          ) : null}
+
+          {lineItems.map((item) => (
+            <View key={item.id} style={styles.lineItemCard}>
+              <View style={styles.lineItemHeader}>
+                <Text style={styles.lineItemTitle}>{CATEGORY_DEFS[item.category].label}</Text>
+                <Pressable onPress={() => handleRemoveLineItem(item.id)}>
+                  <Text style={styles.removeBtnText}>Remove</Text>
+                </Pressable>
+              </View>
+              <Row label="Nisab Threshold" value={item.result.nisab} />
+              <Row label="Net Wealth" value={item.result.totalWealth} />
+              <Row label="Zakat Due" value={item.result.totalZakat} />
+              {!item.result.hasZakatDue ? (
+                <Text style={styles.infoText}>Below nisab. Zakat due is 0.</Text>
+              ) : null}
+            </View>
+          ))}
+
+          <View style={styles.totalDivider} />
+          <Row label="Combined Total Zakat Due" value={combinedTotal} />
         </View>
       ) : null}
+
       {showSavedToast ? (
         <View style={styles.toast}>
           <Text style={styles.toastText}>Nisab settings saved</Text>
         </View>
       ) : null}
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={isCategoryPickerVisible}
+        onRequestClose={() => setIsCategoryPickerVisible(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setIsCategoryPickerVisible(false)}>
+          <Pressable style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Select a category</Text>
+            {CATEGORY_ORDER.map((category) => (
+              <Pressable
+                key={category}
+                style={styles.modalOption}
+                onPress={() => handleSelectCategory(category)}
+              >
+                <Text style={styles.modalOptionText}>{CATEGORY_DEFS[category].label}</Text>
+              </Pressable>
+            ))}
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setIsCategoryPickerVisible(false)}
+            >
+              <Text style={styles.modalCloseBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -467,6 +754,28 @@ const styles = StyleSheet.create({
     color: "#666",
     fontWeight: "600",
   },
+  categoryPickerBtn: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+  },
+  categoryPickerText: {
+    color: "#1f1f1f",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  categoryPickerAction: {
+    color: "#007AFF",
+    fontWeight: "700",
+    fontSize: 14,
+  },
   errorBox: {
     backgroundColor: "#FFF3F3",
     borderWidth: 1,
@@ -484,6 +793,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   calculateBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  secondaryBtn: {
+    borderWidth: 1,
+    borderColor: "#007AFF",
+    borderRadius: 10,
+    alignItems: "center",
+    paddingVertical: 12,
+    marginBottom: 12,
+    backgroundColor: "#fff",
+  },
+  secondaryBtnText: {
+    color: "#007AFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
   resultCard: {
     backgroundColor: "#fff",
     borderRadius: 12,
@@ -516,6 +839,74 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 13,
     color: "#666",
+  },
+  lineItemCard: {
+    borderWidth: 1,
+    borderColor: "#ececec",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+  },
+  lineItemHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  lineItemTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1f1f1f",
+  },
+  removeBtnText: {
+    color: "#C30000",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  totalDivider: {
+    borderTopWidth: 1,
+    borderTopColor: "#ececec",
+    marginVertical: 8,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+  },
+  modalTitle: {
+    fontSize: 16,
+    color: "#1f1f1f",
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+  modalOption: {
+    borderWidth: 1,
+    borderColor: "#ececec",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+  },
+  modalOptionText: {
+    color: "#1f1f1f",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  modalCloseBtn: {
+    marginTop: 4,
+    alignSelf: "flex-end",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  modalCloseBtnText: {
+    color: "#666",
+    fontWeight: "700",
   },
   toast: {
     position: "absolute",
