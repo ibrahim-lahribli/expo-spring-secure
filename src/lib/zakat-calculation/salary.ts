@@ -3,11 +3,8 @@ import type {
   SalaryZakatInput,
   ZakatCalculationResult,
 } from "./types";
+import { calculateNisab, type NisabInput } from "./nisab";
 
-const DEFAULT_SILVER_PRICE = 12;
-const DEFAULT_GOLD_PRICE = 800;
-const SILVER_NISAB_GRAMS = 595;
-const GOLD_NISAB_GRAMS = 85;
 const STANDARD_ZAKAT_RATE = 0.025;
 const MINIMUM_LIVING_EXPENSE_MAD = 3266;
 
@@ -19,34 +16,19 @@ function toNonNegativeNumber(value: unknown): number {
   return parsed;
 }
 
-function calculateNisab(input: SalaryZakatInput): number {
-  const override = toNonNegativeNumber(input.nisabOverride);
-  if (override > 0) {
-    return override;
-  }
-
-  if (input.nisabMethod === "gold") {
-    const goldPrice = toNonNegativeNumber(input.goldPricePerGram) || DEFAULT_GOLD_PRICE;
-    return goldPrice * GOLD_NISAB_GRAMS;
-  }
-
-  const silverPrice =
-    toNonNegativeNumber(input.silverPricePerGram) || DEFAULT_SILVER_PRICE;
-  return silverPrice * SILVER_NISAB_GRAMS;
-}
-
 function calculateSalaryBreakdown(input: SalaryZakatInput): CategoryZakatResult {
   const monthlyIncome = toNonNegativeNumber(input.salary.monthlyIncome);
   const monthlyExpense =
     input.salary.livingExpense === undefined
       ? MINIMUM_LIVING_EXPENSE_MAD
       : toNonNegativeNumber(input.salary.livingExpense);
+  const calculationMode = input.salary.calculationMode ?? "annual";
+  const netWealth =
+    calculationMode === "monthly"
+      ? Math.max(0, monthlyIncome - monthlyExpense)
+      : Math.max(0, monthlyIncome * 12 - monthlyExpense * 12);
 
-  const yearlyIncome = monthlyIncome * 12;
-  const yearlyExpenses = monthlyExpense * 12;
-  const netWealth = Math.max(0, yearlyIncome - yearlyExpenses);
-
-  const nisab = calculateNisab(input);
+  const nisab = calculateNisab(toNisabInput(input));
   const zakatAmount = netWealth >= nisab ? netWealth * STANDARD_ZAKAT_RATE : 0;
 
   return {
@@ -59,7 +41,7 @@ function calculateSalaryBreakdown(input: SalaryZakatInput): CategoryZakatResult 
 export function calculateSalaryZakat(
   input: SalaryZakatInput,
 ): ZakatCalculationResult {
-  const nisab = calculateNisab(input);
+  const nisab = calculateNisab(toNisabInput(input));
   const salaryResult = calculateSalaryBreakdown(input);
 
   return {
@@ -70,5 +52,14 @@ export function calculateSalaryZakat(
     breakdown: {
       salary: salaryResult,
     },
+  };
+}
+
+function toNisabInput(input: SalaryZakatInput): NisabInput {
+  return {
+    nisabMethod: input.nisabMethod ?? "silver",
+    silverPricePerGram: input.silverPricePerGram,
+    goldPricePerGram: input.goldPricePerGram,
+    nisabOverride: input.nisabOverride,
   };
 }

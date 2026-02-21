@@ -4,9 +4,10 @@ import { ZakatCalculationResult } from '../../lib/zakat-calculation/types';
 
 interface ZakatResultCardProps {
     result: ZakatCalculationResult | null;
+    nisabExplanation?: string;
 }
 
-export function ZakatResultCard({ result }: ZakatResultCardProps) {
+export function ZakatResultCard({ result, nisabExplanation }: ZakatResultCardProps) {
     if (!result) return null;
 
     return (
@@ -22,6 +23,12 @@ export function ZakatResultCard({ result }: ZakatResultCardProps) {
                 <Text style={styles.label}>Nisab Threshold:</Text>
                 <Text style={styles.value}>{result.nisab.toFixed(2)}</Text>
             </View>
+            {nisabExplanation ? (
+                <View style={styles.breakdownSection}>
+                    <Text style={styles.breakdownTitle}>How this was calculated</Text>
+                    <Text style={styles.breakdownText}>{nisabExplanation}</Text>
+                </View>
+            ) : null}
 
             <View style={[styles.row, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Zakat Due:</Text>
@@ -61,6 +68,19 @@ const styles = StyleSheet.create({
     value: {
         fontSize: 16,
         fontWeight: '500',
+    },
+    breakdownSection: {
+        marginBottom: 8,
+    },
+    breakdownTitle: {
+        fontSize: 13,
+        color: '#555',
+        marginBottom: 2,
+        fontWeight: '600',
+    },
+    breakdownText: {
+        fontSize: 13,
+        color: '#666',
     },
     totalRow: {
         marginTop: 8,
