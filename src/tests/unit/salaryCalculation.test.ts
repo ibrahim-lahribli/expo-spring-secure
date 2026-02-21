@@ -42,6 +42,31 @@ describe("calculateSalaryZakat", () => {
     expect(result.hasZakatDue).toBe(true);
   });
 
+  it("supports monthly mode and only charges when monthly net reaches nisab", () => {
+    const belowMonthlyNisab = calculateSalaryZakat({
+      salary: {
+        monthlyIncome: 10000,
+        calculationMode: "monthly",
+      },
+    });
+
+    expect(belowMonthlyNisab.nisab).toBe(7140);
+    expect(belowMonthlyNisab.totalWealth).toBe(6734);
+    expect(belowMonthlyNisab.totalZakat).toBe(0);
+    expect(belowMonthlyNisab.hasZakatDue).toBe(false);
+
+    const aboveMonthlyNisab = calculateSalaryZakat({
+      salary: {
+        monthlyIncome: 11000,
+        calculationMode: "monthly",
+      },
+    });
+
+    expect(aboveMonthlyNisab.totalWealth).toBe(7734);
+    expect(aboveMonthlyNisab.totalZakat).toBeCloseTo(193.35);
+    expect(aboveMonthlyNisab.hasZakatDue).toBe(true);
+  });
+
   it("sanitizes negative and invalid numbers", () => {
     const result = calculateSalaryZakat({
       silverPricePerGram: Number.NaN,

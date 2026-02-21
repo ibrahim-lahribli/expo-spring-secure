@@ -22,10 +22,11 @@ function calculateSalaryBreakdown(input: SalaryZakatInput): CategoryZakatResult 
     input.salary.livingExpense === undefined
       ? MINIMUM_LIVING_EXPENSE_MAD
       : toNonNegativeNumber(input.salary.livingExpense);
-
-  const yearlyIncome = monthlyIncome * 12;
-  const yearlyExpenses = monthlyExpense * 12;
-  const netWealth = Math.max(0, yearlyIncome - yearlyExpenses);
+  const calculationMode = input.salary.calculationMode ?? "annual";
+  const netWealth =
+    calculationMode === "monthly"
+      ? Math.max(0, monthlyIncome - monthlyExpense)
+      : Math.max(0, monthlyIncome * 12 - monthlyExpense * 12);
 
   const nisab = calculateNisab(toNisabInput(input));
   const zakatAmount = netWealth >= nisab ? netWealth * STANDARD_ZAKAT_RATE : 0;

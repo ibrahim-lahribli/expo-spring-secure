@@ -15,6 +15,7 @@ import {
 import {
   calcCashEquivalent,
   calcLivestockZakat,
+  calculateProduceZakat,
   calculateSalaryZakat,
   getDueItemLabel,
   getDueItemPriceKey,
@@ -23,17 +24,29 @@ import {
   type DueItemPriceKey,
   type DueItemPrices,
   type LivestockType,
+  type ProduceWateringMethod,
   type ZakatCalculationResult,
 } from "../../../lib/zakat-calculation";
-import { getNisabBreakdown } from "../../../lib/zakat-calculation/nisab";
+import { calculateNisab, getNisabBreakdown } from "../../../lib/zakat-calculation/nisab";
 import { useNisabSettingsStore } from "../../../store/nisabSettingsStore";
 
 const DEFAULT_SILVER_PRICE_PER_GRAM = 12;
 const DEFAULT_GOLD_PRICE_PER_GRAM = 800;
 
-type CategoryId = "salary" | "livestock";
+type CategoryId = "salary" | "livestock" | "produce" | "agri_other" | "trade_sector" | "industrial_sector" | "debt";
 type LivestockPaymentMethod = "in_kind" | "cash";
-type SalaryValues = { monthlyIncome: string; livingExpense: string };
+type SalaryCalculationMode = "annual" | "monthly";
+type SalaryValues = { monthlyIncome: string; livingExpense: string; calculationMode: SalaryCalculationMode };
+type AgriOtherValues = { marketValue: string; operatingCosts: string };
+type TradeSectorValues = { marketValue: string; operatingCosts: string };
+type IndustrialSectorValues = { marketValue: string; operatingCosts: string };
+type ProduceValues = {
+  isForTrade: boolean;
+  quantityKg: string;
+  marketValue: string;
+  pricePerKg: string;
+  wateringMethod: ProduceWateringMethod;
+};
 type LivestockValues = {
   livestockType: LivestockType;
   ownedCount: number;
@@ -42,6 +55,32 @@ type LivestockValues = {
   prices: DueItemPrices;
 };
 type SalaryLineItem = { id: string; category: "salary"; values: SalaryValues; result: ZakatCalculationResult };
+type AgriOtherLineItem = {
+  id: string;
+  category: "agri_other";
+  values: AgriOtherValues;
+  result: ZakatCalculationResult;
+};
+type TradeSectorLineItem = {
+  id: string;
+  category: "trade_sector";
+  values: TradeSectorValues;
+  result: ZakatCalculationResult;
+};
+type IndustrialSectorLineItem = {
+  id: string;
+  category: "industrial_sector";
+  values: IndustrialSectorValues;
+  result: ZakatCalculationResult;
+};
+type ProduceLineItem = {
+  id: string;
+  category: "produce";
+  values: ProduceValues;
+  result: ZakatCalculationResult;
+  dueQuantityKg?: number;
+  cashEquivalent?: number;
+};
 type LivestockLineItem = {
   id: string;
   category: "livestock";
@@ -50,9 +89,23 @@ type LivestockLineItem = {
   dueItems: DueItem[];
   dueText: string;
 };
-type LineItem = SalaryLineItem | LivestockLineItem;
+type LineItem =
+  | SalaryLineItem
+  | LivestockLineItem
+  | ProduceLineItem
+  | AgriOtherLineItem
+  | TradeSectorLineItem
+  | IndustrialSectorLineItem;
 
-const CATEGORY_LABELS: Record<CategoryId, string> = { salary: "Salary", livestock: "Livestock" };
+const CATEGORY_LABELS: Record<CategoryId, string> = {
+  debt: "Debt is of two kinds",
+  industrial_sector: "Industrial Sector",
+  salary: "Services Sector (Salaries and Service Income)",
+  livestock: "Livestock",
+  produce: "Grains and Fruits (Agricultural Produce)",
+  agri_other: "Agricultural Products (Other than Grains/Fruits)",
+  trade_sector: "Trade Sector and Related Activities (قطاع التجارة وتوابعها)",
+};
 const LIVESTOCK_LABELS: Record<LivestockType, string> = {
   camels: "Camels",
   cattle: "Cattle",
@@ -99,6 +152,25 @@ const defaultLivestockForm: LivestockForm = {
   camel121Choice: "2_hiqqah",
   prices: {},
 };
+const defaultProduceValues: ProduceValues = {
+  isForTrade: false,
+  quantityKg: "",
+  marketValue: "",
+  pricePerKg: "",
+  wateringMethod: "natural",
+};
+const defaultAgriOtherValues: AgriOtherValues = {
+  marketValue: "",
+  operatingCosts: "",
+};
+const defaultTradeSectorValues: TradeSectorValues = {
+  marketValue: "",
+  operatingCosts: "",
+};
+const defaultIndustrialSectorValues: IndustrialSectorValues = {
+  marketValue: "",
+  operatingCosts: "",
+};
 
 function parseOptionalPositive(v: string): number | undefined {
   if (!v.trim()) return undefined;
@@ -123,10 +195,69 @@ function buildId() {
 function requiredPriceKeys(dueItems: DueItem[]): DueItemPriceKey[] {
   return Array.from(new Set(dueItems.map((item) => getDueItemPriceKey(item))));
 }
+function calculateAgriOtherZakat(input: {
+  nisabMethod: "silver" | "gold";
+  silverPricePerGram: number;
+  goldPricePerGram: number;
+  nisabOverride?: number;
+  marketValue: number;
+  operatingCosts: number;
+}): ZakatCalculationResult {
+  const nisab = calculateNisab({
+    nisabMethod: input.nisabMethod,
+    silverPricePerGram: input.silverPricePerGram,
+    goldPricePerGram: input.goldPricePerGram,
+    nisabOverride: input.nisabOverride,
+  });
+  const netValue = Math.max(0, input.marketValue - input.operatingCosts);
+  const totalZakat = netValue >= nisab ? netValue * 0.025 : 0;
+  return {
+    nisab,
+    totalWealth: netValue,
+    totalZakat,
+    hasZakatDue: totalZakat > 0,
+    breakdown: {},
+  };
+}
+
+function calculateTradeSectorZakat(input: {
+  nisabMethod: "silver" | "gold";
+  silverPricePerGram: number;
+  goldPricePerGram: number;
+  nisabOverride?: number;
+  marketValue: number;
+  operatingCosts: number;
+}): ZakatCalculationResult {
+  const nisab = calculateNisab({
+    nisabMethod: input.nisabMethod,
+    silverPricePerGram: input.silverPricePerGram,
+    goldPricePerGram: input.goldPricePerGram,
+    nisabOverride: input.nisabOverride,
+  });
+  const netValue = Math.max(0, input.marketValue - input.operatingCosts);
+  const totalZakat = netValue >= nisab ? netValue * 0.025 : 0;
+  return {
+    nisab,
+    totalWealth: netValue,
+    totalZakat,
+    hasZakatDue: totalZakat > 0,
+    breakdown: {},
+  };
+}
 
 export default function DetailedCalculateScreen() {
   const [activeCategory, setActiveCategory] = useState<CategoryId>("salary");
-  const [salaryValues, setSalaryValues] = useState<SalaryValues>({ monthlyIncome: "", livingExpense: "" });
+  const [salaryValues, setSalaryValues] = useState<SalaryValues>({
+    monthlyIncome: "",
+    livingExpense: "",
+    calculationMode: "annual",
+  });
+  const [agriOtherValues, setAgriOtherValues] = useState<AgriOtherValues>(defaultAgriOtherValues);
+  const [tradeSectorValues, setTradeSectorValues] = useState<TradeSectorValues>(defaultTradeSectorValues);
+  const [industrialSectorValues, setIndustrialSectorValues] = useState<IndustrialSectorValues>(
+    defaultIndustrialSectorValues,
+  );
+  const [produceValues, setProduceValues] = useState<ProduceValues>(defaultProduceValues);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [isCategoryPickerVisible, setIsCategoryPickerVisible] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -206,10 +337,83 @@ export default function DetailedCalculateScreen() {
                 salary: {
                   monthlyIncome: toNonNegative(item.values.monthlyIncome),
                   livingExpense: parseOptionalPositive(item.values.livingExpense),
+                  calculationMode: item.values.calculationMode,
                 },
               }),
             }
-          : item,
+          : item.category === "produce"
+            ? {
+                ...item,
+                ...(() => {
+                  const produceResult = calculateProduceZakat({
+                    nisabMethod,
+                    silverPricePerGram,
+                    goldPricePerGram,
+                    nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+                    produce: {
+                      isForTrade: item.values.isForTrade,
+                      quantityKg: toNonNegative(item.values.quantityKg),
+                      marketValue: toNonNegative(item.values.marketValue),
+                      wateringMethod: item.values.wateringMethod,
+                    },
+                  });
+                  if (item.values.isForTrade) {
+                    return {
+                      result: produceResult,
+                      dueQuantityKg: undefined,
+                      cashEquivalent: produceResult.totalZakat,
+                    };
+                  }
+                  const dueKg = produceResult.totalZakat;
+                  const pricePerKg = parseOptionalPositive(item.values.pricePerKg);
+                  const cashEquivalent = pricePerKg ? dueKg * pricePerKg : undefined;
+                  return {
+                    result: {
+                      ...produceResult,
+                      totalZakat: cashEquivalent ?? 0,
+                    },
+                    dueQuantityKg: dueKg,
+                    cashEquivalent,
+                  };
+                })(),
+              }
+            : item.category === "agri_other"
+              ? {
+                  ...item,
+                  result: calculateAgriOtherZakat({
+                    nisabMethod,
+                    silverPricePerGram,
+                    goldPricePerGram,
+                    nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+                    marketValue: toNonNegative(item.values.marketValue),
+                    operatingCosts: toNonNegative(item.values.operatingCosts),
+                  }),
+                }
+              : item.category === "trade_sector"
+                ? {
+                    ...item,
+                    result: calculateTradeSectorZakat({
+                      nisabMethod,
+                      silverPricePerGram,
+                      goldPricePerGram,
+                      nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+                      marketValue: toNonNegative(item.values.marketValue),
+                      operatingCosts: toNonNegative(item.values.operatingCosts),
+                    }),
+                  }
+                : item.category === "industrial_sector"
+                  ? {
+                      ...item,
+                      result: calculateTradeSectorZakat({
+                        nisabMethod,
+                        silverPricePerGram,
+                        goldPricePerGram,
+                        nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+                        marketValue: toNonNegative(item.values.marketValue),
+                        operatingCosts: toNonNegative(item.values.operatingCosts),
+                      }),
+                    }
+            : item,
       ),
     );
   }, [nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride, lineItems.length]);
@@ -229,6 +433,7 @@ export default function DetailedCalculateScreen() {
       salary: {
         monthlyIncome: toNonNegative(salaryValues.monthlyIncome),
         livingExpense: parseOptionalPositive(salaryValues.livingExpense),
+        calculationMode: salaryValues.calculationMode,
       },
     });
     setLineItems((p) => [...p, { id: buildId(), category: "salary", values: { ...salaryValues }, result }]);
@@ -265,10 +470,117 @@ export default function DetailedCalculateScreen() {
     setLineItems((p) => [...p, line]);
   });
 
+  const onCalculateProduce = () => {
+    if (produceValues.isForTrade && !(Number(produceValues.marketValue) > 0)) {
+      setValidationError("Please enter the produce market value.");
+      return;
+    }
+    if (!produceValues.isForTrade && !(Number(produceValues.quantityKg) > 0)) {
+      setValidationError("Please enter harvested quantity in kg.");
+      return;
+    }
+
+    const produceResult = calculateProduceZakat({
+      nisabMethod,
+      silverPricePerGram,
+      goldPricePerGram,
+      nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+      produce: {
+        isForTrade: produceValues.isForTrade,
+        quantityKg: toNonNegative(produceValues.quantityKg),
+        marketValue: toNonNegative(produceValues.marketValue),
+        wateringMethod: produceValues.wateringMethod,
+      },
+    });
+
+    if (produceValues.isForTrade) {
+      setLineItems((p) => [
+        ...p,
+        {
+          id: buildId(),
+          category: "produce",
+          values: { ...produceValues },
+          result: produceResult,
+          dueQuantityKg: undefined,
+          cashEquivalent: produceResult.totalZakat,
+        },
+      ]);
+      return;
+    }
+
+    const dueKg = produceResult.totalZakat;
+    const pricePerKg = parseOptionalPositive(produceValues.pricePerKg);
+    const cashEquivalent = pricePerKg ? dueKg * pricePerKg : undefined;
+    setLineItems((p) => [
+      ...p,
+      {
+        id: buildId(),
+        category: "produce",
+        values: { ...produceValues },
+        result: { ...produceResult, totalZakat: cashEquivalent ?? 0 },
+        dueQuantityKg: dueKg,
+        cashEquivalent,
+      },
+    ]);
+  };
+  const onCalculateAgriOther = () => {
+    if (!(Number(agriOtherValues.marketValue) > 0)) {
+      setValidationError("Please enter the market value.");
+      return;
+    }
+    const result = calculateAgriOtherZakat({
+      nisabMethod,
+      silverPricePerGram,
+      goldPricePerGram,
+      nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+      marketValue: toNonNegative(agriOtherValues.marketValue),
+      operatingCosts: toNonNegative(agriOtherValues.operatingCosts),
+    });
+    setLineItems((p) => [...p, { id: buildId(), category: "agri_other", values: { ...agriOtherValues }, result }]);
+  };
+  const onCalculateTradeSector = () => {
+    if (!(Number(tradeSectorValues.marketValue) > 0)) {
+      setValidationError("Please enter the market value.");
+      return;
+    }
+    const result = calculateTradeSectorZakat({
+      nisabMethod,
+      silverPricePerGram,
+      goldPricePerGram,
+      nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+      marketValue: toNonNegative(tradeSectorValues.marketValue),
+      operatingCosts: toNonNegative(tradeSectorValues.operatingCosts),
+    });
+    setLineItems((p) => [...p, { id: buildId(), category: "trade_sector", values: { ...tradeSectorValues }, result }]);
+  };
+  const onCalculateIndustrialSector = () => {
+    if (!(Number(industrialSectorValues.marketValue) > 0)) {
+      setValidationError("Please enter the market value.");
+      return;
+    }
+    const result = calculateTradeSectorZakat({
+      nisabMethod,
+      silverPricePerGram,
+      goldPricePerGram,
+      nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+      marketValue: toNonNegative(industrialSectorValues.marketValue),
+      operatingCosts: toNonNegative(industrialSectorValues.operatingCosts),
+    });
+    setLineItems((p) => [
+      ...p,
+      { id: buildId(), category: "industrial_sector", values: { ...industrialSectorValues }, result },
+    ]);
+  };
+
   const onCalculate = () => {
     setValidationError(null);
     if (activeCategory === "salary") onCalculateSalary();
-    else onCalculateLivestock();
+    else if (activeCategory === "livestock") onCalculateLivestock();
+    else if (activeCategory === "agri_other") onCalculateAgriOther();
+    else if (activeCategory === "trade_sector") onCalculateTradeSector();
+    else if (activeCategory === "industrial_sector") onCalculateIndustrialSector();
+    else if (activeCategory === "debt") return;
+    else onCalculateProduce();
   };
 
   const onSaveNisab = () => {
@@ -313,10 +625,30 @@ export default function DetailedCalculateScreen() {
 
         {activeCategory === "salary" ? (
           <>
-            <TextInput style={styles.input} keyboardType="numeric" value={salaryValues.monthlyIncome} onChangeText={(v) => setSalaryValues((p) => ({ ...p, monthlyIncome: v }))} placeholder="Monthly income" />
-            <TextInput style={styles.input} keyboardType="numeric" value={salaryValues.livingExpense} onChangeText={(v) => setSalaryValues((p) => ({ ...p, livingExpense: v }))} placeholder="Monthly expense (optional)" />
+            <View style={styles.rowWrap}>
+              <Pressable
+                style={[styles.chip, salaryValues.calculationMode === "annual" && styles.chipActive]}
+                onPress={() => setSalaryValues((p) => ({ ...p, calculationMode: "annual" }))}
+              >
+                <Text>Annual mode</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.chip, salaryValues.calculationMode === "monthly" && styles.chipActive]}
+                onPress={() => setSalaryValues((p) => ({ ...p, calculationMode: "monthly" }))}
+              >
+                <Text>Monthly mode</Text>
+              </Pressable>
+            </View>
+            <TextInput style={styles.input} keyboardType="numeric" value={salaryValues.monthlyIncome} onChangeText={(v) => setSalaryValues((p) => ({ ...p, monthlyIncome: v }))} placeholder="Monthly services income" />
+            <TextInput style={styles.input} keyboardType="numeric" value={salaryValues.livingExpense} onChangeText={(v) => setSalaryValues((p) => ({ ...p, livingExpense: v }))} placeholder="Monthly essential expense (optional)" />
+            <Text style={styles.caption}>
+              Scope: salaries/wages and service-based earnings (healthcare, legal, consulting, telecom, media rights, and similar services).
+            </Text>
+            <Text style={styles.caption}>
+              Annual mode: checks yearly net savings against nisab. Monthly mode: checks each month&apos;s net against nisab.
+            </Text>
           </>
-        ) : (
+        ) : activeCategory === "livestock" ? (
           <>
             <Controller control={control} name="livestockType" render={({ field: { value, onChange } }) => (
               <View style={styles.rowWrap}>
@@ -357,11 +689,194 @@ export default function DetailedCalculateScreen() {
             )) : null}
             {paymentMethod === "cash" ? <Text style={styles.caption}>{livestockPreview.cashEquivalent === undefined ? "Cash equivalent: missing price" : `Cash equivalent: ${livestockPreview.cashEquivalent.toFixed(2)}`}</Text> : null}
           </>
+        ) : activeCategory === "agri_other" ? (
+          <>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={agriOtherValues.marketValue}
+              onChangeText={(v) => setAgriOtherValues((p) => ({ ...p, marketValue: v }))}
+              placeholder="Total market/sale value"
+            />
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={agriOtherValues.operatingCosts}
+              onChangeText={(v) => setAgriOtherValues((p) => ({ ...p, operatingCosts: v }))}
+              placeholder="Operating costs/expenses (optional)"
+            />
+            <Text style={styles.caption}>
+              Includes cultivated products for market (vegetables, ornamental/aromatic/medicinal plants, seedlings,
+              animal feed, spices, coffee/tea and by-products), forest products (timber, wood extracts, mushrooms/fungi),
+              fishing products, and traded animal-production activities (horses, poultry, eggs, turkeys, rabbits, beekeeping, pets).
+            </Text>
+            <Text style={styles.caption}>
+              Rule: treated as trade assets. Zakat is on market value, not weight. If net value reaches nisab, due is
+              one quarter of a tenth (2.5%).
+            </Text>
+          </>
+        ) : activeCategory === "trade_sector" ? (
+          <>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={tradeSectorValues.marketValue}
+              onChangeText={(v) => setTradeSectorValues((p) => ({ ...p, marketValue: v }))}
+              placeholder="Total value of trade/business assets"
+            />
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={tradeSectorValues.operatingCosts}
+              onChangeText={(v) => setTradeSectorValues((p) => ({ ...p, operatingCosts: v }))}
+              placeholder="Due operating costs (wages, rent, taxes, etc.)"
+            />
+            <Text style={styles.caption}>
+              Includes commercial exchange of goods (buying/selling products), assets with financial value, and lawful
+              wealth that can be converted into money.
+            </Text>
+            <Text style={styles.caption}>
+              Also includes trading in stocks (shares), trading in currencies, and income/proceeds of commercial
+              companies and similar business earnings.
+            </Text>
+            <Text style={styles.caption}>
+              Calculation: subtract due business expenses (workers&apos; wages, rent, taxes already due before zakat date,
+              and similar operating costs), then pay 2.5% (one quarter of a tenth) if the remaining amount reaches nisab.
+            </Text>
+          </>
+        ) : activeCategory === "industrial_sector" ? (
+          <>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={industrialSectorValues.marketValue}
+              onChangeText={(v) => setIndustrialSectorValues((p) => ({ ...p, marketValue: v }))}
+              placeholder="Total value of industrial/manufacturing assets/output"
+            />
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={industrialSectorValues.operatingCosts}
+              onChangeText={(v) => setIndustrialSectorValues((p) => ({ ...p, operatingCosts: v }))}
+              placeholder="Production costs (raw materials, manufacturing, etc.)"
+            />
+            <Text style={styles.caption}>
+              Includes food manufacturing (food products and canned foods, canned meat/fruit, processed foods, oils/fats,
+              tomato sauce, nuts, jam, pickles, jellies, juice concentrates, plant/animal oils and fats, dairy, beverages, etc.).
+              Also includes construction/building materials, metal, mechanical, chemical, electronics, textile, leather,
+              printing/copying, energy industries/equipment, and furniture manufacturing (all types).
+            </Text>
+            <Text style={styles.caption}>
+              Rule: treated as commercial/productive business assets, not crop-harvest zakat. Determine industrial value,
+              deduct production costs (raw materials, manufacturing expenses, and similar costs), then if net value reaches
+              nisab pay 2.5% (one quarter of a tenth).
+            </Text>
+          </>
+        ) : activeCategory === "debt" ? (
+          <>
+            <Text style={styles.caption}>The fatwa says debt is either:</Text>
+            <Text style={styles.caption}>1) Debt owed to you (someone owes you money), or</Text>
+            <Text style={styles.caption}>2) Debt you owe to others</Text>
+
+            <Text style={styles.caption}>1) Debt owed to you (الذي لك)</Text>
+            <Text style={styles.caption}>This is divided into two types:</Text>
+            <Text style={styles.caption}>A) Collectible / expected debt (دين مرجو)</Text>
+            <Text style={styles.caption}>This is when the person who owes you money is known to repay and financially able to pay (solvent).</Text>
+            <Text style={styles.caption}>Zakat ruling:</Text>
+            <Text style={styles.caption}>If repayment is near the zakat year (hawl), include it and pay zakat on it.</Text>
+            <Text style={styles.caption}>If repayment is far (not expected soon), pay zakat when you actually receive it.</Text>
+            <Text style={styles.caption}>Simple meaning: if the debt is realistically recoverable soon, treat it like your zakatable wealth. If not soon, then pay when it comes in.</Text>
+
+            <Text style={styles.caption}>B) Uncollectible / doubtful debt (دين ميؤوس منه)</Text>
+            <Text style={styles.caption}>This is when the debtor is always in hardship/insolvent, or known for not repaying.</Text>
+            <Text style={styles.caption}>Zakat ruling: no zakat on this debt unless you actually receive it.</Text>
+            <Text style={styles.caption}>Simple meaning: if the money is basically not expected, you do not pay zakat on it while it is stuck. You only deal with zakat when/if it is finally collected.</Text>
+
+            <Text style={styles.caption}>2) Debt you owe (الدين الذي عليك)</Text>
+            <Text style={styles.caption}>This is money you owe to others.</Text>
+            <Text style={styles.caption}>Zakat ruling: no zakat is due on it, because it is not really your wealth.</Text>
+            <Text style={styles.caption}>So you deduct it from what you have (trade money or other assets), then check what remains:</Text>
+            <Text style={styles.caption}>If after deduction a nisab or more remains, you pay zakat on the remainder.</Text>
+            <Text style={styles.caption}>If less than nisab remains, no zakat.</Text>
+          </>
+        ) : (
+          <>
+            <View style={styles.rowWrap}>
+              <Pressable
+                style={[styles.chip, !produceValues.isForTrade && styles.chipActive]}
+                onPress={() =>
+                  setProduceValues((p) => ({ ...p, isForTrade: false, marketValue: "" }))
+                }
+              >
+                <Text>Farmer harvest</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.chip, produceValues.isForTrade && styles.chipActive]}
+                onPress={() =>
+                  setProduceValues((p) => ({ ...p, isForTrade: true, quantityKg: "", pricePerKg: "" }))
+                }
+              >
+                <Text>Trade stock</Text>
+              </Pressable>
+            </View>
+
+            {produceValues.isForTrade ? (
+              <>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  value={produceValues.marketValue}
+                  onChangeText={(v) => setProduceValues((p) => ({ ...p, marketValue: v }))}
+                  placeholder="Market value"
+                />
+                <Text style={styles.caption}>
+                  Treated as trade goods: zakat is 2.5% if market value reaches nisab.
+                </Text>
+              </>
+            ) : (
+              <>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  value={produceValues.quantityKg}
+                  onChangeText={(v) => setProduceValues((p) => ({ ...p, quantityKg: v }))}
+                  placeholder="Harvest quantity (kg)"
+                />
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  value={produceValues.pricePerKg}
+                  onChangeText={(v) => setProduceValues((p) => ({ ...p, pricePerKg: v }))}
+                  placeholder="Price per kg (optional)"
+                />
+                <View style={styles.rowWrap}>
+                  <Pressable
+                    style={[styles.chip, produceValues.wateringMethod === "natural" && styles.chipActive]}
+                    onPress={() => setProduceValues((p) => ({ ...p, wateringMethod: "natural" }))}
+                  >
+                    <Text>Natural watering (10%)</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.chip, produceValues.wateringMethod === "paid_irrigation" && styles.chipActive]}
+                    onPress={() => setProduceValues((p) => ({ ...p, wateringMethod: "paid_irrigation" }))}
+                  >
+                    <Text>Paid irrigation (5%)</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.caption}>
+                  Crop-zakat nisab is 653 kg (5 awsuq). If reached: 10% natural watering, 5% paid irrigation.
+                  Add price/kg to include a cash estimate in combined total.
+                </Text>
+              </>
+            )}
+          </>
         )}
       </View>
 
       {validationError ? <Text style={styles.error}>{validationError}</Text> : null}
-      <TouchableOpacity style={styles.button} onPress={onCalculate}><Text style={styles.buttonText}>Calculate Zakat</Text></TouchableOpacity>
+      {activeCategory !== "debt" ? (
+        <TouchableOpacity style={styles.button} onPress={onCalculate}><Text style={styles.buttonText}>Calculate Zakat</Text></TouchableOpacity>
+      ) : null}
 
       {lineItems.length > 0 ? (
         <View style={styles.card}>
@@ -374,17 +889,66 @@ export default function DetailedCalculateScreen() {
               </View>
               {item.category === "salary" ? (
                 <>
+                  <Text>Mode: {item.values.calculationMode === "monthly" ? "Monthly" : "Annual"}</Text>
                   <Text>Nisab: {item.result.nisab.toFixed(2)}</Text>
                   <Text>Net Wealth: {item.result.totalWealth.toFixed(2)}</Text>
                   <Text>Zakat Due: {item.result.totalZakat.toFixed(2)}</Text>
                 </>
-              ) : (
+              ) : item.category === "livestock" ? (
                 <>
                   <Text>Type: {LIVESTOCK_LABELS[item.values.livestockType]}</Text>
                   <Text>Owned: {item.values.ownedCount}</Text>
                   <Text>Due animals: {item.dueText}</Text>
                   <Text>Payment: {item.values.paymentMethod}</Text>
                   <Text>Cash Included: {item.result.totalZakat.toFixed(2)}</Text>
+                </>
+              ) : item.category === "agri_other" ? (
+                <>
+                  <Text>Market value: {Number(item.values.marketValue || 0).toFixed(2)}</Text>
+                  <Text>Operating costs: {Number(item.values.operatingCosts || 0).toFixed(2)}</Text>
+                  <Text>Net value: {item.result.totalWealth.toFixed(2)}</Text>
+                  <Text>Rule: 2.5% (one quarter of a tenth) if net value reaches nisab</Text>
+                  <Text>Nisab: {item.result.nisab.toFixed(2)}</Text>
+                  <Text>Zakat Due: {item.result.totalZakat.toFixed(2)}</Text>
+                </>
+              ) : item.category === "trade_sector" ? (
+                <>
+                  <Text>Trade/business assets: {Number(item.values.marketValue || 0).toFixed(2)}</Text>
+                  <Text>Due operating costs: {Number(item.values.operatingCosts || 0).toFixed(2)}</Text>
+                  <Text>Net zakatable amount: {item.result.totalWealth.toFixed(2)}</Text>
+                  <Text>Rule: 2.5% (one quarter of a tenth) if net amount reaches nisab</Text>
+                  <Text>Nisab: {item.result.nisab.toFixed(2)}</Text>
+                  <Text>Zakat Due: {item.result.totalZakat.toFixed(2)}</Text>
+                </>
+              ) : item.category === "industrial_sector" ? (
+                <>
+                  <Text>Industrial assets/output value: {Number(item.values.marketValue || 0).toFixed(2)}</Text>
+                  <Text>Production costs: {Number(item.values.operatingCosts || 0).toFixed(2)}</Text>
+                  <Text>Net zakatable amount: {item.result.totalWealth.toFixed(2)}</Text>
+                  <Text>Rule: 2.5% after deducting production costs if net amount reaches nisab</Text>
+                  <Text>Nisab: {item.result.nisab.toFixed(2)}</Text>
+                  <Text>Zakat Due: {item.result.totalZakat.toFixed(2)}</Text>
+                </>
+              ) : (
+                <>
+                  <Text>Mode: {item.values.isForTrade ? "Trade goods" : "Agricultural harvest"}</Text>
+                  {item.values.isForTrade ? (
+                    <>
+                      <Text>Market value: {Number(item.values.marketValue || 0).toFixed(2)}</Text>
+                      <Text>Rule: 2.5% as trade goods</Text>
+                      <Text>Nisab: {item.result.nisab.toFixed(2)}</Text>
+                      <Text>Zakat Due: {item.result.totalZakat.toFixed(2)}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text>Harvest quantity (kg): {Number(item.values.quantityKg || 0).toFixed(2)}</Text>
+                      <Text>Rule: {item.values.wateringMethod === "natural" ? "10% (natural watering)" : "5% (paid irrigation)"}</Text>
+                      <Text>Nisab: {item.result.nisab.toFixed(2)} kg</Text>
+                      <Text>Zakat Due (produce): {(item.dueQuantityKg ?? 0).toFixed(2)} kg</Text>
+                      <Text>Price/kg: {parseOptionalPositive(item.values.pricePerKg)?.toFixed(2) ?? "Not set"}</Text>
+                      <Text>Cash Equivalent Included: {(item.cashEquivalent ?? 0).toFixed(2)}</Text>
+                    </>
+                  )}
                 </>
               )}
             </View>
@@ -398,12 +962,18 @@ export default function DetailedCalculateScreen() {
       <Modal transparent animationType="fade" visible={isCategoryPickerVisible} onRequestClose={() => setIsCategoryPickerVisible(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setIsCategoryPickerVisible(false)}>
           <Pressable style={styles.modalCard}>
-            {(["salary", "livestock"] as CategoryId[]).map((category) => (
+            {(["salary", "livestock", "agri_other", "trade_sector", "industrial_sector", "produce", "debt"] as CategoryId[]).map((category) => (
               <Pressable key={category} style={styles.modalOption} onPress={() => {
                 setActiveCategory(category);
                 setValidationError(null);
-                if (category === "salary") setSalaryValues({ monthlyIncome: "", livingExpense: "" });
-                else reset(defaultLivestockForm);
+                if (category === "salary") {
+                  setSalaryValues({ monthlyIncome: "", livingExpense: "", calculationMode: "annual" });
+                }
+                if (category === "livestock") reset(defaultLivestockForm);
+                if (category === "agri_other") setAgriOtherValues(defaultAgriOtherValues);
+                if (category === "trade_sector") setTradeSectorValues(defaultTradeSectorValues);
+                if (category === "industrial_sector") setIndustrialSectorValues(defaultIndustrialSectorValues);
+                if (category === "produce") setProduceValues(defaultProduceValues);
                 setIsCategoryPickerVisible(false);
               }}>
                 <Text>{CATEGORY_LABELS[category]}</Text>
