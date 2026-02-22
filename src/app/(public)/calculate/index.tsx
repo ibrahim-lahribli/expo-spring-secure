@@ -1,12 +1,6 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import {
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { QuickCalculatorForm } from "../../../components/zakat/QuickCalculatorForm";
 
 export default function CalculateScreen() {
@@ -14,18 +8,23 @@ export default function CalculateScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Quick Calculator */}
       <View style={styles.content}>
         <QuickCalculatorForm />
       </View>
 
-      {/* Detailed Calculate button */}
       <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.secondaryBtn}
+          onPress={() => router.push("/(public)/zakat-explanations" as never)}
+        >
+          <Text style={styles.secondaryBtnText}>Zakat Explanations</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.detailedBtn}
           onPress={() => router.push("/(public)/calculate/detailed")}
         >
-          <Text style={styles.detailedBtnText}>📋 Detailed Calculate</Text>
+          <Text style={styles.detailedBtnText}>Detailed Calculate</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -37,25 +36,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  header: {
-    padding: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-  },
-  testButton: {
-    padding: 8,
-    backgroundColor: "#eee",
-    borderRadius: 8,
-  },
-  testButtonText: {
-    fontSize: 12,
-    color: "#007AFF",
-  },
   content: {
     flex: 1,
   },
@@ -63,6 +43,19 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: "#eee",
+    gap: 10,
+  },
+  secondaryBtn: {
+    backgroundColor: "#e8f1ff",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  secondaryBtnText: {
+    color: "#0a4fb7",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   detailedBtn: {
     backgroundColor: "#007AFF",

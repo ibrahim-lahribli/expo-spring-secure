@@ -42,6 +42,15 @@ export default function PublicLayout() {
         }}
       />
       <Tabs.Screen
+        name="zakat-explanations"
+        options={{
+          title: "Explanations",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="book-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
@@ -54,6 +63,22 @@ export default function PublicLayout() {
         name="calculate/detailed"
         options={{
           title: "Detailed Calculator",
+          href: null,
+          headerShown: true,
+        }}
+      />
+      <Tabs.Screen
+        name="zakat-explanations/[slug]"
+        options={{
+          title: "Category Details",
+          href: null,
+          headerShown: true,
+        }}
+      />
+      <Tabs.Screen
+        name="history/[id]"
+        options={{
+          title: "History Details",
           href: null,
           headerShown: true,
         }}

@@ -1,0 +1,60 @@
+Findings (ordered by severity)
+
+High: Custom-override toggle can disagree with the actual nisab override used in calculations
+
+index.tsx (line 230)
+index.tsx (line 233)
+index.tsx (line 245)
+detailed.tsx (line 593)
+customNisabEnabled lives in appPreferencesStore, but calculations use nisabOverride from nisabSettingsStore. Another screen (detailed.tsx) can set nisabOverride directly without updating customNisabEnabled, so Settings can show override “disabled” while an override is still active in actual calculations.
+Medium: Currency switch is label-only, but UI implies value conversion
+
+index.tsx (line 49)
+index.tsx (line 144)
+index.tsx (line 204)
+index.tsx (line 242)
+Changing currency updates symbol/formatting and unit labels, but stored price numbers are unchanged. This can mislead users into treating old USD-entered values as EUR/SAR/PKR values, producing incorrect interpreted nisab amounts unless they re-enter prices manually.
+Medium: Language preference is committed before changeLanguage succeeds
+
+index.tsx (line 289)
+index.tsx (line 290)
+If changeLanguage throws (or reload path fails), app preference already changed. This can leave persisted preference and runtime i18n state out of sync, with no rollback/error UI.
+Low: Market fetch has no error UX and allows repeated concurrent taps
+
+index.tsx (line 93)
+index.tsx (line 185)
+No catch feedback if fetch fails, and button remains tappable while loading, so multiple in-flight requests can race and overwrite values.
+Section-by-section analysis of Settings page
+
+Nisab Method (index.tsx (line 110))
+Structure is clear and auto-mode explanation is helpful. Main issue is split state ownership with other screens (finding #1).
+
+Nisab Prices Source (index.tsx (line 153))
+UX is straightforward. Reliability gap: no failure state / retry / disabled button during fetch (finding #4).
+
+Gold/Silver Price Inputs (index.tsx (line 201))
+Works with numeric sanitization via store. Risk is currency interpretation mismatch when currency changes (finding #2).
+
+Custom Nisab Override (index.tsx (line 225))
+Good intent and copy. Current implementation can desync from calculation truth due to separate stores (finding #1).
+
+Currency (index.tsx (line 258))
+UI is clean. Behavior is potentially misleading without conversion/reset guidance (finding #2).
+
+Language (index.tsx (line 275))
+Functional integration exists, but commit order/error path should be hardened (finding #3).
+
+Date Preference (index.tsx (line 306))
+Looks fine structurally; no direct regression found in staged changes.
+
+Zakat Reminder (index.tsx (line 335))
+Toggle persists correctly; no scheduling side effects shown here (assumed handled elsewhere).
+
+Theme (index.tsx (line 346))
+Preference persistence is fine; application to actual theming appears outside this diff.
+
+Open questions / assumptions
+
+Is currency intended to be purely a display preference, or should values be converted automatically?
+Should customNisabEnabled become derived from nisabOverride > 0 (single source of truth), or should detailed calculator update appPreferencesStore too?
+For reminder/theme/date settings, where are side effects applied (notification scheduling, theme provider, calendar rendering)?
