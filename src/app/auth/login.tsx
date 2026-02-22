@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { getGuestHistoryEntries } from "../../features/history/storage";
 import { LoginFormData, loginSchema } from "../../lib/auth";
 import { useAuthStore } from "../../store/authStore";
 
@@ -47,6 +48,14 @@ export default function LoginScreen() {
 
       Alert.alert(t("error"), errorMessage);
     } else {
+      const guestHistory = await getGuestHistoryEntries();
+      if (guestHistory.length > 0) {
+        Alert.alert(
+          "Import guest history?",
+          "You have local history saved on this device. Import to your account when sync is enabled?",
+          [{ text: "Later", style: "cancel" }, { text: "Import", onPress: () => Alert.alert("Import queued", "Your local history stays available on this device.") }],
+        );
+      }
       router.replace("/");
     }
   };

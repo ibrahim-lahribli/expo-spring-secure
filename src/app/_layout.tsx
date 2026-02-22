@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { View } from "react-native";
+import { PaperProvider } from "react-native-paper";
 import { NavigationStack } from "../components/NavigationStack";
 import i18n, { initializeI18n } from "../i18n/i18n";
 import { useAuthStore } from "../store/authStore";
@@ -52,10 +53,12 @@ export default function RootLayout() {
   return (
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
-        <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-          <StatusBar style="auto" />
-          <NavigationStack />
-        </View>
+        <PaperProvider>
+          <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+            <StatusBar style="auto" />
+            <NavigationStack />
+          </View>
+        </PaperProvider>
       </QueryClientProvider>
     </I18nextProvider>
   );

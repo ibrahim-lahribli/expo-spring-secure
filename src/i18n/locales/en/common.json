@@ -42,5 +42,45 @@
         "minLength": "Must be at least {count} characters",
         "maxLength": "Must be no more than {count} characters",
         "passwordMatch": "Passwords must match"
+    },
+    "zakatExplanations": {
+        "hub": {
+            "title": "Zakat Categories",
+            "subtitle": "Choose a category to view the fatwa-based explanation."
+        },
+        "detail": {
+            "overview": {
+                "title": "Overview",
+                "covers": "What this category covers",
+                "whenDue": "When zakat is due",
+                "calculation": "How it is calculated",
+                "conditions": "Conditions",
+                "deductions": "Deductions allowed"
+            },
+            "included": {
+                "title": "Included Items"
+            },
+            "steps": {
+                "title": "How to Calculate"
+            },
+            "examples": {
+                "title": "Example(s)"
+            },
+            "fatwa": {
+                "title": "Fatwa Basis (Arabic Excerpt)",
+                "description": "Tap to read the original wording."
+            },
+            "notes": {
+                "title": "Notes / Warnings"
+            },
+            "faq": {
+                "title": "FAQ"
+            },
+            "cta": "Go to calculator (coming next)",
+            "notFound": {
+                "title": "Category not found",
+                "back": "Back to categories"
+            }
+        }
     }
 }

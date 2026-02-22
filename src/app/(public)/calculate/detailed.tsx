@@ -12,6 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { upsertGuestHistoryEntry } from "../../../features/history/storage";
+import type { DetailedHistoryLineItem, HistoryEntry } from "../../../features/history/types";
 import {
   calcCashEquivalent,
   calcLivestockZakat,
@@ -245,6 +247,60 @@ function calculateTradeSectorZakat(input: {
   };
 }
 
+function buildDetailedHistoryLineItem(item: LineItem): DetailedHistoryLineItem {
+  if (item.category === "salary") {
+    return {
+      id: item.id,
+      category: item.category,
+      label: CATEGORY_LABELS[item.category],
+      totalZakat: item.result.totalZakat,
+      totalWealth: item.result.totalWealth,
+      details: [
+        `Mode: ${item.values.calculationMode}`,
+        `Nisab: ${item.result.nisab.toFixed(2)}`,
+      ],
+    };
+  }
+
+  if (item.category === "livestock") {
+    return {
+      id: item.id,
+      category: item.category,
+      label: CATEGORY_LABELS[item.category],
+      totalZakat: item.result.totalZakat,
+      totalWealth: item.result.totalWealth,
+      details: [
+        `Type: ${item.values.livestockType}`,
+        `Owned: ${item.values.ownedCount}`,
+        `Due: ${item.dueText}`,
+      ],
+    };
+  }
+
+  if (item.category === "produce") {
+    return {
+      id: item.id,
+      category: item.category,
+      label: CATEGORY_LABELS[item.category],
+      totalZakat: item.result.totalZakat,
+      totalWealth: item.result.totalWealth,
+      details: [
+        `Mode: ${item.values.isForTrade ? "trade" : "harvest"}`,
+        `Watering: ${item.values.wateringMethod}`,
+      ],
+    };
+  }
+
+  return {
+    id: item.id,
+    category: item.category,
+    label: CATEGORY_LABELS[item.category],
+    totalZakat: item.result.totalZakat,
+    totalWealth: item.result.totalWealth,
+    details: [`Nisab: ${item.result.nisab.toFixed(2)}`],
+  };
+}
+
 export default function DetailedCalculateScreen() {
   const [activeCategory, setActiveCategory] = useState<CategoryId>("salary");
   const [salaryValues, setSalaryValues] = useState<SalaryValues>({
@@ -263,6 +319,7 @@ export default function DetailedCalculateScreen() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isNisabAdvancedOpen, setIsNisabAdvancedOpen] = useState(false);
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [showHistorySavedToast, setShowHistorySavedToast] = useState(false);
 
   const nisabMethod = useNisabSettingsStore((s) => s.nisabMethod);
   const silverPricePerGram = useNisabSettingsStore((s) => s.silverPricePerGram);
@@ -321,6 +378,12 @@ export default function DetailedCalculateScreen() {
     const t = setTimeout(() => setShowSavedToast(false), 1800);
     return () => clearTimeout(t);
   }, [showSavedToast]);
+
+  useEffect(() => {
+    if (!showHistorySavedToast) return;
+    const t = setTimeout(() => setShowHistorySavedToast(false), 1800);
+    return () => clearTimeout(t);
+  }, [showHistorySavedToast]);
 
   useEffect(() => {
     if (lineItems.length === 0) return;
@@ -419,6 +482,41 @@ export default function DetailedCalculateScreen() {
   }, [nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride, lineItems.length]);
 
   const combinedTotal = useMemo(() => lineItems.reduce((sum, i) => sum + i.result.totalZakat, 0), [lineItems]);
+
+  const onSaveToHistory = async () => {
+    if (lineItems.length === 0) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const categoriesUsed = Array.from(new Set(lineItems.map((item) => CATEGORY_LABELS[item.category])));
+    const entry: HistoryEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      flowType: "detailed",
+      createdAt: now,
+      updatedAt: now,
+      totalZakat: combinedTotal,
+      currency: "USD",
+      nisabSnapshot: {
+        method: nisabMethod,
+        silverPricePerGram,
+        goldPricePerGram,
+        override: nisabOverride > 0 ? nisabOverride : null,
+      },
+      summary: {
+        categoriesUsed,
+        itemCount: lineItems.length,
+      },
+      payload: {
+        kind: "detailed",
+        lineItems: lineItems.map(buildDetailedHistoryLineItem),
+        combinedTotal,
+      },
+    };
+
+    await upsertGuestHistoryEntry(entry);
+    setShowHistorySavedToast(true);
+  };
 
   const onCalculateSalary = () => {
     if (!(Number(salaryValues.monthlyIncome) > 0)) {
@@ -954,10 +1052,14 @@ export default function DetailedCalculateScreen() {
             </View>
           ))}
           <Text style={styles.bold}>Combined Total Zakat Due: {combinedTotal.toFixed(2)}</Text>
+          <TouchableOpacity style={styles.saveHistoryButton} onPress={onSaveToHistory}>
+            <Text style={styles.buttonText}>Save to History</Text>
+          </TouchableOpacity>
         </View>
       ) : null}
 
       {showSavedToast ? <View style={styles.toast}><Text style={styles.toastText}>Nisab settings saved</Text></View> : null}
+      {showHistorySavedToast ? <View style={styles.toast}><Text style={styles.toastText}>Saved to local history</Text></View> : null}
 
       <Modal transparent animationType="fade" visible={isCategoryPickerVisible} onRequestClose={() => setIsCategoryPickerVisible(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setIsCategoryPickerVisible(false)}>
@@ -1005,6 +1107,7 @@ const styles = StyleSheet.create({
   error: { color: "#C30000", marginBottom: 8, fontSize: 12 },
   lineItem: { borderWidth: 1, borderColor: "#ececec", borderRadius: 8, padding: 10, marginBottom: 8 },
   bold: { fontWeight: "700" },
+  saveHistoryButton: { marginTop: 10, backgroundColor: "#0a7d32", borderRadius: 10, alignItems: "center", paddingVertical: 12 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 20 },
   modalCard: { backgroundColor: "#fff", borderRadius: 12, padding: 12 },
   modalOption: { borderWidth: 1, borderColor: "#ececec", borderRadius: 8, padding: 12, marginBottom: 8 },
