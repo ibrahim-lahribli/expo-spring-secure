@@ -1,3 +1,5 @@
+import type { SupportedCurrency } from "../../store/appPreferencesStore";
+
 export type HistoryFlowType = "quick" | "detailed";
 
 export type HistoryNisabSnapshot = {
@@ -52,7 +54,7 @@ export type HistoryEntry = {
   updatedAt: string;
   title?: string;
   totalZakat: number;
-  currency: string;
+  currency: SupportedCurrency;
   nisabSnapshot: HistoryNisabSnapshot;
   summary: HistorySummary;
   payload: HistoryPayload;

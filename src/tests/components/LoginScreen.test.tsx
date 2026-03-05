@@ -14,10 +14,12 @@ jest.mock("../../store/authStore", () => ({
 // Mock expo-router
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
+const mockBack = jest.fn();
 jest.mock("expo-router", () => ({
   useRouter: () => ({
     replace: mockReplace,
     push: mockPush,
+    back: mockBack,
   }),
 }));
 
@@ -27,7 +29,7 @@ jest.mock("react-i18next", () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
         "auth:signInToAccount": "Sign In to Your Account",
-        "auth:login": "Login",
+        "auth:login": "Log In",
         "auth:email": "Email",
         "auth:password": "Password",
         "auth:loginFailed": "Login failed",
@@ -36,6 +38,13 @@ jest.mock("react-i18next", () => ({
         "auth:tooManyAttempts": "Too many attempts",
         "auth:dontHaveAccount": "Don't have an account?",
         "auth:signup": "Sign Up",
+        "auth:loginScreen.heading": "Welcome back",
+        "auth:loginScreen.subheading": "Please log in to access your saved Zakat history and preferences.",
+        "auth:loginScreen.emailLabel": "Email Address",
+        "auth:loginScreen.securityNote": "Your connection is secure and private.",
+        "auth:loginScreen.passwordHintError": "Please enter your correct password.",
+        "auth:forgotPassword": "Forgot password?",
+        "common:loading": "Loading...",
         error: "Error",
       };
       return translations[key] || key;
@@ -134,8 +143,7 @@ describe("LoginScreen", () => {
     });
   });
 
-  it("should show alert on signIn error", async () => {
-    const { Alert } = require("react-native");
+  it("should show inline error on signIn error", async () => {
     mockSignIn.mockResolvedValueOnce({
       error: { message: "Invalid login credentials" },
     });
@@ -154,14 +162,14 @@ describe("LoginScreen", () => {
     fireEvent.press(loginButton);
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalled();
+      expect(getByText("Invalid login credentials")).toBeTruthy();
     });
   });
 
   it("should render title and subtitle", () => {
     const { getByText, getAllByText } = render(<LoginScreen />);
 
-    expect(getByText("Sign In to Your Account")).toBeTruthy();
-    expect(getAllByText("Login")).toBeTruthy();
+    expect(getByText("Welcome back")).toBeTruthy();
+    expect(getAllByText("Log In")).toBeTruthy();
   });
 });

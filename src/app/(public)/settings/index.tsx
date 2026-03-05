@@ -1,26 +1,25 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+  AppCard,
+  AppScreen,
+  InfoNotice,
+  LabeledInput,
+  PrimaryButton,
+  SectionTitle,
+  SegmentedControl,
+} from "../../../components/ui";
 import { changeLanguage } from "../../../i18n/i18n";
-import { fetchMockNisabPrices } from "../../../lib/mockNisabPricesApi";
+import {
+  DEFAULT_GOLD_PRICE_PER_GRAM,
+  DEFAULT_SILVER_PRICE_PER_GRAM,
+  GOLD_NISAB_GRAMS,
+  SILVER_NISAB_GRAMS,
+} from "../../../lib/nisabDefaults";
+import { formatMoney } from "../../../lib/currency";
+import { fetchGoldApiNisabPrices } from "../../../lib/goldApi";
 import { useAppPreferencesStore } from "../../../store/appPreferencesStore";
 import { useNisabSettingsStore } from "../../../store/nisabSettingsStore";
-
-function formatCurrency(value: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString("en-US", {
@@ -33,10 +32,10 @@ function formatDate(value: string): string {
 }
 
 export default function SettingsScreen() {
+  const { t, i18n } = useTranslation("common");
   const nisabMethod = useNisabSettingsStore((s) => s.nisabMethod);
   const silverPricePerGram = useNisabSettingsStore((s) => s.silverPricePerGram);
   const goldPricePerGram = useNisabSettingsStore((s) => s.goldPricePerGram);
-  const nisabOverride = useNisabSettingsStore((s) => s.nisabOverride);
   const setNisabMethod = useNisabSettingsStore((s) => s.setNisabMethod);
   const setSilverPricePerGram = useNisabSettingsStore((s) => s.setSilverPricePerGram);
   const setGoldPricePerGram = useNisabSettingsStore((s) => s.setGoldPricePerGram);
@@ -44,42 +43,31 @@ export default function SettingsScreen() {
 
   const nisabMethodPreference = useAppPreferencesStore((s) => s.nisabMethodPreference);
   const nisabPricesSource = useAppPreferencesStore((s) => s.nisabPricesSource);
-  const customNisabEnabled = useAppPreferencesStore((s) => s.customNisabEnabled);
-  const customNisabAmount = useAppPreferencesStore((s) => s.customNisabAmount);
   const currency = useAppPreferencesStore((s) => s.currency);
-  const language = useAppPreferencesStore((s) => s.language);
-  const datePreference = useAppPreferencesStore((s) => s.datePreference);
-  const zakatReminderEnabled = useAppPreferencesStore((s) => s.zakatReminderEnabled);
-  const theme = useAppPreferencesStore((s) => s.theme);
-  const marketPricesLastUpdatedAt = useAppPreferencesStore(
-    (s) => s.marketPricesLastUpdatedAt,
-  );
+  const marketPricesLastUpdatedAt = useAppPreferencesStore((s) => s.marketPricesLastUpdatedAt);
 
   const setNisabMethodPreference = useAppPreferencesStore((s) => s.setNisabMethodPreference);
   const setNisabPricesSource = useAppPreferencesStore((s) => s.setNisabPricesSource);
-  const setCustomNisabEnabled = useAppPreferencesStore((s) => s.setCustomNisabEnabled);
-  const setCustomNisabAmount = useAppPreferencesStore((s) => s.setCustomNisabAmount);
   const setCurrency = useAppPreferencesStore((s) => s.setCurrency);
-  const setLanguage = useAppPreferencesStore((s) => s.setLanguage);
-  const setDatePreference = useAppPreferencesStore((s) => s.setDatePreference);
-  const setZakatReminderEnabled = useAppPreferencesStore((s) => s.setZakatReminderEnabled);
-  const setTheme = useAppPreferencesStore((s) => s.setTheme);
-  const setMarketPricesLastUpdatedAt = useAppPreferencesStore(
-    (s) => s.setMarketPricesLastUpdatedAt,
-  );
+  const setMarketPricesLastUpdatedAt = useAppPreferencesStore((s) => s.setMarketPricesLastUpdatedAt);
 
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
-
+  const [priceSyncError, setPriceSyncError] = useState<string | null>(null);
   const recommendedMethod = "silver";
+  const language = (i18n.resolvedLanguage ?? "ar") as "ar" | "fr" | "en";
 
   const computedNisabValues = useMemo(() => {
-    const silverNisab = silverPricePerGram * 595;
-    const goldNisab = goldPricePerGram * 85;
+    const silverNisab = silverPricePerGram * SILVER_NISAB_GRAMS;
+    const goldNisab = goldPricePerGram * GOLD_NISAB_GRAMS;
     return { silverNisab, goldNisab };
   }, [silverPricePerGram, goldPricePerGram]);
 
   const effectiveMethodLabel =
-    nisabMethodPreference === "auto" ? `Auto (${recommendedMethod})` : nisabMethod;
+    nisabMethodPreference === "auto"
+      ? t("settingsScreen.methods.autoWithMethod", {
+          method: t(`settingsScreen.methods.${recommendedMethod}`),
+        })
+      : t(`settingsScreen.methods.${nisabMethod}`);
 
   const handleMethodChange = (value: "silver" | "gold" | "auto") => {
     setNisabMethodPreference(value);
@@ -90,378 +78,215 @@ export default function SettingsScreen() {
     setNisabMethod(value);
   };
 
-  const handleFetchMockPrices = async () => {
+  const applyFatwaDefaults = () => {
+    setGoldPricePerGram(DEFAULT_GOLD_PRICE_PER_GRAM);
+    setSilverPricePerGram(DEFAULT_SILVER_PRICE_PER_GRAM);
+    setMarketPricesLastUpdatedAt(null);
+    setNisabOverride(0);
+  };
+
+  const handlePricesSourceChange = (value: "manual" | "market" | "fatwa") => {
+    setPriceSyncError(null);
+    setNisabPricesSource(value);
+    setNisabOverride(0);
+
+    if (value === "fatwa") {
+      applyFatwaDefaults();
+    }
+  };
+
+  useEffect(() => {
+    if (nisabPricesSource !== "fatwa") {
+      return;
+    }
+
+    if (
+      goldPricePerGram !== DEFAULT_GOLD_PRICE_PER_GRAM ||
+      silverPricePerGram !== DEFAULT_SILVER_PRICE_PER_GRAM
+    ) {
+      applyFatwaDefaults();
+    }
+  }, [nisabPricesSource, goldPricePerGram, silverPricePerGram]);
+
+  const handleFetchMarketPrices = async () => {
     setIsFetchingPrices(true);
+    setPriceSyncError(null);
     try {
-      const response = await fetchMockNisabPrices();
+      const response = await fetchGoldApiNisabPrices(currency);
       setGoldPricePerGram(response.goldPricePerGram);
       setSilverPricePerGram(response.silverPricePerGram);
       setMarketPricesLastUpdatedAt(response.fetchedAt);
+      setNisabOverride(0);
+    } catch (error) {
+      setPriceSyncError(
+        error instanceof Error
+          ? error.message
+          : t("settingsScreen.market.fetchFailedBody"),
+      );
     } finally {
       setIsFetchingPrices(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Settings</Text>
+    <AppScreen>
+      <SectionTitle
+        title={t("settingsScreen.title")}
+        subtitle={t("settingsScreen.subtitle")}
+      />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Nisab Method</Text>
-          <View style={styles.segmentRow}>
-            {(["gold", "silver", "auto"] as const).map((option) => (
-              <Pressable
-                key={option}
-                style={[
-                  styles.segment,
-                  nisabMethodPreference === option && styles.segmentActive,
-                ]}
-                onPress={() => handleMethodChange(option)}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    nisabMethodPreference === option && styles.segmentTextActive,
-                  ]}
-                >
-                  {option === "gold"
-                    ? "Gold-based"
-                    : option === "silver"
-                      ? "Silver-based"
-                      : "Auto"}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Text style={styles.helperText}>Effective method: {effectiveMethodLabel}</Text>
-          {nisabMethodPreference === "auto" ? (
-            <View style={styles.autoBox}>
-              <Text style={styles.helperText}>
-                Recommended: Silver (more inclusive threshold).
-              </Text>
-              <Text style={styles.helperText}>
-                Silver Nisab: {formatCurrency(computedNisabValues.silverNisab, currency)}
-              </Text>
-              <Text style={styles.helperText}>
-                Gold Nisab: {formatCurrency(computedNisabValues.goldNisab, currency)}
-              </Text>
-            </View>
-          ) : null}
-        </View>
+      <AppCard>
+        <SectionTitle title={t("settingsScreen.nisabMethod")} />
+        <SegmentedControl
+          value={nisabMethodPreference}
+          onChange={handleMethodChange}
+          options={[
+            { label: t("settingsScreen.methods.gold"), value: "gold" },
+            { label: t("settingsScreen.methods.silver"), value: "silver" },
+            { label: t("settingsScreen.methods.auto"), value: "auto" },
+          ]}
+        />
+        <InfoNotice
+          title={t("settingsScreen.effectiveMethod", { method: effectiveMethodLabel })}
+          body={t("settingsScreen.effectiveMethodBody")}
+        />
+        {nisabMethodPreference === "auto" ? (
+          <InfoNotice
+            title={t("settingsScreen.autoRecommendation")}
+            body={`Silver: ${formatMoney(computedNisabValues.silverNisab, currency)} | Gold: ${formatMoney(
+              computedNisabValues.goldNisab,
+              currency,
+            )}`}
+          />
+        ) : null}
+      </AppCard>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Nisab Prices Source</Text>
-          <View style={styles.segmentRow}>
-            <Pressable
-              style={[styles.segment, nisabPricesSource === "manual" && styles.segmentActive]}
-              onPress={() => setNisabPricesSource("manual")}
-            >
-              <Text
-                style={[
-                  styles.segmentText,
-                  nisabPricesSource === "manual" && styles.segmentTextActive,
-                ]}
-              >
-                Manual entry
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.segment, nisabPricesSource === "market" && styles.segmentActive]}
-              onPress={() => setNisabPricesSource("market")}
-            >
-              <Text
-                style={[
-                  styles.segmentText,
-                  nisabPricesSource === "market" && styles.segmentTextActive,
-                ]}
-              >
-                Market source
-              </Text>
-            </Pressable>
-          </View>
-          {nisabPricesSource === "market" ? (
-            <>
-              <Pressable style={styles.primaryButton} onPress={handleFetchMockPrices}>
-                <Text style={styles.primaryButtonText}>
-                  {isFetchingPrices ? "Fetching prices..." : "Fetch Mock Gold/Silver Prices"}
-                </Text>
-              </Pressable>
-              {marketPricesLastUpdatedAt ? (
-                <Text style={styles.helperText}>
-                  Last updated: {formatDate(marketPricesLastUpdatedAt)}
-                </Text>
-              ) : (
-                <Text style={styles.helperText}>No market update fetched yet.</Text>
-              )}
-            </>
-          ) : null}
-        </View>
+      <AppCard>
+        <SectionTitle title={t("settingsScreen.nisabPricesSource")} />
+        <SegmentedControl
+          value={nisabPricesSource}
+          onChange={handlePricesSourceChange}
+          options={[
+            { label: t("settingsScreen.sources.manual"), value: "manual" },
+            { label: t("settingsScreen.sources.market"), value: "market" },
+            { label: t("settingsScreen.sources.fatwa"), value: "fatwa" },
+          ]}
+        />
+        {nisabPricesSource === "market" ? (
+          <>
+            <PrimaryButton
+              label={isFetchingPrices ? t("settingsScreen.market.fetching") : t("settingsScreen.market.fetchAction")}
+              onPress={handleFetchMarketPrices}
+              disabled={isFetchingPrices}
+            />
+            <InfoNotice
+              title={t("settingsScreen.market.title")}
+              body={
+                marketPricesLastUpdatedAt
+                  ? t("settingsScreen.market.lastUpdated", {
+                      value: formatDate(marketPricesLastUpdatedAt),
+                    })
+                  : t("settingsScreen.market.empty")
+              }
+            />
+            {priceSyncError ? (
+              <InfoNotice title={t("settingsScreen.market.fetchFailed")} body={priceSyncError} />
+            ) : null}
+          </>
+        ) : null}
+        {nisabPricesSource === "fatwa" ? (
+          <>
+            <InfoNotice
+              title={t("settingsScreen.fatwaApplied")}
+              body={`Gold: ${formatMoney(DEFAULT_GOLD_PRICE_PER_GRAM, currency)}/g | Silver: ${formatMoney(
+                DEFAULT_SILVER_PRICE_PER_GRAM,
+                currency,
+              )}/g`}
+            />
+            <InfoNotice
+              title={t("settingsScreen.defaultNisabValues")}
+              body={`Silver: ${formatMoney(computedNisabValues.silverNisab, currency)} | Gold: ${formatMoney(
+                computedNisabValues.goldNisab,
+                currency,
+              )}`}
+            />
+          </>
+        ) : null}
+      </AppCard>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Gold Price / Silver Price</Text>
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>Gold price ({currency}/g)</Text>
-            <TextInput
-              style={styles.input}
+      <AppCard>
+        <SectionTitle
+          title={t(
+            nisabPricesSource === "manual"
+              ? "settingsScreen.priceCards.manualTitle"
+              : "settingsScreen.priceCards.currentTitle",
+          )}
+        />
+        {nisabPricesSource === "manual" ? (
+          <>
+            <LabeledInput
+              label={t("settingsScreen.priceCards.goldPrice", { currency })}
               value={String(goldPricePerGram)}
-              onChangeText={(value) => setGoldPricePerGram(Number(value) || 0)}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-            />
-          </View>
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>Silver price ({currency}/g)</Text>
-            <TextInput
-              style={styles.input}
-              value={String(silverPricePerGram)}
-              onChangeText={(value) => setSilverPricePerGram(Number(value) || 0)}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Custom Nisab Override</Text>
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Enable custom override</Text>
-            <Switch
-              value={customNisabEnabled}
-              onValueChange={(enabled) => {
-                setCustomNisabEnabled(enabled);
-                setNisabOverride(enabled ? customNisabAmount : 0);
+              onChangeText={(value) => {
+                setGoldPricePerGram(Number(value) || 0);
+                setNisabOverride(0);
               }}
+              keyboardType="decimal-pad"
+              placeholder={t("settingsScreen.priceCards.placeholder")}
             />
-          </View>
-          <Text style={styles.helperText}>
-            Helpful for local scholars/community standards.
-          </Text>
-          {customNisabEnabled ? (
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>Override amount ({currency})</Text>
-              <TextInput
-                style={styles.input}
-                value={String(customNisabAmount || nisabOverride)}
-                onChangeText={(value) => {
-                  const amount = Number(value) || 0;
-                  setCustomNisabAmount(amount);
-                  setNisabOverride(amount);
-                }}
-                keyboardType="decimal-pad"
-                placeholder="0.00"
-              />
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Currency</Text>
-          <View style={styles.segmentRow}>
-            {(["USD", "EUR", "SAR", "PKR"] as const).map((option) => (
-              <Pressable
-                key={option}
-                style={[styles.segment, currency === option && styles.segmentActive]}
-                onPress={() => setCurrency(option)}
-              >
-                <Text style={[styles.segmentText, currency === option && styles.segmentTextActive]}>
-                  {option}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Language</Text>
-          <View style={styles.segmentRow}>
-            {(
-              [
-                { label: "English", value: "en" },
-                { label: "Arabic", value: "ar" },
-                { label: "French", value: "fr" },
-              ] as const
-            ).map((option) => (
-              <Pressable
-                key={option.value}
-                style={[styles.segment, language === option.value && styles.segmentActive]}
-                onPress={async () => {
-                  setLanguage(option.value);
-                  await changeLanguage(option.value);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    language === option.value && styles.segmentTextActive,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Date Preference</Text>
-          <View style={styles.segmentRow}>
-            <Pressable
-              style={[styles.segment, datePreference === "hijri" && styles.segmentActive]}
-              onPress={() => setDatePreference("hijri")}
-            >
-              <Text
-                style={[styles.segmentText, datePreference === "hijri" && styles.segmentTextActive]}
-              >
-                Hijri
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.segment, datePreference === "gregorian" && styles.segmentActive]}
-              onPress={() => setDatePreference("gregorian")}
-            >
-              <Text
-                style={[
-                  styles.segmentText,
-                  datePreference === "gregorian" && styles.segmentTextActive,
-                ]}
-              >
-                Gregorian
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Zakat Reminder</Text>
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Enable reminder</Text>
-            <Switch
-              value={zakatReminderEnabled}
-              onValueChange={(value) => setZakatReminderEnabled(value)}
+            <LabeledInput
+              label={t("settingsScreen.priceCards.silverPrice", { currency })}
+              value={String(silverPricePerGram)}
+              onChangeText={(value) => {
+                setSilverPricePerGram(Number(value) || 0);
+                setNisabOverride(0);
+              }}
+              keyboardType="decimal-pad"
+              placeholder={t("settingsScreen.priceCards.placeholder")}
             />
-          </View>
-        </View>
+          </>
+        ) : (
+          <LabeledInput
+            label={t("settingsScreen.priceCards.goldReadonly", { currency })}
+            value={String(goldPricePerGram)}
+            editable={false}
+          />
+        )}
+        {nisabPricesSource !== "manual" ? (
+          <LabeledInput
+            label={t("settingsScreen.priceCards.silverReadonly", { currency })}
+            value={String(silverPricePerGram)}
+            editable={false}
+          />
+        ) : null}
+      </AppCard>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Theme</Text>
-          <View style={styles.segmentRow}>
-            {(["system", "light", "dark"] as const).map((option) => (
-              <Pressable
-                key={option}
-                style={[styles.segment, theme === option && styles.segmentActive]}
-                onPress={() => setTheme(option)}
-              >
-                <Text style={[styles.segmentText, theme === option && styles.segmentTextActive]}>
-                  {option[0].toUpperCase() + option.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <AppCard>
+        <SectionTitle title={t("settingsScreen.currency")} />
+        <SegmentedControl
+          value={currency}
+          onChange={setCurrency}
+          options={[
+            { label: "MAD", value: "MAD" },
+            { label: "USD", value: "USD" },
+            { label: "EURO", value: "EUR" },
+          ]}
+        />
+      </AppCard>
+
+      <AppCard>
+        <SectionTitle title={t("settingsScreen.language")} />
+        <SegmentedControl
+          value={language}
+          onChange={changeLanguage}
+          options={[
+            { label: t("languages.ar"), value: "ar" },
+            { label: t("languages.fr"), value: "fr" },
+            { label: t("languages.en"), value: "en" },
+          ]}
+        />
+      </AppCard>
+
+    </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f7f8fa",
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-    gap: 12,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginBottom: 6,
-  },
-  section: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 14,
-    padding: 14,
-    gap: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  segmentRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  segment: {
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "#fff",
-  },
-  segmentActive: {
-    backgroundColor: "#1d4ed8",
-    borderColor: "#1d4ed8",
-  },
-  segmentText: {
-    color: "#334155",
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  segmentTextActive: {
-    color: "#fff",
-  },
-  helperText: {
-    color: "#475569",
-    fontSize: 13,
-  },
-  autoBox: {
-    backgroundColor: "#eff6ff",
-    borderRadius: 8,
-    padding: 10,
-    gap: 4,
-  },
-  fieldRow: {
-    gap: 6,
-  },
-  label: {
-    color: "#0f172a",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: "#0f172a",
-  },
-  switchRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 10,
-  },
-  primaryButton: {
-    backgroundColor: "#0f766e",
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 14,
-  },
-});
-

@@ -8,6 +8,7 @@ import { PaperProvider } from "react-native-paper";
 import { NavigationStack } from "../components/NavigationStack";
 import i18n, { initializeI18n } from "../i18n/i18n";
 import { useAuthStore } from "../store/authStore";
+import { paperTheme } from "../theme/designSystem";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -53,7 +54,7 @@ export default function RootLayout() {
   return (
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
-        <PaperProvider>
+        <PaperProvider theme={paperTheme}>
           <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
             <StatusBar style="auto" />
             <NavigationStack />

@@ -1,0 +1,4 @@
+export const DEFAULT_SILVER_PRICE_PER_GRAM = 12;
+export const DEFAULT_GOLD_PRICE_PER_GRAM = 800;
+export const SILVER_NISAB_GRAMS = 595;
+export const GOLD_NISAB_GRAMS = 85;

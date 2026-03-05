@@ -1,46 +1,261 @@
 {
-    "ok": "OK",
-    "cancel": "Annuler",
-    "save": "Enregistrer",
-    "continue": "Continuer",
-    "delete": "Supprimer",
-    "edit": "Modifier",
-    "close": "Fermer",
-    "confirm": "Confirmer",
-    "yes": "Oui",
-    "no": "Non",
-    "loading": "Chargement...",
-    "error": "Erreur",
-    "success": "Succès",
-    "retry": "Réessayer",
-    "back": "Retour",
-    "next": "Suivant",
-    "finish": "Terminer",
-    "submit": "Soumettre",
-    "clear": "Effacer",
-    "search": "Rechercher",
-    "filter": "Filtrer",
-    "settings": "Paramètres",
-    "profile": "Profil",
-    "logout": "Déconnexion",
+  "ok": "OK",
+  "cancel": "Annuler",
+  "save": "Enregistrer",
+  "continue": "Continuer",
+  "delete": "Supprimer",
+  "edit": "Modifier",
+  "close": "Fermer",
+  "confirm": "Confirmer",
+  "yes": "Oui",
+  "no": "Non",
+  "loading": "Chargement...",
+  "error": "Erreur",
+  "success": "Succès",
+  "retry": "Réessayer",
+  "back": "Retour",
+  "next": "Suivant",
+  "finish": "Terminer",
+  "submit": "Soumettre",
+  "clear": "Effacer",
+  "search": "Rechercher",
+  "filter": "Filtrer",
+  "settings": "Paramètres",
+  "profile": "Profil",
+  "logout": "Déconnexion",
+  "login": "Connexion",
+  "signup": "S'inscrire",
+  "email": "Email",
+  "password": "Mot de passe",
+  "name": "Nom",
+  "welcome": "Bienvenue",
+  "languages": {
+    "ar": "العربية",
+    "fr": "Français",
+    "en": "English"
+  },
+  "navigation": {
     "login": "Connexion",
     "signup": "S'inscrire",
-    "email": "Email",
-    "password": "Mot de passe",
-    "name": "Nom",
-    "welcome": "Bienvenue",
-    "navigation": {
-        "login": "Connexion",
-        "signup": "S'inscrire",
-        "home": "Accueil",
-        "profile": "Profil",
-        "settings": "Paramètres"
-    },
+    "home": "Accueil",
+    "profile": "Profil",
+    "settings": "Paramètres",
+    "calculate": "Calcul",
+    "history": "Historique",
+    "learn": "Apprendre",
+    "detailedCalculator": "Calcul détaillé",
+    "quickResult": "Résultat rapide",
+    "learnZakat": "Comprendre la zakat",
+    "historyDetails": "Détails de l'historique"
+  },
+  "validation": {
+    "required": "Ce champ est requis",
+    "email": "Veuillez entrer une adresse email valide",
+    "minLength": "Doit contenir au moins {count} caractères",
+    "maxLength": "Ne doit pas dépasser {count} caractères",
+    "passwordMatch": "Les mots de passe doivent correspondre"
+  },
+  "nisab": {
+    "current": "Nisab actuel"
+  },
+  "account": {
+    "title": "Compte",
+    "subtitle": "Gérez votre profil et votre session.",
+    "welcome": "Bienvenue, {email}"
+  },
+  "quickCalculator": {
+    "title": "Calcul rapide",
+    "calculate": "Calculer la zakat",
+    "placeholder": "0",
     "validation": {
-        "required": "Ce champ est requis",
-        "email": "Veuillez entrer une adresse email valide",
-        "minLength": "Doit contenir au moins {count} caractères",
-        "maxLength": "Ne doit pas dépasser {count} caractères",
-        "passwordMatch": "Les mots de passe doivent correspondre"
+      "positiveNumber": "Veuillez entrer un nombre positif."
+    },
+    "fields": {
+      "cash": {
+        "title": "Espèces et soldes bancaires",
+        "description": "Incluez l'argent liquide et tous les comptes bancaires."
+      },
+      "gold": {
+        "title": "Valeur de l'or et de l'argent",
+        "description": "Valeur marchande actuelle de vos bijoux ou pièces."
+      },
+      "debt": {
+        "title": "Dettes à court terme",
+        "description": "Sommes que vous devez payer prochainement."
+      }
     }
+  },
+  "quickResult": {
+    "title": "Vos résultats",
+    "summaryTitle": "Résultat du calcul",
+    "status": {
+      "above": "Au-dessus du seuil du nisab",
+      "below": "En dessous du seuil du nisab"
+    },
+    "rows": {
+      "totalWealth": "Patrimoine total :",
+      "netWealth": "Patrimoine net",
+      "nisabThreshold": "Seuil du nisab",
+      "totalZakatDue": "Zakat totale due",
+      "zakatDue": "Zakat due :"
+    },
+    "dueNotice": "Votre patrimoine net dépasse le seuil du nisab. Vous devez payer 2,5 % de votre patrimoine éligible au titre de la zakat.",
+    "notDueNotice": "Votre patrimoine net est inférieur au nisab. Aucune zakat n'est due pour le moment.",
+    "howCalculated": "Mode de calcul : {explanation}",
+    "actions": {
+      "save": "Enregistrer dans l'historique",
+      "edit": "Modifier les entrées",
+      "goToDetailed": "Aller au calcul détaillé"
+    },
+    "saved": {
+      "title": "Enregistré",
+      "body": "Enregistré dans l'historique local"
+    }
+  },
+  "history": {
+    "filters": {
+      "all": "Tout",
+      "quick": "Rapide",
+      "detailed": "Détaillé"
+    },
+    "quickCalculation": "Calcul rapide",
+    "detailedCalculation": "Calcul détaillé",
+    "zakatDue": "Zakat due",
+    "view": "Voir",
+    "emptyStateLabel": "VUE VIDE",
+    "emptyTitle": "Aucun historique trouvé",
+    "emptyBody": "Vos calculs enregistrés apparaîtront ici. Calculez votre zakat pour commencer.",
+    "startQuickCalculation": "Commencer un calcul rapide",
+    "deleteDialog": {
+      "title": "Supprimer l'entrée ?",
+      "body": "Cela supprime cet instantané de cet appareil uniquement."
+    },
+    "quickCategories": {
+      "cash": "Espèces",
+      "gold": "Or/Argent",
+      "debt": "Dette"
+    },
+    "loadingDetails": "Chargement des détails de l'historique...",
+    "notFoundTitle": "Entrée introuvable",
+    "notFoundBody": "Cet instantané a peut-être été supprimé localement.",
+    "backToHistory": "Retour à l'historique",
+    "historyDetails": "Détails de l'historique",
+    "savedQuickSubtitle": "Calcul rapide enregistré le {date}",
+    "savedDetailedSubtitle": "Calcul détaillé enregistré le {date}",
+    "totalZakatDue": "Zakat totale due",
+    "categoriesUsed": "Catégories utilisées",
+    "inputsSnapshot": "Instantané des entrées",
+    "lineItemBreakdown": "Détail des lignes",
+    "detailRows": {
+      "cashBank": "Espèces et banque",
+      "goldSilver": "Or et argent",
+      "debtsOwed": "Dettes dues",
+      "netWealth": "Patrimoine net",
+      "assetCategories": "Catégories d'actifs",
+      "lineItems": "Lignes"
+    },
+    "netWealthValue": "Patrimoine net : {value}",
+    "exportPdf": "Exporter en PDF",
+    "exporting": "Export en cours...",
+    "exportBlockedTitle": "Export bloqué",
+    "exportBlockedBody": "Autorisez les fenêtres pop-up pour imprimer ou enregistrer ce PDF depuis le navigateur.",
+    "pdfCreatedTitle": "PDF créé",
+    "pdfCreatedBody": "PDF enregistré dans {uri}",
+    "exportFailedTitle": "Échec de l'export",
+    "exportFailedBody": "Impossible de créer le PDF pour le moment."
+  },
+  "settingsScreen": {
+    "title": "Paramètres",
+    "subtitle": "Configurez le calcul du nisab et vos préférences personnelles.",
+    "nisabMethod": "Méthode du nisab",
+    "methods": {
+      "gold": "Basé sur l'or",
+      "silver": "Basé sur l'argent",
+      "auto": "Auto",
+      "autoWithMethod": "Auto ({method})"
+    },
+    "effectiveMethod": "Méthode effective : {method}",
+    "effectiveMethodBody": "L'argent est généralement plus inclusif pour les bénéficiaires.",
+    "autoRecommendation": "Recommandation automatique",
+    "nisabPricesSource": "Source des prix du nisab",
+    "sources": {
+      "manual": "Saisie manuelle",
+      "market": "Source marché",
+      "fatwa": "Valeurs fatwa"
+    },
+    "market": {
+      "title": "Mise à jour du marché",
+      "fetching": "Récupération des prix...",
+      "fetchAction": "Récupérer les prix GoldAPI",
+      "lastUpdated": "Dernière mise à jour : {value}",
+      "empty": "Aucune mise à jour du marché récupérée.",
+      "fetchFailed": "Échec de la récupération",
+      "fetchFailedBody": "Impossible de récupérer les prix en direct."
+    },
+    "fatwaApplied": "Valeurs fatwa appliquées",
+    "defaultNisabValues": "Valeurs de nisab par défaut",
+    "priceCards": {
+      "manualTitle": "Prix de l'or et de l'argent",
+      "currentTitle": "Prix actuels de l'or et de l'argent",
+      "goldPrice": "Prix de l'or ({currency}/g)",
+      "silverPrice": "Prix de l'argent ({currency}/g)",
+      "goldReadonly": "Or ({currency}/g)",
+      "silverReadonly": "Argent ({currency}/g)",
+      "placeholder": "0.00"
+    },
+    "currency": "Devise",
+    "language": "Langue",
+    "datePreference": "Préférence de date",
+    "dates": {
+      "hijri": "Hijri",
+      "gregorian": "Grégorien"
+    },
+    "zakatReminder": "Rappel de zakat",
+    "theme": "Thème",
+    "themes": {
+      "system": "Système",
+      "light": "Clair",
+      "dark": "Sombre"
+    }
+  },
+  "zakatExplanations": {
+    "hub": {
+      "title": "Catégories de zakat",
+      "subtitle": "Choisissez une catégorie pour voir l'explication basée sur la fatwa."
+    },
+    "detail": {
+      "overview": {
+        "title": "Aperçu",
+        "covers": "Ce que couvre cette catégorie",
+        "whenDue": "Quand la zakat est due",
+        "calculation": "Comment elle est calculée",
+        "conditions": "Conditions",
+        "deductions": "Déductions autorisées"
+      },
+      "included": {
+        "title": "Éléments inclus"
+      },
+      "steps": {
+        "title": "Comment calculer"
+      },
+      "examples": {
+        "title": "Exemple(s)"
+      },
+      "fatwa": {
+        "title": "Base de la fatwa (extrait arabe)",
+        "description": "Touchez pour lire le texte original."
+      },
+      "notes": {
+        "title": "Notes / avertissements"
+      },
+      "faq": {
+        "title": "FAQ"
+      },
+      "cta": "Aller au calculateur",
+      "notFound": {
+        "title": "Catégorie introuvable",
+        "back": "Retour aux catégories"
+      }
+    }
+  }
 }

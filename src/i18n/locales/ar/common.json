@@ -1,46 +1,261 @@
 {
-    "ok": "موافق",
-    "cancel": "إلغاء",
-    "save": "حفظ",
-    "continue": "متابعة",
-    "delete": "حذف",
-    "edit": "تعديل",
-    "close": "إغلاق",
-    "confirm": "تأكيد",
-    "yes": "نعم",
-    "no": "لا",
-    "loading": "جاري التحميل...",
-    "error": "خطأ",
-    "success": "نجح",
-    "retry": "إعادة المحاولة",
-    "back": "رجوع",
-    "next": "التالي",
-    "finish": "إنهاء",
-    "submit": "إرسال",
-    "clear": "مسح",
-    "search": "بحث",
-    "filter": "تصفية",
-    "settings": "الإعدادات",
-    "profile": "الملف الشخصي",
-    "logout": "تسجيل الخروج",
+  "ok": "موافق",
+  "cancel": "إلغاء",
+  "save": "حفظ",
+  "continue": "متابعة",
+  "delete": "حذف",
+  "edit": "تعديل",
+  "close": "إغلاق",
+  "confirm": "تأكيد",
+  "yes": "نعم",
+  "no": "لا",
+  "loading": "جارٍ التحميل...",
+  "error": "خطأ",
+  "success": "نجاح",
+  "retry": "إعادة المحاولة",
+  "back": "رجوع",
+  "next": "التالي",
+  "finish": "إنهاء",
+  "submit": "إرسال",
+  "clear": "مسح",
+  "search": "بحث",
+  "filter": "تصفية",
+  "settings": "الإعدادات",
+  "profile": "الملف الشخصي",
+  "logout": "تسجيل الخروج",
+  "login": "تسجيل الدخول",
+  "signup": "إنشاء حساب",
+  "email": "البريد الإلكتروني",
+  "password": "كلمة المرور",
+  "name": "الاسم",
+  "welcome": "أهلًا بك",
+  "languages": {
+    "ar": "العربية",
+    "fr": "Français",
+    "en": "English"
+  },
+  "navigation": {
     "login": "تسجيل الدخول",
     "signup": "إنشاء حساب",
-    "email": "البريد الإلكتروني",
-    "password": "كلمة المرور",
-    "name": "الاسم",
-    "welcome": "أهلاً بك",
-    "navigation": {
-        "login": "تسجيل الدخول",
-        "signup": "إنشاء حساب",
-        "home": "الرئيسية",
-        "profile": "الملف الشخصي",
-        "settings": "الإعدادات"
-    },
+    "home": "الرئيسية",
+    "profile": "الملف الشخصي",
+    "settings": "الإعدادات",
+    "calculate": "الحساب",
+    "history": "السجل",
+    "learn": "تعلّم",
+    "detailedCalculator": "الحساب التفصيلي",
+    "quickResult": "النتيجة السريعة",
+    "learnZakat": "تعلّم الزكاة",
+    "historyDetails": "تفاصيل السجل"
+  },
+  "validation": {
+    "required": "هذا الحقل مطلوب",
+    "email": "يرجى إدخال عنوان بريد إلكتروني صحيح",
+    "minLength": "يجب أن يكون على الأقل {count} أحرف",
+    "maxLength": "يجب ألا يتجاوز {count} أحرف",
+    "passwordMatch": "يجب أن تتطابق كلمات المرور"
+  },
+  "nisab": {
+    "current": "النصاب الحالي"
+  },
+  "account": {
+    "title": "الحساب",
+    "subtitle": "إدارة ملفك الشخصي والجلسة الحالية.",
+    "welcome": "مرحبًا، {email}"
+  },
+  "quickCalculator": {
+    "title": "الحساب السريع",
+    "calculate": "احسب الزكاة",
+    "placeholder": "0",
     "validation": {
-        "required": "هذا الحقل مطلوب",
-        "email": "يرجى إدخال عنوان بريد إلكتروني صحيح",
-        "minLength": "يجب أن يكون على الأقل {count} أحرف",
-        "maxLength": "يجب ألا يتجاوز {count} أحرف",
-        "passwordMatch": "يجب أن تتطابق كلمات المرور"
+      "positiveNumber": "يرجى إدخال رقم موجب."
+    },
+    "fields": {
+      "cash": {
+        "title": "النقدية والأرصدة البنكية",
+        "description": "أدخل النقد الموجود لديك وفي جميع الحسابات البنكية."
+      },
+      "gold": {
+        "title": "قيمة الذهب والفضة",
+        "description": "القيمة السوقية الحالية للحلي أو العملات."
+      },
+      "debt": {
+        "title": "الديون قصيرة الأجل",
+        "description": "الأموال التي عليك سدادها قريبًا."
+      }
     }
+  },
+  "quickResult": {
+    "title": "نتيجتك",
+    "summaryTitle": "نتيجة الحساب",
+    "status": {
+      "above": "أعلى من النصاب",
+      "below": "أقل من النصاب"
+    },
+    "rows": {
+      "totalWealth": "إجمالي الثروة:",
+      "netWealth": "صافي الثروة",
+      "nisabThreshold": "حد النصاب",
+      "totalZakatDue": "إجمالي الزكاة الواجبة",
+      "zakatDue": "الزكاة الواجبة:"
+    },
+    "dueNotice": "صافي ثروتك أعلى من النصاب، لذا يجب عليك إخراج 2.5% من المال الزكوي.",
+    "notDueNotice": "صافي ثروتك أقل من النصاب، ولا تجب عليك الزكاة حاليًا.",
+    "howCalculated": "طريقة الحساب: {explanation}",
+    "actions": {
+      "save": "حفظ في السجل",
+      "edit": "تعديل المدخلات",
+      "goToDetailed": "الانتقال إلى الحساب التفصيلي"
+    },
+    "saved": {
+      "title": "تم الحفظ",
+      "body": "تم الحفظ في السجل المحلي"
+    }
+  },
+  "history": {
+    "filters": {
+      "all": "الكل",
+      "quick": "سريع",
+      "detailed": "تفصيلي"
+    },
+    "quickCalculation": "حساب سريع",
+    "detailedCalculation": "حساب تفصيلي",
+    "zakatDue": "الزكاة الواجبة",
+    "view": "عرض",
+    "emptyStateLabel": "عرض فارغ",
+    "emptyTitle": "لا يوجد سجل",
+    "emptyBody": "ستظهر حساباتك المحفوظة هنا. ابدأ بحساب الزكاة.",
+    "startQuickCalculation": "ابدأ الحساب السريع",
+    "deleteDialog": {
+      "title": "حذف الإدخال؟",
+      "body": "سيؤدي هذا إلى إزالة اللقطة من هذا الجهاز فقط."
+    },
+    "quickCategories": {
+      "cash": "نقد",
+      "gold": "ذهب/فضة",
+      "debt": "دين"
+    },
+    "loadingDetails": "جارٍ تحميل تفاصيل السجل...",
+    "notFoundTitle": "لم يتم العثور على الإدخال",
+    "notFoundBody": "قد تكون هذه اللقطة حُذفت محليًا.",
+    "backToHistory": "العودة إلى السجل",
+    "historyDetails": "تفاصيل السجل",
+    "savedQuickSubtitle": "تم حفظ الحساب السريع {date}",
+    "savedDetailedSubtitle": "تم حفظ الحساب التفصيلي {date}",
+    "totalZakatDue": "إجمالي الزكاة الواجبة",
+    "categoriesUsed": "الفئات المستخدمة",
+    "inputsSnapshot": "لقطة المدخلات",
+    "lineItemBreakdown": "تفصيل البنود",
+    "detailRows": {
+      "cashBank": "النقد والبنك",
+      "goldSilver": "الذهب والفضة",
+      "debtsOwed": "الديون المستحقة",
+      "netWealth": "صافي الثروة",
+      "assetCategories": "فئات الأصول",
+      "lineItems": "البنود"
+    },
+    "netWealthValue": "صافي الثروة: {value}",
+    "exportPdf": "تصدير PDF",
+    "exporting": "جارٍ التصدير...",
+    "exportBlockedTitle": "تم حظر التصدير",
+    "exportBlockedBody": "اسمح بالنوافذ المنبثقة لطباعة أو حفظ ملف PDF من المتصفح.",
+    "pdfCreatedTitle": "تم إنشاء PDF",
+    "pdfCreatedBody": "تم حفظ ملف PDF في {uri}",
+    "exportFailedTitle": "فشل التصدير",
+    "exportFailedBody": "تعذر إنشاء ملف PDF الآن."
+  },
+  "settingsScreen": {
+    "title": "الإعدادات",
+    "subtitle": "اضبط حساب النصاب وتفضيلاتك الشخصية.",
+    "nisabMethod": "طريقة النصاب",
+    "methods": {
+      "gold": "بحسب الذهب",
+      "silver": "بحسب الفضة",
+      "auto": "تلقائي",
+      "autoWithMethod": "تلقائي ({method})"
+    },
+    "effectiveMethod": "الطريقة الفعالة: {method}",
+    "effectiveMethodBody": "الفضة غالبًا أوسع نفعًا للمستحقين.",
+    "autoRecommendation": "التوصية التلقائية",
+    "nisabPricesSource": "مصدر أسعار النصاب",
+    "sources": {
+      "manual": "إدخال يدوي",
+      "market": "مصدر السوق",
+      "fatwa": "قيم الفتوى"
+    },
+    "market": {
+      "title": "تحديث السوق",
+      "fetching": "جارٍ جلب الأسعار...",
+      "fetchAction": "جلب أسعار GoldAPI المباشرة",
+      "lastUpdated": "آخر تحديث: {value}",
+      "empty": "لم يتم جلب تحديث سوق بعد.",
+      "fetchFailed": "فشل الجلب",
+      "fetchFailedBody": "تعذر جلب الأسعار المباشرة."
+    },
+    "fatwaApplied": "تم تطبيق قيم الفتوى",
+    "defaultNisabValues": "قيم النصاب الافتراضية",
+    "priceCards": {
+      "manualTitle": "أسعار الذهب والفضة",
+      "currentTitle": "الأسعار الحالية للذهب والفضة",
+      "goldPrice": "سعر الذهب ({currency}/غ)",
+      "silverPrice": "سعر الفضة ({currency}/غ)",
+      "goldReadonly": "الذهب ({currency}/غ)",
+      "silverReadonly": "الفضة ({currency}/غ)",
+      "placeholder": "0.00"
+    },
+    "currency": "العملة",
+    "language": "اللغة",
+    "datePreference": "تفضيل التاريخ",
+    "dates": {
+      "hijri": "هجري",
+      "gregorian": "ميلادي"
+    },
+    "zakatReminder": "تذكير الزكاة",
+    "theme": "السمة",
+    "themes": {
+      "system": "النظام",
+      "light": "فاتح",
+      "dark": "داكن"
+    }
+  },
+  "zakatExplanations": {
+    "hub": {
+      "title": "فئات الزكاة",
+      "subtitle": "اختر فئة لعرض شرحها المبني على الفتوى."
+    },
+    "detail": {
+      "overview": {
+        "title": "نظرة عامة",
+        "covers": "ما الذي تغطيه هذه الفئة",
+        "whenDue": "متى تجب الزكاة",
+        "calculation": "كيفية الحساب",
+        "conditions": "الشروط",
+        "deductions": "الخصومات المسموح بها"
+      },
+      "included": {
+        "title": "العناصر المشمولة"
+      },
+      "steps": {
+        "title": "كيفية الحساب"
+      },
+      "examples": {
+        "title": "مثال/أمثلة"
+      },
+      "fatwa": {
+        "title": "أصل الفتوى (مقتطف عربي)",
+        "description": "اضغط لقراءة النص الأصلي."
+      },
+      "notes": {
+        "title": "ملاحظات / تنبيهات"
+      },
+      "faq": {
+        "title": "الأسئلة الشائعة"
+      },
+      "cta": "اذهب إلى الحاسبة",
+      "notFound": {
+        "title": "الفئة غير موجودة",
+        "back": "العودة إلى الفئات"
+      }
+    }
+  }
 }

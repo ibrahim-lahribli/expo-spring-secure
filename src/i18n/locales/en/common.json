@@ -1,86 +1,261 @@
 {
-    "ok": "OK",
-    "cancel": "Cancel",
-    "save": "Save",
-    "continue": "Continue",
-    "delete": "Delete",
-    "edit": "Edit",
-    "close": "Close",
-    "confirm": "Confirm",
-    "yes": "Yes",
-    "no": "No",
-    "loading": "Loading...",
-    "error": "Error",
-    "success": "Success",
-    "retry": "Retry",
-    "back": "Back",
-    "next": "Next",
-    "finish": "Finish",
-    "submit": "Submit",
-    "clear": "Clear",
-    "search": "Search",
-    "filter": "Filter",
-    "settings": "Settings",
-    "profile": "Profile",
-    "logout": "Logout",
+  "ok": "OK",
+  "cancel": "Cancel",
+  "save": "Save",
+  "continue": "Continue",
+  "delete": "Delete",
+  "edit": "Edit",
+  "close": "Close",
+  "confirm": "Confirm",
+  "yes": "Yes",
+  "no": "No",
+  "loading": "Loading...",
+  "error": "Error",
+  "success": "Success",
+  "retry": "Retry",
+  "back": "Back",
+  "next": "Next",
+  "finish": "Finish",
+  "submit": "Submit",
+  "clear": "Clear",
+  "search": "Search",
+  "filter": "Filter",
+  "settings": "Settings",
+  "profile": "Profile",
+  "logout": "Logout",
+  "login": "Login",
+  "signup": "Sign Up",
+  "email": "Email",
+  "password": "Password",
+  "name": "Name",
+  "welcome": "Welcome",
+  "languages": {
+    "ar": "العربية",
+    "fr": "Français",
+    "en": "English"
+  },
+  "navigation": {
     "login": "Login",
     "signup": "Sign Up",
-    "email": "Email",
-    "password": "Password",
-    "name": "Name",
-    "welcome": "Welcome",
-    "navigation": {
-        "login": "Login",
-        "signup": "Sign Up",
-        "home": "Home",
-        "profile": "Profile",
-        "settings": "Settings"
-    },
+    "home": "Home",
+    "profile": "Profile",
+    "settings": "Settings",
+    "calculate": "Calculate",
+    "history": "History",
+    "learn": "Learn",
+    "detailedCalculator": "Detailed Calculator",
+    "quickResult": "Quick Result",
+    "learnZakat": "Learn Zakat",
+    "historyDetails": "History Details"
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Please enter a valid email address",
+    "minLength": "Must be at least {count} characters",
+    "maxLength": "Must be no more than {count} characters",
+    "passwordMatch": "Passwords must match"
+  },
+  "nisab": {
+    "current": "Current Nisab"
+  },
+  "account": {
+    "title": "Account",
+    "subtitle": "Manage your profile and session.",
+    "welcome": "Welcome, {email}"
+  },
+  "quickCalculator": {
+    "title": "Quick Calculate",
+    "calculate": "Calculate Zakat",
+    "placeholder": "0",
     "validation": {
-        "required": "This field is required",
-        "email": "Please enter a valid email address",
-        "minLength": "Must be at least {count} characters",
-        "maxLength": "Must be no more than {count} characters",
-        "passwordMatch": "Passwords must match"
+      "positiveNumber": "Please enter a positive number."
     },
-    "zakatExplanations": {
-        "hub": {
-            "title": "Zakat Categories",
-            "subtitle": "Choose a category to view the fatwa-based explanation."
-        },
-        "detail": {
-            "overview": {
-                "title": "Overview",
-                "covers": "What this category covers",
-                "whenDue": "When zakat is due",
-                "calculation": "How it is calculated",
-                "conditions": "Conditions",
-                "deductions": "Deductions allowed"
-            },
-            "included": {
-                "title": "Included Items"
-            },
-            "steps": {
-                "title": "How to Calculate"
-            },
-            "examples": {
-                "title": "Example(s)"
-            },
-            "fatwa": {
-                "title": "Fatwa Basis (Arabic Excerpt)",
-                "description": "Tap to read the original wording."
-            },
-            "notes": {
-                "title": "Notes / Warnings"
-            },
-            "faq": {
-                "title": "FAQ"
-            },
-            "cta": "Go to calculator (coming next)",
-            "notFound": {
-                "title": "Category not found",
-                "back": "Back to categories"
-            }
-        }
+    "fields": {
+      "cash": {
+        "title": "Cash & Bank Balance",
+        "description": "Include cash at home and in all bank accounts."
+      },
+      "gold": {
+        "title": "Gold & Silver Value",
+        "description": "Current market value of your jewelry or coins."
+      },
+      "debt": {
+        "title": "Short-term Debts",
+        "description": "Money you owe and must pay soon."
+      }
     }
+  },
+  "quickResult": {
+    "title": "Your Results",
+    "summaryTitle": "Calculation Result",
+    "status": {
+      "above": "Above Nisab Threshold",
+      "below": "Below Nisab Threshold"
+    },
+    "rows": {
+      "totalWealth": "Total Wealth:",
+      "netWealth": "Net Wealth",
+      "nisabThreshold": "Nisab Threshold",
+      "totalZakatDue": "Total Zakat Due",
+      "zakatDue": "Zakat Due:"
+    },
+    "dueNotice": "Your net wealth is above the Nisab threshold. You are required to pay 2.5% of your eligible wealth as Zakat.",
+    "notDueNotice": "Your net wealth is below Nisab. Zakat is not due at this time.",
+    "howCalculated": "How this was calculated: {explanation}",
+    "actions": {
+      "save": "Save to History",
+      "edit": "Edit Inputs",
+      "goToDetailed": "Go to Detailed Calculation"
+    },
+    "saved": {
+      "title": "Saved",
+      "body": "Saved to local history"
+    }
+  },
+  "history": {
+    "filters": {
+      "all": "All",
+      "quick": "Quick",
+      "detailed": "Detailed"
+    },
+    "quickCalculation": "Quick Calculation",
+    "detailedCalculation": "Detailed Calculation",
+    "zakatDue": "Zakat Due",
+    "view": "View",
+    "emptyStateLabel": "EMPTY STATE VIEW",
+    "emptyTitle": "No history found",
+    "emptyBody": "Your saved calculations will appear here. Calculate your Zakat to get started.",
+    "startQuickCalculation": "Start Quick Calculation",
+    "deleteDialog": {
+      "title": "Delete entry?",
+      "body": "This removes this snapshot from this device only."
+    },
+    "quickCategories": {
+      "cash": "Cash",
+      "gold": "Gold/Silver",
+      "debt": "Debt"
+    },
+    "loadingDetails": "Loading history details...",
+    "notFoundTitle": "History entry not found",
+    "notFoundBody": "This snapshot may have been deleted locally.",
+    "backToHistory": "Back to History",
+    "historyDetails": "History Details",
+    "savedQuickSubtitle": "Quick calculation saved {date}",
+    "savedDetailedSubtitle": "Detailed calculation saved {date}",
+    "totalZakatDue": "Total Zakat Due",
+    "categoriesUsed": "Categories Used",
+    "inputsSnapshot": "Inputs Snapshot",
+    "lineItemBreakdown": "Line Item Breakdown",
+    "detailRows": {
+      "cashBank": "Cash & Bank",
+      "goldSilver": "Gold & Silver",
+      "debtsOwed": "Debts Owed",
+      "netWealth": "Net Wealth",
+      "assetCategories": "Asset Categories",
+      "lineItems": "Line Items"
+    },
+    "netWealthValue": "Net wealth: {value}",
+    "exportPdf": "Export PDF",
+    "exporting": "Exporting...",
+    "exportBlockedTitle": "Export blocked",
+    "exportBlockedBody": "Allow pop-ups to print or save this PDF from the browser.",
+    "pdfCreatedTitle": "PDF created",
+    "pdfCreatedBody": "Saved PDF to {uri}",
+    "exportFailedTitle": "Export failed",
+    "exportFailedBody": "Unable to create the PDF right now."
+  },
+  "settingsScreen": {
+    "title": "Settings",
+    "subtitle": "Configure nisab calculation and personal preferences.",
+    "nisabMethod": "Nisab Method",
+    "methods": {
+      "gold": "Gold-based",
+      "silver": "Silver-based",
+      "auto": "Auto",
+      "autoWithMethod": "Auto ({method})"
+    },
+    "effectiveMethod": "Effective method: {method}",
+    "effectiveMethodBody": "Silver is usually more inclusive for beneficiaries.",
+    "autoRecommendation": "Auto recommendation",
+    "nisabPricesSource": "Nisab Prices Source",
+    "sources": {
+      "manual": "Manual entry",
+      "market": "Market source",
+      "fatwa": "Fatwa defaults"
+    },
+    "market": {
+      "title": "Market update",
+      "fetching": "Fetching prices...",
+      "fetchAction": "Fetch live GoldAPI prices",
+      "lastUpdated": "Last updated: {value}",
+      "empty": "No market update fetched yet.",
+      "fetchFailed": "Fetch failed",
+      "fetchFailedBody": "Unable to fetch live market prices."
+    },
+    "fatwaApplied": "Fatwa defaults applied",
+    "defaultNisabValues": "Default nisab values",
+    "priceCards": {
+      "manualTitle": "Gold and Silver Prices",
+      "currentTitle": "Current Gold and Silver Prices",
+      "goldPrice": "Gold price ({currency}/g)",
+      "silverPrice": "Silver price ({currency}/g)",
+      "goldReadonly": "Gold ({currency}/g)",
+      "silverReadonly": "Silver ({currency}/g)",
+      "placeholder": "0.00"
+    },
+    "currency": "Currency",
+    "language": "Language",
+    "datePreference": "Date Preference",
+    "dates": {
+      "hijri": "Hijri",
+      "gregorian": "Gregorian"
+    },
+    "zakatReminder": "Zakat Reminder",
+    "theme": "Theme",
+    "themes": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    }
+  },
+  "zakatExplanations": {
+    "hub": {
+      "title": "Zakat Categories",
+      "subtitle": "Choose a category to view the fatwa-based explanation."
+    },
+    "detail": {
+      "overview": {
+        "title": "Overview",
+        "covers": "What this category covers",
+        "whenDue": "When zakat is due",
+        "calculation": "How it is calculated",
+        "conditions": "Conditions",
+        "deductions": "Deductions allowed"
+      },
+      "included": {
+        "title": "Included Items"
+      },
+      "steps": {
+        "title": "How to Calculate"
+      },
+      "examples": {
+        "title": "Example(s)"
+      },
+      "fatwa": {
+        "title": "Fatwa Basis (Arabic Excerpt)",
+        "description": "Tap to read the original wording."
+      },
+      "notes": {
+        "title": "Notes / Warnings"
+      },
+      "faq": {
+        "title": "FAQ"
+      },
+      "cta": "Go to calculator (coming next)",
+      "notFound": {
+        "title": "Category not found",
+        "back": "Back to categories"
+      }
+    }
+  }
 }

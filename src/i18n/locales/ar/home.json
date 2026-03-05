@@ -1,6 +1,29 @@
 {
-    "title": "أهلاً بك",
-    "welcomeMessage": "أهلاً بك، {name}!",
-    "email": "البريد الإلكتروني",
-    "signOut": "تسجيل الخروج"
+  "title": "أهلًا بك",
+  "welcomeMessage": "أهلًا بك، {name}!",
+  "email": "البريد الإلكتروني",
+  "signOut": "تسجيل الخروج",
+  "greetingTitle": "السلام عليكم",
+  "greetingSubtitle": "طهّر مالك بأداء زكاتك. الأمر بسيط وواضح وآمن.",
+  "actions": {
+    "calculate": "احسب الزكاة",
+    "detailed": "الحساب التفصيلي"
+  },
+  "nisabBasis": {
+    "gold": "الذهب (85 غرامًا)",
+    "silver": "الفضة (595 غرامًا)"
+  },
+  "nisabHelper": "استنادًا إلى {basis}. تم التحديث اليوم.",
+  "quickLinksTitle": "روابط سريعة",
+  "quickLinks": {
+    "nisab": "النصاب"
+  },
+  "account": {
+    "title": "حسابك",
+    "view": "عرض الحساب"
+  },
+  "guest": {
+    "title": "احفظ تقدمك",
+    "subtitle": "أنشئ حسابًا لحفظ سجلك بأمان عبر الأجهزة."
+  }
 }

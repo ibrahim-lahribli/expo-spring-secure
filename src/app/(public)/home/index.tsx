@@ -1,135 +1,108 @@
 import { useRouter } from "expo-router";
 import React from "react";
+import { useTranslation } from "react-i18next";
+import { StyleSheet, Text, View } from "react-native";
 import {
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+  AppCard,
+  AppScreen,
+  IconTileButton,
+  NisabCard,
+  PrimaryButton,
+  SecondaryButton,
+  SectionTitle,
+} from "../../../components/ui";
+import { formatMoney } from "../../../lib/currency";
+import { calculateNisab } from "../../../lib/zakat-calculation/nisab";
 import { useAuthStore } from "../../../store/authStore";
+import { useAppPreferencesStore } from "../../../store/appPreferencesStore";
+import { useNisabSettingsStore } from "../../../store/nisabSettingsStore";
+import { appColors, appSpacing } from "../../../theme/designSystem";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { t } = useTranslation(["common", "home"]);
   const { user } = useAuthStore();
+  const currency = useAppPreferencesStore((s) => s.currency);
+  const nisabMethod = useNisabSettingsStore((s) => s.nisabMethod);
+  const silverPricePerGram = useNisabSettingsStore((s) => s.silverPricePerGram);
+  const goldPricePerGram = useNisabSettingsStore((s) => s.goldPricePerGram);
+  const nisabOverride = useNisabSettingsStore((s) => s.nisabOverride);
+
+  const nisabValue = calculateNisab({ nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride });
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.emoji}>🕌</Text>
-        <Text style={styles.title}>Welcome to Zakat Calculator</Text>
-        <Text style={styles.description}>
-          Calculate your Zakat obligations easily and accurately. Our app helps
-          you determine the correct Zakat amount based on your assets, following
-          Islamic principles and guidelines.
+    <AppScreen>
+      <View style={styles.greetingWrap}>
+        <Text style={styles.greetingTitle}>{t("home:greetingTitle")}</Text>
+        <Text style={styles.greetingSubtitle}>
+          {t("home:greetingSubtitle")}
         </Text>
-
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => router.push("/(public)/calculate")}
-        >
-          <Text style={styles.primaryButtonText}>Calculate Zakat</Text>
-        </TouchableOpacity>
-
-        {!user ? (
-          <View style={styles.authButtons}>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => router.push("/auth/login")}
-            >
-              <Text style={styles.secondaryButtonText}>Login</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => router.push("/auth/signup")}
-            >
-              <Text style={styles.secondaryButtonText}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.accountButton}
-            onPress={() => router.push("/(protected)/account")}
-          >
-            <Text style={styles.accountButtonText}>View Account</Text>
-          </TouchableOpacity>
-        )}
       </View>
-    </SafeAreaView>
+
+      <PrimaryButton label={t("home:actions.calculate")} iconName="calculator-outline" onPress={() => router.push("/(public)/calculate")} />
+      <SecondaryButton label={t("home:actions.detailed")} onPress={() => router.push("/(public)/calculate/detailed")} />
+
+      <NisabCard
+        amount={formatMoney(nisabValue, currency)}
+        helper={t("home:nisabHelper", {
+          basis:
+            nisabMethod === "gold"
+              ? t("home:nisabBasis.gold")
+              : t("home:nisabBasis.silver"),
+        })}
+      />
+
+      <SectionTitle title={t("home:quickLinksTitle")} />
+      <View style={styles.quickLinks}>
+        <IconTileButton label={t("common:navigation.history")} icon="time-outline" onPress={() => router.push("/(public)/history")} />
+        <IconTileButton label={t("common:navigation.learn")} icon="book-outline" onPress={() => router.push("/(public)/zakat-explanations")} />
+        <IconTileButton label={t("home:quickLinks.nisab")} icon="options-outline" onPress={() => router.push("/(public)/settings")} />
+      </View>
+
+      <AppCard>
+        {user ? (
+          <>
+            <SectionTitle title={t("home:account.title")} subtitle={user.email ?? ""} />
+            <PrimaryButton label={t("home:account.view")} onPress={() => router.push("/(protected)/account")} />
+          </>
+        ) : (
+          <>
+            <SectionTitle title={t("home:guest.title")} subtitle={t("home:guest.subtitle")} />
+            <View style={styles.authButtons}>
+              <SecondaryButton style={styles.halfButton} label={t("common:login")} onPress={() => router.push("/auth/login")} />
+              <PrimaryButton style={styles.halfButton} label={t("common:signup")} onPress={() => router.push("/auth/signup")} />
+            </View>
+          </>
+        )}
+      </AppCard>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
+  greetingWrap: {
+    gap: appSpacing.xs,
   },
-  content: {
-    flex: 1,
-    padding: 24,
-    justifyContent: "center",
-    alignItems: "center",
+  greetingTitle: {
+    fontSize: 38,
+    lineHeight: 43,
+    fontWeight: "800",
+    color: appColors.textPrimary,
   },
-  emoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 16,
-    color: "#1a1a1a",
-  },
-  description: {
+  greetingSubtitle: {
     fontSize: 16,
-    textAlign: "center",
-    color: "#666",
-    lineHeight: 24,
-    marginBottom: 32,
+    lineHeight: 23,
+    color: appColors.textSecondary,
   },
-  primaryButton: {
-    backgroundColor: "#007AFF",
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    marginBottom: 16,
-    minWidth: 200,
-    alignItems: "center",
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
+  quickLinks: {
+    flexDirection: "row",
+    gap: appSpacing.sm,
   },
   authButtons: {
     flexDirection: "row",
-    gap: 12,
+    gap: appSpacing.sm,
   },
-  secondaryButton: {
-    backgroundColor: "#f0f0f0",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    minWidth: 100,
-    alignItems: "center",
-  },
-  secondaryButtonText: {
-    color: "#007AFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  accountButton: {
-    backgroundColor: "#f0f0f0",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    minWidth: 160,
-    alignItems: "center",
-  },
-  accountButtonText: {
-    color: "#007AFF",
-    fontSize: 16,
-    fontWeight: "600",
+  halfButton: {
+    flex: 1,
   },
 });

@@ -1,6 +1,29 @@
 {
-    "title": "Welcome",
-    "welcomeMessage": "Welcome, {name}!",
-    "email": "Email",
-    "signOut": "Sign Out"
+  "title": "Welcome",
+  "welcomeMessage": "Welcome, {name}!",
+  "email": "Email",
+  "signOut": "Sign Out",
+  "greetingTitle": "As-salamu alaykum",
+  "greetingSubtitle": "Purify your wealth by fulfilling your zakat obligation. It is simple, clear, and secure.",
+  "actions": {
+    "calculate": "Calculate Zakat",
+    "detailed": "Detailed Calculation"
+  },
+  "nisabBasis": {
+    "gold": "Gold (85 grams)",
+    "silver": "Silver (595 grams)"
+  },
+  "nisabHelper": "Based on {basis}. Updated today.",
+  "quickLinksTitle": "Quick Links",
+  "quickLinks": {
+    "nisab": "Nisab"
+  },
+  "account": {
+    "title": "Your account",
+    "view": "View Account"
+  },
+  "guest": {
+    "title": "Save your progress",
+    "subtitle": "Create an account to securely save your history across devices."
+  }
 }

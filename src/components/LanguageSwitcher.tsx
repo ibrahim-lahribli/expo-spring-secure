@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useLanguageSwitcher } from "../i18n/i18n";
 import type { LanguageSwitcherProps, SupportedLanguage } from "../types/i18n";
@@ -8,20 +9,12 @@ export function LanguageSwitcher({
   buttonStyle,
   textStyle,
 }: LanguageSwitcherProps) {
+  const { t } = useTranslation("common");
   const { currentLanguage, switchLanguage, supportedLanguages } =
     useLanguageSwitcher();
 
-  const getLanguageLabel = (lang: SupportedLanguage): string => {
-    switch (lang) {
-      case "ar":
-        return "العربية";
-      case "fr":
-        return "Français";
-      case "en":
-        return "English";
-      default:
-        return lang;
-    }
+  const getLanguageLabel = (language: SupportedLanguage): string => {
+    return t(`languages.${language}`);
   };
 
   return (

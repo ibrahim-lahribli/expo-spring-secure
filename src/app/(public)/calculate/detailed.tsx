@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { appColors, appRadius, appSpacing } from "../../../theme/designSystem";
 import { upsertGuestHistoryEntry } from "../../../features/history/storage";
 import type { DetailedHistoryLineItem, HistoryEntry } from "../../../features/history/types";
 import {
@@ -29,7 +30,9 @@ import {
   type ProduceWateringMethod,
   type ZakatCalculationResult,
 } from "../../../lib/zakat-calculation";
+import { formatMoney } from "../../../lib/currency";
 import { calculateNisab, getNisabBreakdown } from "../../../lib/zakat-calculation/nisab";
+import { useAppPreferencesStore, type SupportedCurrency } from "../../../store/appPreferencesStore";
 import { useNisabSettingsStore } from "../../../store/nisabSettingsStore";
 
 const DEFAULT_SILVER_PRICE_PER_GRAM = 12;
@@ -247,7 +250,7 @@ function calculateTradeSectorZakat(input: {
   };
 }
 
-function buildDetailedHistoryLineItem(item: LineItem): DetailedHistoryLineItem {
+function buildDetailedHistoryLineItem(item: LineItem, currency: SupportedCurrency): DetailedHistoryLineItem {
   if (item.category === "salary") {
     return {
       id: item.id,
@@ -257,7 +260,7 @@ function buildDetailedHistoryLineItem(item: LineItem): DetailedHistoryLineItem {
       totalWealth: item.result.totalWealth,
       details: [
         `Mode: ${item.values.calculationMode}`,
-        `Nisab: ${item.result.nisab.toFixed(2)}`,
+        `Nisab: ${formatMoney(item.result.nisab, currency)}`,
       ],
     };
   }
@@ -297,11 +300,12 @@ function buildDetailedHistoryLineItem(item: LineItem): DetailedHistoryLineItem {
     label: CATEGORY_LABELS[item.category],
     totalZakat: item.result.totalZakat,
     totalWealth: item.result.totalWealth,
-    details: [`Nisab: ${item.result.nisab.toFixed(2)}`],
+    details: [`Nisab: ${formatMoney(item.result.nisab, currency)}`],
   };
 }
 
 export default function DetailedCalculateScreen() {
+  const currency = useAppPreferencesStore((s) => s.currency);
   const [activeCategory, setActiveCategory] = useState<CategoryId>("salary");
   const [salaryValues, setSalaryValues] = useState<SalaryValues>({
     monthlyIncome: "",
@@ -496,7 +500,7 @@ export default function DetailedCalculateScreen() {
       createdAt: now,
       updatedAt: now,
       totalZakat: combinedTotal,
-      currency: "USD",
+      currency,
       nisabSnapshot: {
         method: nisabMethod,
         silverPricePerGram,
@@ -509,7 +513,7 @@ export default function DetailedCalculateScreen() {
       },
       payload: {
         kind: "detailed",
-        lineItems: lineItems.map(buildDetailedHistoryLineItem),
+        lineItems: lineItems.map((item) => buildDetailedHistoryLineItem(item, currency)),
         combinedTotal,
       },
     };
@@ -780,12 +784,24 @@ export default function DetailedCalculateScreen() {
             {paymentMethod === "cash" ? livestockPreview.keys.map((key) => (
               <Controller key={key} control={control} name={`prices.${key}`} render={({ field: { value, onChange } }) => (
                 <View>
-                  <TextInput style={styles.input} keyboardType="numeric" value={value ?? ""} onChangeText={onChange} placeholder={`Price for ${key}`} />
+                  <TextInput
+                    style={styles.input}
+                    keyboardType="numeric"
+                    value={value ?? ""}
+                    onChangeText={onChange}
+                    placeholder={`Price for ${key} (${currency})`}
+                  />
                   {(errors.prices as Record<string, { message?: string }> | undefined)?.[key]?.message ? <Text style={styles.error}>{(errors.prices as Record<string, { message?: string }>)[key].message}</Text> : null}
                 </View>
               )} />
             )) : null}
-            {paymentMethod === "cash" ? <Text style={styles.caption}>{livestockPreview.cashEquivalent === undefined ? "Cash equivalent: missing price" : `Cash equivalent: ${livestockPreview.cashEquivalent.toFixed(2)}`}</Text> : null}
+            {paymentMethod === "cash" ? (
+              <Text style={styles.caption}>
+                {livestockPreview.cashEquivalent === undefined
+                  ? "Cash equivalent: missing price"
+                  : `Cash equivalent: ${formatMoney(livestockPreview.cashEquivalent, currency)}`}
+              </Text>
+            ) : null}
           </>
         ) : activeCategory === "agri_other" ? (
           <>
@@ -988,9 +1004,9 @@ export default function DetailedCalculateScreen() {
               {item.category === "salary" ? (
                 <>
                   <Text>Mode: {item.values.calculationMode === "monthly" ? "Monthly" : "Annual"}</Text>
-                  <Text>Nisab: {item.result.nisab.toFixed(2)}</Text>
-                  <Text>Net Wealth: {item.result.totalWealth.toFixed(2)}</Text>
-                  <Text>Zakat Due: {item.result.totalZakat.toFixed(2)}</Text>
+                  <Text>Nisab: {formatMoney(item.result.nisab, currency)}</Text>
+                  <Text>Net Wealth: {formatMoney(item.result.totalWealth, currency)}</Text>
+                  <Text>Zakat Due: {formatMoney(item.result.totalZakat, currency)}</Text>
                 </>
               ) : item.category === "livestock" ? (
                 <>
@@ -998,44 +1014,44 @@ export default function DetailedCalculateScreen() {
                   <Text>Owned: {item.values.ownedCount}</Text>
                   <Text>Due animals: {item.dueText}</Text>
                   <Text>Payment: {item.values.paymentMethod}</Text>
-                  <Text>Cash Included: {item.result.totalZakat.toFixed(2)}</Text>
+                  <Text>Cash Included: {formatMoney(item.result.totalZakat, currency)}</Text>
                 </>
               ) : item.category === "agri_other" ? (
                 <>
-                  <Text>Market value: {Number(item.values.marketValue || 0).toFixed(2)}</Text>
-                  <Text>Operating costs: {Number(item.values.operatingCosts || 0).toFixed(2)}</Text>
-                  <Text>Net value: {item.result.totalWealth.toFixed(2)}</Text>
+                  <Text>Market value: {formatMoney(Number(item.values.marketValue || 0), currency)}</Text>
+                  <Text>Operating costs: {formatMoney(Number(item.values.operatingCosts || 0), currency)}</Text>
+                  <Text>Net value: {formatMoney(item.result.totalWealth, currency)}</Text>
                   <Text>Rule: 2.5% (one quarter of a tenth) if net value reaches nisab</Text>
-                  <Text>Nisab: {item.result.nisab.toFixed(2)}</Text>
-                  <Text>Zakat Due: {item.result.totalZakat.toFixed(2)}</Text>
+                  <Text>Nisab: {formatMoney(item.result.nisab, currency)}</Text>
+                  <Text>Zakat Due: {formatMoney(item.result.totalZakat, currency)}</Text>
                 </>
               ) : item.category === "trade_sector" ? (
                 <>
-                  <Text>Trade/business assets: {Number(item.values.marketValue || 0).toFixed(2)}</Text>
-                  <Text>Due operating costs: {Number(item.values.operatingCosts || 0).toFixed(2)}</Text>
-                  <Text>Net zakatable amount: {item.result.totalWealth.toFixed(2)}</Text>
+                  <Text>Trade/business assets: {formatMoney(Number(item.values.marketValue || 0), currency)}</Text>
+                  <Text>Due operating costs: {formatMoney(Number(item.values.operatingCosts || 0), currency)}</Text>
+                  <Text>Net zakatable amount: {formatMoney(item.result.totalWealth, currency)}</Text>
                   <Text>Rule: 2.5% (one quarter of a tenth) if net amount reaches nisab</Text>
-                  <Text>Nisab: {item.result.nisab.toFixed(2)}</Text>
-                  <Text>Zakat Due: {item.result.totalZakat.toFixed(2)}</Text>
+                  <Text>Nisab: {formatMoney(item.result.nisab, currency)}</Text>
+                  <Text>Zakat Due: {formatMoney(item.result.totalZakat, currency)}</Text>
                 </>
               ) : item.category === "industrial_sector" ? (
                 <>
-                  <Text>Industrial assets/output value: {Number(item.values.marketValue || 0).toFixed(2)}</Text>
-                  <Text>Production costs: {Number(item.values.operatingCosts || 0).toFixed(2)}</Text>
-                  <Text>Net zakatable amount: {item.result.totalWealth.toFixed(2)}</Text>
+                  <Text>Industrial assets/output value: {formatMoney(Number(item.values.marketValue || 0), currency)}</Text>
+                  <Text>Production costs: {formatMoney(Number(item.values.operatingCosts || 0), currency)}</Text>
+                  <Text>Net zakatable amount: {formatMoney(item.result.totalWealth, currency)}</Text>
                   <Text>Rule: 2.5% after deducting production costs if net amount reaches nisab</Text>
-                  <Text>Nisab: {item.result.nisab.toFixed(2)}</Text>
-                  <Text>Zakat Due: {item.result.totalZakat.toFixed(2)}</Text>
+                  <Text>Nisab: {formatMoney(item.result.nisab, currency)}</Text>
+                  <Text>Zakat Due: {formatMoney(item.result.totalZakat, currency)}</Text>
                 </>
               ) : (
                 <>
                   <Text>Mode: {item.values.isForTrade ? "Trade goods" : "Agricultural harvest"}</Text>
                   {item.values.isForTrade ? (
                     <>
-                      <Text>Market value: {Number(item.values.marketValue || 0).toFixed(2)}</Text>
+                      <Text>Market value: {formatMoney(Number(item.values.marketValue || 0), currency)}</Text>
                       <Text>Rule: 2.5% as trade goods</Text>
-                      <Text>Nisab: {item.result.nisab.toFixed(2)}</Text>
-                      <Text>Zakat Due: {item.result.totalZakat.toFixed(2)}</Text>
+                      <Text>Nisab: {formatMoney(item.result.nisab, currency)}</Text>
+                      <Text>Zakat Due: {formatMoney(item.result.totalZakat, currency)}</Text>
                     </>
                   ) : (
                     <>
@@ -1043,15 +1059,15 @@ export default function DetailedCalculateScreen() {
                       <Text>Rule: {item.values.wateringMethod === "natural" ? "10% (natural watering)" : "5% (paid irrigation)"}</Text>
                       <Text>Nisab: {item.result.nisab.toFixed(2)} kg</Text>
                       <Text>Zakat Due (produce): {(item.dueQuantityKg ?? 0).toFixed(2)} kg</Text>
-                      <Text>Price/kg: {parseOptionalPositive(item.values.pricePerKg)?.toFixed(2) ?? "Not set"}</Text>
-                      <Text>Cash Equivalent Included: {(item.cashEquivalent ?? 0).toFixed(2)}</Text>
+                      <Text>Price/kg: {parseOptionalPositive(item.values.pricePerKg) ? formatMoney(parseOptionalPositive(item.values.pricePerKg)!, currency) : "Not set"}</Text>
+                      <Text>Cash Equivalent Included: {formatMoney(item.cashEquivalent ?? 0, currency)}</Text>
                     </>
                   )}
                 </>
               )}
             </View>
           ))}
-          <Text style={styles.bold}>Combined Total Zakat Due: {combinedTotal.toFixed(2)}</Text>
+          <Text style={styles.bold}>Combined Total Zakat Due: {formatMoney(combinedTotal, currency)}</Text>
           <TouchableOpacity style={styles.saveHistoryButton} onPress={onSaveToHistory}>
             <Text style={styles.buttonText}>Save to History</Text>
           </TouchableOpacity>
@@ -1089,28 +1105,28 @@ export default function DetailedCalculateScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f7f7f7" },
-  content: { padding: 16, paddingBottom: 32 },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 12 },
-  card: { backgroundColor: "#fff", borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: "#ececec" },
-  sectionTitle: { fontWeight: "700", marginBottom: 8, fontSize: 16 },
-  selector: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10, marginBottom: 12, flexDirection: "row", justifyContent: "space-between" },
-  input: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10, marginBottom: 10, backgroundColor: "#fff" },
-  button: { backgroundColor: "#007AFF", borderRadius: 10, alignItems: "center", paddingVertical: 12, marginBottom: 12 },
+  container: { flex: 1, backgroundColor: appColors.background },
+  content: { padding: appSpacing.md, paddingBottom: appSpacing.xxl },
+  title: { fontSize: 30, fontWeight: "800", marginBottom: appSpacing.sm, color: appColors.textPrimary },
+  card: { backgroundColor: appColors.surface, borderRadius: appRadius.md, padding: appSpacing.sm, marginBottom: appSpacing.sm, borderWidth: 1, borderColor: appColors.border },
+  sectionTitle: { fontWeight: "700", marginBottom: appSpacing.xs, fontSize: 18, color: appColors.textPrimary },
+  selector: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, padding: appSpacing.sm, marginBottom: appSpacing.sm, flexDirection: "row", justifyContent: "space-between", backgroundColor: appColors.surface },
+  input: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, padding: appSpacing.sm, marginBottom: appSpacing.xs, backgroundColor: appColors.surface, color: appColors.textPrimary, minHeight: 48, fontSize: 16 },
+  button: { backgroundColor: appColors.primary, borderRadius: appRadius.sm, alignItems: "center", paddingVertical: appSpacing.sm, marginBottom: appSpacing.sm, minHeight: 48, justifyContent: "center" },
   buttonText: { color: "#fff", fontWeight: "700" },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  rowWrap: { flexDirection: "row", flexWrap: "wrap", marginBottom: 8 },
-  chip: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, marginRight: 8, marginBottom: 8, backgroundColor: "#f8f8f8" },
-  chipActive: { backgroundColor: "#EBF4FF", borderColor: "#9CC7FF" },
-  link: { color: "#007AFF", fontWeight: "600" },
-  caption: { color: "#666", fontSize: 12, marginBottom: 8 },
-  error: { color: "#C30000", marginBottom: 8, fontSize: 12 },
-  lineItem: { borderWidth: 1, borderColor: "#ececec", borderRadius: 8, padding: 10, marginBottom: 8 },
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: appSpacing.xs },
+  rowWrap: { flexDirection: "row", flexWrap: "wrap", marginBottom: appSpacing.xs },
+  chip: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, paddingVertical: appSpacing.xs, paddingHorizontal: appSpacing.sm, marginRight: appSpacing.xs, marginBottom: appSpacing.xs, backgroundColor: appColors.surface },
+  chipActive: { backgroundColor: "#E8F1EF", borderColor: appColors.primary },
+  link: { color: appColors.primary, fontWeight: "600" },
+  caption: { color: appColors.textSecondary, fontSize: 13, marginBottom: appSpacing.xs },
+  error: { color: appColors.error, marginBottom: appSpacing.xs, fontSize: 13 },
+  lineItem: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, padding: appSpacing.sm, marginBottom: appSpacing.xs },
   bold: { fontWeight: "700" },
-  saveHistoryButton: { marginTop: 10, backgroundColor: "#0a7d32", borderRadius: 10, alignItems: "center", paddingVertical: 12 },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: 20 },
-  modalCard: { backgroundColor: "#fff", borderRadius: 12, padding: 12 },
-  modalOption: { borderWidth: 1, borderColor: "#ececec", borderRadius: 8, padding: 12, marginBottom: 8 },
-  toast: { position: "absolute", bottom: 18, left: 16, right: 16, backgroundColor: "#1f1f1f", borderRadius: 10, paddingVertical: 10, alignItems: "center" },
+  saveHistoryButton: { marginTop: appSpacing.xs, backgroundColor: appColors.success, borderRadius: appRadius.sm, alignItems: "center", paddingVertical: appSpacing.sm, minHeight: 48, justifyContent: "center" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: appSpacing.lg },
+  modalCard: { backgroundColor: appColors.surface, borderRadius: appRadius.md, padding: appSpacing.sm },
+  modalOption: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, padding: appSpacing.sm, marginBottom: appSpacing.xs },
+  toast: { position: "absolute", bottom: 18, left: 16, right: 16, backgroundColor: appColors.textPrimary, borderRadius: appRadius.sm, paddingVertical: appSpacing.xs, alignItems: "center" },
   toastText: { color: "#fff", fontWeight: "600" },
 });

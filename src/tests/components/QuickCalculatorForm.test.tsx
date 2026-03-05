@@ -1,83 +1,104 @@
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { fireEvent, render } from "@testing-library/react-native";
 import React from "react";
+import { useQuickCalculationDraftStore } from "../../store/quickCalculationDraftStore";
+
+const mockPush = jest.fn();
+
+jest.mock("expo-router", () => ({
+  useFocusEffect: (effect: () => void | (() => void)) => {
+    const React = require("react");
+    React.useEffect(() => effect(), [effect]);
+  },
+  useRouter: () => ({
+    push: mockPush,
+    replace: jest.fn(),
+    back: jest.fn(),
+    navigate: jest.fn(),
+  }),
+}));
+
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        "quickCalculator.title": "Quick Calculate",
+        "quickCalculator.fields.cash.title": "Cash & Bank Balance",
+        "quickCalculator.fields.cash.description": "Include cash at home and in all bank accounts.",
+        "quickCalculator.fields.gold.title": "Gold & Silver Value",
+        "quickCalculator.fields.gold.description": "Current market value of your jewelry or coins.",
+        "quickCalculator.fields.debt.title": "Short-term Debts",
+        "quickCalculator.fields.debt.description": "Money you owe and must pay soon.",
+        "quickCalculator.calculate": "Calculate Zakat",
+        "quickCalculator.placeholder": "0",
+        "quickCalculator.validation.positiveNumber": "Please enter a positive number.",
+      };
+      return translations[key] || key;
+    },
+  }),
+}));
+
 import { QuickCalculatorForm } from "../../components/zakat/QuickCalculatorForm";
 
 describe("QuickCalculatorForm", () => {
-  it("should render 3 TextInputs and a Calculate Zakat button", () => {
-    const { getAllByPlaceholderText, getByText } = render(
-      <QuickCalculatorForm />,
-    );
+  beforeEach(() => {
+    mockPush.mockClear();
+    useQuickCalculationDraftStore.getState().clearDraft();
+  });
 
-    expect(getAllByPlaceholderText("0.00")).toHaveLength(3);
-    expect(getByText("Cash (in hand & bank)")).toBeTruthy();
+  it("renders form labels and calculate button", () => {
+    const { getByText, getAllByPlaceholderText } = render(<QuickCalculatorForm />);
+
+    expect(getByText("Cash & Bank Balance")).toBeTruthy();
     expect(getByText("Gold & Silver Value")).toBeTruthy();
-    expect(getByText("Short-term Debts (Liabilities)")).toBeTruthy();
+    expect(getByText("Short-term Debts")).toBeTruthy();
     expect(getByText("Calculate Zakat")).toBeTruthy();
+    expect(getAllByPlaceholderText("0")).toHaveLength(3);
   });
 
-  it("should show result card when Calculate is pressed with empty inputs", () => {
-    const { getByText, queryByText } = render(<QuickCalculatorForm />);
+  it("shows debt validation error for negative debt and does not navigate", () => {
+    const { getByText, getAllByPlaceholderText } = render(<QuickCalculatorForm />);
+    const textInputs = getAllByPlaceholderText("0");
 
-    const calculateButton = getByText("Calculate Zakat");
-    fireEvent.press(calculateButton);
+    fireEvent.changeText(textInputs[2], "-500");
+    fireEvent.press(getByText("Calculate Zakat"));
 
-    // Should not crash and should render result card with 0 values
-    expect(queryByText("Calculation Result")).toBeTruthy();
+    expect(getByText("! Please enter a positive number.")).toBeTruthy();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("should show ZakatResultCard with correct result when valid values are entered", async () => {
-    const { getAllByPlaceholderText, getByText, queryByText } = render(
-      <QuickCalculatorForm />,
-    );
+  it("navigates to result page with computed values", () => {
+    const { getByText, getAllByPlaceholderText } = render(<QuickCalculatorForm />);
+    const textInputs = getAllByPlaceholderText("0");
 
-    // Enter values in the inputs
-    const textInputs = getAllByPlaceholderText("0.00");
-
-    // Enter cash value
     fireEvent.changeText(textInputs[0], "10000");
-    // Enter gold value
     fireEvent.changeText(textInputs[1], "5000");
-    // Enter debt value
     fireEvent.changeText(textInputs[2], "2000");
+    fireEvent.press(getByText("Calculate Zakat"));
 
-    // Press calculate
-    const calculateButton = getByText("Calculate Zakat");
-    fireEvent.press(calculateButton);
-
-    // Verify result card appears
-    await waitFor(() => {
-      expect(queryByText("Calculation Result")).toBeTruthy();
-    });
-    expect(queryByText("13000.00")).toBeTruthy();
-  });
-
-  it("should treat negative values as 0", async () => {
-    const { getAllByPlaceholderText, getByText, queryByText } = render(
-      <QuickCalculatorForm />,
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: "/calculate/result",
+        params: expect.objectContaining({
+          totalWealth: "13000",
+          debt: "2000",
+        }),
+      }),
     );
-
-    const textInputs = getAllByPlaceholderText("0.00");
-
-    // Enter negative values
-    fireEvent.changeText(textInputs[0], "-1000");
-    fireEvent.changeText(textInputs[1], "-500");
-    fireEvent.changeText(textInputs[2], "-200");
-
-    // Press calculate
-    const calculateButton = getByText("Calculate Zakat");
-    fireEvent.press(calculateButton);
-
-    // Should show result without crashing
-    await waitFor(() => {
-      expect(queryByText("Calculation Result")).toBeTruthy();
-    });
   });
 
-  it("should display description text", () => {
-    const { getByText } = render(<QuickCalculatorForm />);
+  it("restores saved inputs when returning from edit inputs", () => {
+    useQuickCalculationDraftStore.getState().setDraft({
+      cash: "10000",
+      goldValue: "5000",
+      debt: "2000",
+    });
 
-    expect(
-      getByText("Enter your assets below to quickly estimate your Zakat."),
-    ).toBeTruthy();
+    const { getAllByDisplayValue } = render(<QuickCalculatorForm />);
+
+    expect(getAllByDisplayValue("10000")).toHaveLength(1);
+    expect(getAllByDisplayValue("5000")).toHaveLength(1);
+    expect(getAllByDisplayValue("2000")).toHaveLength(1);
+    expect(useQuickCalculationDraftStore.getState().draft).toBeNull();
   });
 });

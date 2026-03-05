@@ -1,11 +1,13 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+  DEFAULT_GOLD_PRICE_PER_GRAM,
+  DEFAULT_SILVER_PRICE_PER_GRAM,
+} from "../lib/nisabDefaults";
 import { ssrSafeStorage } from "../lib/storage";
 import type { NisabMethod } from "../lib/zakat-calculation";
 
 const DEFAULT_NISAB_METHOD: NisabMethod = "silver";
-const DEFAULT_SILVER_PRICE_PER_GRAM = 12;
-const DEFAULT_GOLD_PRICE_PER_GRAM = 800;
 const DEFAULT_NISAB_OVERRIDE = 0;
 
 function toNonNegativeNumber(value: unknown): number {

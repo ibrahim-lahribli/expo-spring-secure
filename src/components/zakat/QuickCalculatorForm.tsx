@@ -1,210 +1,229 @@
-import React, { useEffect, useState } from 'react';
-import { Button, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { upsertGuestHistoryEntry } from '../../features/history/storage';
-import type { HistoryEntry } from '../../features/history/types';
-import { calculateNisab, getNisabBreakdown } from '../../lib/zakat-calculation/nisab';
-import { ZakatCalculationResult } from '../../lib/zakat-calculation/types';
-import { useNisabSettingsStore } from '../../store/nisabSettingsStore';
-import { ZakatResultCard } from './ZakatResultCard';
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { getCurrencyInputPrefix } from "../../lib/currency";
+import { calculateNisab } from "../../lib/zakat-calculation/nisab";
+import { ZakatCalculationResult } from "../../lib/zakat-calculation/types";
+import { useAppPreferencesStore } from "../../store/appPreferencesStore";
+import { useNisabSettingsStore } from "../../store/nisabSettingsStore";
+import { useQuickCalculationDraftStore } from "../../store/quickCalculationDraftStore";
+import { appColors, appRadius, appSpacing, appTypography } from "../../theme/designSystem";
+import { PrimaryButton } from "../ui";
 
 function calculateQuickResult(cash: number, goldValue: number, debt: number, nisab: number): ZakatCalculationResult {
-    const safeCash = Math.max(0, cash);
-    const safeGoldValue = Math.max(0, goldValue);
-    const safeDebt = Math.max(0, debt);
-    const totalWealth = Math.max(0, safeCash + safeGoldValue - safeDebt);
-    const totalZakat = totalWealth >= nisab ? totalWealth * 0.025 : 0;
+  const safeCash = Math.max(0, cash);
+  const safeGoldValue = Math.max(0, goldValue);
+  const safeDebt = Math.max(0, debt);
+  const totalWealth = Math.max(0, safeCash + safeGoldValue - safeDebt);
+  const totalZakat = totalWealth >= nisab ? totalWealth * 0.025 : 0;
 
-    return {
-        nisab,
-        totalWealth,
-        totalZakat,
-        hasZakatDue: totalZakat > 0,
-        breakdown: {},
-    };
+  return {
+    nisab,
+    totalWealth,
+    totalZakat,
+    hasZakatDue: totalZakat > 0,
+    breakdown: {},
+  };
 }
 
 export function QuickCalculatorForm() {
-    const [cash, setCash] = useState('');
-    const [goldValue, setGoldValue] = useState('');
-    const [debt, setDebt] = useState('');
-    const [result, setResult] = useState<ZakatCalculationResult | null>(null);
-    const [historySavedMessage, setHistorySavedMessage] = useState<string | null>(null);
-    const nisabMethod = useNisabSettingsStore((state) => state.nisabMethod);
-    const silverPricePerGram = useNisabSettingsStore((state) => state.silverPricePerGram);
-    const goldPricePerGram = useNisabSettingsStore((state) => state.goldPricePerGram);
-    const nisabOverride = useNisabSettingsStore((state) => state.nisabOverride);
+  const router = useRouter();
+  const { t } = useTranslation("common");
+  const [cash, setCash] = useState("");
+  const [goldValue, setGoldValue] = useState("");
+  const [debt, setDebt] = useState("");
+  const [debtError, setDebtError] = useState<string | undefined>();
+  const currency = useAppPreferencesStore((state) => state.currency);
+  const consumeDraft = useQuickCalculationDraftStore((state) => state.consumeDraft);
+  const nisabMethod = useNisabSettingsStore((state) => state.nisabMethod);
+  const silverPricePerGram = useNisabSettingsStore((state) => state.silverPricePerGram);
+  const goldPricePerGram = useNisabSettingsStore((state) => state.goldPricePerGram);
+  const nisabOverride = useNisabSettingsStore((state) => state.nisabOverride);
 
-    const calculateResult = () => {
-        const parsedCash = parseFloat(cash) || 0;
-        const parsedGoldValue = parseFloat(goldValue) || 0;
-        const parsedDebt = parseFloat(debt) || 0;
-        const nisab = calculateNisab({
-            nisabMethod,
-            silverPricePerGram,
-            goldPricePerGram,
-            nisabOverride,
-        });
-        return calculateQuickResult(parsedCash, parsedGoldValue, parsedDebt, nisab);
-    };
+  const resetForm = useCallback(() => {
+    setCash("");
+    setGoldValue("");
+    setDebt("");
+    setDebtError(undefined);
+  }, []);
 
-    const handleCalculate = () => {
-        setHistorySavedMessage(null);
-        setResult(calculateResult());
-    };
+  useFocusEffect(
+    useCallback(() => {
+      const draft = consumeDraft();
+      if (draft) {
+        setCash(draft.cash);
+        setGoldValue(draft.goldValue);
+        setDebt(draft.debt);
+        setDebtError(undefined);
+        return;
+      }
 
-    const handleSaveToHistory = async () => {
-        if (!result) {
-            return;
-        }
+      resetForm();
+    }, [consumeDraft, resetForm]),
+  );
 
-        const now = new Date().toISOString();
-        const entry: HistoryEntry = {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            flowType: "quick",
-            createdAt: now,
-            updatedAt: now,
-            totalZakat: result.totalZakat,
-            currency: "USD",
-            nisabSnapshot: {
-                method: nisabMethod,
-                silverPricePerGram,
-                goldPricePerGram,
-                override: nisabOverride > 0 ? nisabOverride : null,
-            },
-            summary: {
-                categoriesUsed: ["Cash", "Gold/Silver", "Debt"],
-                itemCount: 3,
-            },
-            payload: {
-                kind: "quick",
-                inputs: {
-                    cash: parseFloat(cash) || 0,
-                    goldValue: parseFloat(goldValue) || 0,
-                    debt: parseFloat(debt) || 0,
-                },
-                result: {
-                    nisab: result.nisab,
-                    totalWealth: result.totalWealth,
-                    totalZakat: result.totalZakat,
-                    hasZakatDue: result.hasZakatDue,
-                },
-            },
-        };
+  const calculateResult = (): ZakatCalculationResult => {
+    const parsedCash = parseFloat(cash) || 0;
+    const parsedGoldValue = parseFloat(goldValue) || 0;
+    const parsedDebt = parseFloat(debt) || 0;
+    const nisab = calculateNisab({
+      nisabMethod,
+      silverPricePerGram,
+      goldPricePerGram,
+      nisabOverride,
+    });
+    return calculateQuickResult(parsedCash, parsedGoldValue, parsedDebt, nisab);
+  };
 
-        await upsertGuestHistoryEntry(entry);
-        setHistorySavedMessage("Saved to local history");
-    };
+  const handleCalculate = () => {
+    const parsedDebt = Number(debt);
+    if (debt.trim() && (!Number.isFinite(parsedDebt) || parsedDebt < 0)) {
+      setDebtError(t("quickCalculator.validation.positiveNumber"));
+      return;
+    }
 
-    useEffect(() => {
-        if (!result) {
-            return;
-        }
-        setResult(calculateResult());
-    }, [nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride]);
-
-    const nisabExplanation = getNisabBreakdown({
-        nisabMethod,
-        silverPricePerGram,
-        goldPricePerGram,
-        nisabOverride,
-    }).detailSummary;
-
-    return (
-        <ScrollView style={styles.container}>
-            <Text style={styles.description}>
-                Enter your assets below to quickly estimate your Zakat.
-            </Text>
-
-            <View style={styles.inputGroup}>
-                <Text style={styles.label}>Cash (in hand & bank)</Text>
-                <TextInput
-                    style={styles.input}
-                    keyboardType="numeric"
-                    value={cash}
-                    onChangeText={setCash}
-                    placeholder="0.00"
-                />
-            </View>
-
-            <View style={styles.inputGroup}>
-                <Text style={styles.label}>Gold & Silver Value</Text>
-                <TextInput
-                    style={styles.input}
-                    keyboardType="numeric"
-                    value={goldValue}
-                    onChangeText={setGoldValue}
-                    placeholder="0.00"
-                />
-            </View>
-
-            <View style={styles.inputGroup}>
-                <Text style={styles.label}>Short-term Debts (Liabilities)</Text>
-                <TextInput
-                    style={styles.input}
-                    keyboardType="numeric"
-                    value={debt}
-                    onChangeText={setDebt}
-                    placeholder="0.00"
-                />
-            </View>
-
-            <Button title="Calculate Zakat" onPress={handleCalculate} />
-
-            <ZakatResultCard result={result} nisabExplanation={nisabExplanation} />
-            {result ? (
-                <View style={styles.historyActions}>
-                    <TouchableOpacity style={styles.saveButton} onPress={handleSaveToHistory}>
-                        <Text style={styles.saveButtonText}>Save to History</Text>
-                    </TouchableOpacity>
-                    {historySavedMessage ? <Text style={styles.savedText}>{historySavedMessage}</Text> : null}
-                </View>
-            ) : null}
-        </ScrollView>
+    setDebtError(undefined);
+    const result = calculateResult();
+    router.push(
+      {
+        pathname: "/calculate/result",
+        params: {
+          cash: String(Math.max(0, parseFloat(cash) || 0)),
+          goldValue: String(Math.max(0, parseFloat(goldValue) || 0)),
+          debt: String(Math.max(0, parseFloat(debt) || 0)),
+          nisab: String(result.nisab),
+          totalWealth: String(result.totalWealth),
+          totalZakat: String(result.totalZakat),
+          hasZakatDue: result.hasZakatDue ? "1" : "0",
+        },
+      } as never,
     );
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      <Text style={styles.headerTitle}>{t("quickCalculator.title")}</Text>
+
+      <InputSection
+        title={t("quickCalculator.fields.cash.title")}
+        description={t("quickCalculator.fields.cash.description")}
+        value={cash}
+        onChangeText={setCash}
+        currencyPrefix={getCurrencyInputPrefix(currency)}
+      />
+
+      <InputSection
+        title={t("quickCalculator.fields.gold.title")}
+        description={t("quickCalculator.fields.gold.description")}
+        value={goldValue}
+        onChangeText={setGoldValue}
+        currencyPrefix={getCurrencyInputPrefix(currency)}
+      />
+
+      <InputSection
+        title={t("quickCalculator.fields.debt.title")}
+        description={t("quickCalculator.fields.debt.description")}
+        value={debt}
+        onChangeText={setDebt}
+        error={debtError}
+        currencyPrefix={getCurrencyInputPrefix(currency)}
+      />
+
+      <PrimaryButton label={t("quickCalculator.calculate")} onPress={handleCalculate} />
+    </ScrollView>
+  );
+}
+
+function InputSection({
+  title,
+  description,
+  value,
+  onChangeText,
+  error,
+  currencyPrefix,
+}: {
+  title: string;
+  description: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  error?: string;
+  currencyPrefix: string;
+}) {
+  const { t } = useTranslation("common");
+  return (
+    <View style={styles.inputSection}>
+      <Text style={styles.inputTitle}>{title}</Text>
+      <Text style={styles.inputDescription}>{description}</Text>
+      <View style={[styles.currencyWrap, error ? styles.currencyWrapError : undefined]}>
+        <Text style={[styles.currencyPrefix, error ? styles.currencyPrefixError : undefined]}>{currencyPrefix}</Text>
+        <TextInput
+          keyboardType="numeric"
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={t("quickCalculator.placeholder")}
+          placeholderTextColor={appColors.textSecondary}
+          style={styles.currencyInput}
+        />
+      </View>
+      {error ? <Text style={styles.errorText}>! {error}</Text> : null}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        padding: 16,
-    },
-    description: {
-        fontSize: 16,
-        marginBottom: 20,
-        color: '#555',
-    },
-    inputGroup: {
-        marginBottom: 16,
-    },
-    label: {
-        fontSize: 16,
-        marginBottom: 8,
-        fontWeight: '500',
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
-        backgroundColor: '#fff',
-    },
-    historyActions: {
-        marginTop: 12,
-        marginBottom: 20,
-    },
-    saveButton: {
-        backgroundColor: '#0a7d32',
-        borderRadius: 8,
-        paddingVertical: 12,
-        alignItems: 'center',
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontWeight: '700',
-    },
-    savedText: {
-        marginTop: 8,
-        color: '#0a7d32',
-        fontSize: 12,
-    },
+  content: {
+    padding: appSpacing.md,
+    gap: appSpacing.md,
+    paddingBottom: appSpacing.lg,
+  },
+  headerTitle: {
+    ...appTypography.section,
+    textAlign: "center",
+  },
+  inputSection: {
+    gap: appSpacing.xs,
+  },
+  inputTitle: {
+    ...appTypography.body,
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  inputDescription: {
+    ...appTypography.caption,
+  },
+  currencyWrap: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: appColors.border,
+    borderRadius: appRadius.sm,
+    backgroundColor: appColors.surface,
+    paddingHorizontal: appSpacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: appSpacing.xs,
+  },
+  currencyWrapError: {
+    borderColor: appColors.error,
+    backgroundColor: "#FDF3F2",
+  },
+  currencyPrefix: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: appColors.textSecondary,
+  },
+  currencyPrefixError: {
+    color: appColors.error,
+  },
+  currencyInput: {
+    flex: 1,
+    paddingVertical: appSpacing.xs,
+    fontSize: 18,
+    color: appColors.textPrimary,
+  },
+  errorText: {
+    ...appTypography.caption,
+    color: appColors.error,
+    fontWeight: "600",
+  },
 });

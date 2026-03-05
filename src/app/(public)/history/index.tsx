@@ -1,12 +1,17 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Button, Dialog, Portal } from "react-native-paper";
+import { AppScreen, PrimaryButton } from "../../../components/ui";
 import {
   deleteGuestHistoryEntry,
-  duplicateGuestHistoryEntry,
   getGuestHistoryEntries,
 } from "../../../features/history/storage";
 import type { HistoryEntry, HistoryFlowType } from "../../../features/history/types";
+import { formatMoney } from "../../../lib/currency";
+import { appColors, appRadius, appSpacing, appTypography } from "../../../theme/designSystem";
 
 type FilterMode = "all" | HistoryFlowType;
 
@@ -23,8 +28,10 @@ function formatDate(value: string) {
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const { t } = useTranslation("common");
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [entryIdPendingDelete, setEntryIdPendingDelete] = useState<string | null>(null);
 
   const loadHistory = useCallback(async () => {
     const data = await getGuestHistoryEntries();
@@ -42,198 +49,251 @@ export default function HistoryScreen() {
     return entries.filter((entry) => entry.flowType === filterMode);
   }, [entries, filterMode]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     await deleteGuestHistoryEntry(id);
     await loadHistory();
-  };
+  }, [loadHistory]);
 
-  const handleDuplicate = async (id: string) => {
-    await duplicateGuestHistoryEntry(id);
-    await loadHistory();
-  };
+  const confirmDelete = useCallback((id: string) => {
+    setEntryIdPendingDelete(id);
+  }, []);
 
-  const handleSignInPress = () => {
-    router.push("/auth/login");
-  };
+  const dismissDeleteDialog = useCallback(() => {
+    setEntryIdPendingDelete(null);
+  }, []);
 
-  const renderCard = (entry: HistoryEntry) => {
-    const flowLabel = entry.flowType === "quick" ? "Quick" : "Detailed";
-    const summaryLabel = `${entry.summary.itemCount} categories - ${entry.summary.categoriesUsed.slice(0, 3).join(", ")}`;
+  const submitDelete = useCallback(async () => {
+    if (!entryIdPendingDelete) return;
 
-    return (
-      <View key={entry.id} style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardDate}>{formatDate(entry.createdAt)}</Text>
-          <Text style={styles.flowBadge}>{flowLabel}</Text>
-        </View>
-        <Text style={styles.cardTitle}>
-          Total Zakat Due: {entry.currency} {entry.totalZakat.toFixed(2)}
-        </Text>
-        <Text style={styles.cardSummary}>{summaryLabel}</Text>
-        <Text style={styles.cardMeta}>Nisab: {entry.nisabSnapshot.method}</Text>
-        <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push(`/(public)/history/${entry.id}` as never)}
-          >
-            <Text style={styles.actionButtonText}>View</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={() => handleDuplicate(entry.id)}>
-            <Text style={styles.actionButtonText}>Duplicate</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteAction]}
-            onPress={() =>
-              Alert.alert("Delete entry?", "This removes this snapshot from this device only.", [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: () => handleDelete(entry.id) },
-              ])
-            }
-          >
-            <Text style={[styles.actionButtonText, styles.deleteActionText]}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
+    await handleDelete(entryIdPendingDelete);
+    setEntryIdPendingDelete(null);
+  }, [entryIdPendingDelete, handleDelete]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>History</Text>
-          <Text style={styles.subtitle}>Saved on this device only</Text>
-          <TouchableOpacity style={styles.ctaButton} onPress={handleSignInPress}>
-            <Text style={styles.ctaButtonText}>Sign in to sync</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.infoBox}>
-          <Text style={styles.infoLine}>Saved locally on this device</Text>
-          <Text style={styles.infoLine}>Can view and recalculate</Text>
-          <Text style={styles.infoLine}>Deleted if app is uninstalled or phone is changed</Text>
-          <Text style={styles.infoLine}>Sign in to sync across devices</Text>
-        </View>
-
-        <View style={styles.segmentRow}>
-          {(["all", "quick", "detailed"] as FilterMode[]).map((mode) => (
-            <TouchableOpacity
+    <AppScreen contentContainerStyle={styles.screenContent}>
+      <View style={styles.filterContainer}>
+        {(["all", "quick", "detailed"] as FilterMode[]).map((mode) => {
+          const isActive = filterMode === mode;
+          const label = t(`history.filters.${mode}`);
+          return (
+            <Pressable
               key={mode}
-              style={[styles.segmentButton, filterMode === mode && styles.segmentButtonActive]}
+              style={[styles.filterPill, isActive && styles.filterPillActive]}
               onPress={() => setFilterMode(mode)}
             >
-              <Text style={[styles.segmentLabel, filterMode === mode && styles.segmentLabelActive]}>
-                {mode === "all" ? "All" : mode === "quick" ? "Quick" : "Detailed"}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+              <Text style={[styles.filterLabel, isActive && styles.filterLabelActive]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
-        {filteredEntries.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No history yet</Text>
-            <Text style={styles.emptyText}>Start a calculation and save it to build your local history.</Text>
-            <TouchableOpacity style={styles.emptyButton} onPress={() => router.push("/(public)/calculate")}>
-              <Text style={styles.emptyButtonText}>Start Quick Calculation</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.emptyButton, styles.emptySecondaryButton]}
-              onPress={() => router.push("/(public)/calculate/detailed")}
-            >
-              <Text style={styles.emptySecondaryButtonText}>Start Detailed Calculation</Text>
-            </TouchableOpacity>
+      {filteredEntries.map((entry) => {
+        return (
+          <View key={entry.id} style={styles.entryCard}>
+            <View style={styles.entryMetaRow}>
+              <View style={styles.dateRow}>
+                <Ionicons name="calendar-outline" size={12} color={appColors.textSecondary} />
+                <Text style={styles.metaText}>{formatDate(entry.createdAt)}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.entryTitle}>
+              {entry.flowType === "quick"
+                ? t("history.quickCalculation")
+                : t("history.detailedCalculation")}
+            </Text>
+            <View style={styles.amountRow}>
+              <Text style={styles.amountText}>{formatMoney(entry.totalZakat, entry.currency)}</Text>
+              <Text style={styles.amountMeta}>{t("history.zakatDue")}</Text>
+            </View>
+
+            <View style={styles.actionsRow}>
+              <Pressable style={styles.actionBtn} onPress={() => router.push(`/(public)/history/${entry.id}` as never)}>
+                <Ionicons name="eye-outline" size={14} color={appColors.textSecondary} />
+                <Text style={styles.actionLabel}>{t("history.view")}</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.actionBtn, styles.actionDeleteBtn]}
+                onPress={() => confirmDelete(entry.id)}
+              >
+                <Ionicons name="trash-outline" size={14} color={appColors.error} />
+                <Text style={styles.actionDeleteLabel}>{t("delete")}</Text>
+              </Pressable>
+            </View>
           </View>
-        ) : (
-          filteredEntries.map(renderCard)
-        )}
-      </ScrollView>
-    </SafeAreaView>
+        );
+      })}
+
+      {filteredEntries.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <Text style={styles.emptyStateLabel}>{t("history.emptyStateLabel")}</Text>
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="folder-open-outline" size={24} color={appColors.primary} />
+            </View>
+            <Text style={styles.emptyTitle}>{t("history.emptyTitle")}</Text>
+            <Text style={styles.emptyBody}>
+              {t("history.emptyBody")}
+            </Text>
+            <PrimaryButton label={t("history.startQuickCalculation")} onPress={() => router.push("/(public)/calculate")} iconName="add-outline" />
+          </View>
+        </View>
+      ) : null}
+
+      <Portal>
+        <Dialog visible={entryIdPendingDelete !== null} onDismiss={dismissDeleteDialog}>
+          <Dialog.Title>{t("history.deleteDialog.title")}</Dialog.Title>
+          <Dialog.Content>
+            <Text style={styles.dialogBody}>{t("history.deleteDialog.body")}</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={dismissDeleteDialog}>{t("cancel")}</Button>
+            <Button textColor={appColors.error} onPress={() => void submitDelete()}>
+              {t("delete")}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f7fb" },
-  content: { padding: 16, paddingBottom: 32, gap: 12 },
-  header: { backgroundColor: "#fff", borderRadius: 12, borderWidth: 1, borderColor: "#e6ebf2", padding: 14 },
-  title: { fontSize: 26, fontWeight: "700", color: "#132039" },
-  subtitle: { marginTop: 4, color: "#4d5f80" },
-  ctaButton: {
-    marginTop: 12,
-    backgroundColor: "#113f95",
-    borderRadius: 10,
-    alignItems: "center",
-    paddingVertical: 10,
+  screenContent: {
+    paddingTop: appSpacing.sm,
   },
-  ctaButtonText: { color: "#fff", fontWeight: "700" },
-  infoBox: {
-    borderWidth: 1,
-    borderColor: "#d7e4f7",
-    backgroundColor: "#ecf4ff",
-    borderRadius: 12,
-    padding: 12,
+  filterContainer: {
+    flexDirection: "row",
+    borderRadius: appRadius.sm,
+    backgroundColor: "#EEF1EF",
+    padding: 4,
     gap: 4,
   },
-  infoLine: { color: "#2f4466", fontSize: 13 },
-  segmentRow: { flexDirection: "row", gap: 8 },
-  segmentButton: {
+  filterPill: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: "#cdd8ea",
-    borderRadius: 10,
-    alignItems: "center",
-    paddingVertical: 10,
-    backgroundColor: "#fff",
-  },
-  segmentButtonActive: { backgroundColor: "#113f95", borderColor: "#113f95" },
-  segmentLabel: { color: "#243a61", fontWeight: "600" },
-  segmentLabelActive: { color: "#fff" },
-  card: { backgroundColor: "#fff", borderRadius: 12, borderWidth: 1, borderColor: "#e6ebf2", padding: 12, gap: 6 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  cardDate: { color: "#4d5f80", fontSize: 13 },
-  flowBadge: {
-    fontSize: 12,
-    color: "#113f95",
-    backgroundColor: "#e6efff",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    fontWeight: "600",
-  },
-  cardTitle: { color: "#12223d", fontWeight: "700", fontSize: 16 },
-  cardSummary: { color: "#314a73", fontSize: 13 },
-  cardMeta: { color: "#5f7396", fontSize: 12 },
-  cardActions: { flexDirection: "row", gap: 8, marginTop: 6 },
-  actionButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#cdd8ea",
+    minHeight: 34,
     borderRadius: 8,
     alignItems: "center",
-    paddingVertical: 8,
-    backgroundColor: "#fff",
+    justifyContent: "center",
   },
-  actionButtonText: { color: "#1f3761", fontWeight: "600", fontSize: 13 },
-  deleteAction: { borderColor: "#e7c9c9", backgroundColor: "#fff5f5" },
-  deleteActionText: { color: "#af3030" },
-  emptyState: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+  filterPillActive: {
+    backgroundColor: "#FFFFFF",
+  },
+  filterLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#74837D",
+  },
+  filterLabelActive: {
+    color: "#24514A",
+  },
+  entryCard: {
+    backgroundColor: appColors.surface,
+    borderRadius: appRadius.sm,
     borderWidth: 1,
-    borderColor: "#e6ebf2",
-    padding: 16,
-    alignItems: "center",
+    borderColor: "#E3E8E5",
+    padding: appSpacing.sm,
+    gap: appSpacing.sm,
   },
-  emptyTitle: { fontSize: 20, fontWeight: "700", color: "#132039" },
-  emptyText: { color: "#4d5f80", textAlign: "center", marginTop: 4, marginBottom: 12 },
-  emptyButton: {
-    width: "100%",
-    backgroundColor: "#113f95",
-    borderRadius: 10,
+  entryMetaRow: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    marginBottom: 8,
+    justifyContent: "space-between",
   },
-  emptyButtonText: { color: "#fff", fontWeight: "700" },
-  emptySecondaryButton: { backgroundColor: "#ecf4ff" },
-  emptySecondaryButtonText: { color: "#113f95", fontWeight: "700" },
+  dateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 12,
+    color: appColors.textSecondary,
+  },
+  entryTitle: {
+    ...appTypography.body,
+    fontWeight: "700",
+  },
+  amountRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: appSpacing.xs,
+  },
+  amountText: {
+    color: appColors.primary,
+    fontSize: 30,
+    fontWeight: "800",
+  },
+  amountMeta: {
+    color: appColors.textSecondary,
+    fontSize: 12,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: appSpacing.xs,
+  },
+  actionBtn: {
+    flex: 1,
+    minHeight: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E4E9E6",
+    backgroundColor: "#F9FBFA",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 4,
+  },
+  actionDeleteBtn: {
+    backgroundColor: "#FFF8F7",
+    borderColor: "#F4D5D2",
+  },
+  actionLabel: {
+    fontSize: 12,
+    color: appColors.textSecondary,
+    fontWeight: "600",
+  },
+  actionDeleteLabel: {
+    fontSize: 12,
+    color: appColors.error,
+    fontWeight: "600",
+  },
+  dialogBody: {
+    ...appTypography.body,
+    color: appColors.textSecondary,
+  },
+  emptyStateLabel: {
+    ...appTypography.caption,
+    textAlign: "center",
+    letterSpacing: 1.2,
+  },
+  emptyWrap: {
+    gap: appSpacing.sm,
+    marginTop: appSpacing.sm,
+  },
+  emptyCard: {
+    borderRadius: appRadius.md,
+    borderWidth: 1,
+    borderColor: "#E1E7E3",
+    backgroundColor: "#F8FAF9",
+    padding: appSpacing.lg,
+    alignItems: "center",
+    gap: appSpacing.sm,
+  },
+  emptyIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E7F1EE",
+  },
+  emptyTitle: {
+    ...appTypography.section,
+    fontSize: 24,
+  },
+  emptyBody: {
+    ...appTypography.body,
+    textAlign: "center",
+    color: appColors.textSecondary,
+  },
 });

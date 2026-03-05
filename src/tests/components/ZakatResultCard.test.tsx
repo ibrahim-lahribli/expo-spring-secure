@@ -1,9 +1,33 @@
 import { render } from "@testing-library/react-native";
 import React from "react";
 import { ZakatResultCard } from "../../components/zakat/ZakatResultCard";
+import { formatMoney } from "../../lib/currency";
 import type { ZakatCalculationResult } from "../../lib/zakat-calculation/types";
+import { useAppPreferencesStore } from "../../store/appPreferencesStore";
+
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, string>) => {
+      const translations: Record<string, string> = {
+        "quickResult.summaryTitle": "Calculation Result",
+        "quickResult.rows.totalWealth": "Total Wealth:",
+        "quickResult.rows.nisabThreshold": "Nisab Threshold:",
+        "quickResult.rows.zakatDue": "Zakat Due:",
+        "quickResult.notDueNotice": "Your wealth is below the Nisab threshold, so no Zakat is due at this time.",
+      };
+      if (key === "quickResult.howCalculated") {
+        return `How this was calculated: ${options?.explanation ?? ""}`;
+      }
+      return translations[key] || key;
+    },
+  }),
+}));
 
 describe("ZakatResultCard", () => {
+  beforeEach(() => {
+    useAppPreferencesStore.setState({ currency: "MAD" });
+  });
+
   it("should render nothing when result is null", () => {
     const { queryByText } = render(<ZakatResultCard result={null} />);
 
@@ -22,7 +46,7 @@ describe("ZakatResultCard", () => {
     const { getByText } = render(<ZakatResultCard result={result} />);
 
     expect(getByText("Calculation Result")).toBeTruthy();
-    expect(getByText("250.00")).toBeTruthy();
+    expect(getByText(formatMoney(250, "MAD"))).toBeTruthy();
   });
 
   it("should show 'below Nisab threshold' message when hasZakatDue is false", () => {
@@ -54,7 +78,7 @@ describe("ZakatResultCard", () => {
 
     const { getByText } = render(<ZakatResultCard result={result} />);
 
-    expect(getByText("15000.00")).toBeTruthy();
+    expect(getByText(formatMoney(15000, "MAD"))).toBeTruthy();
   });
 
   it("should render correct nisab value", () => {
@@ -68,7 +92,7 @@ describe("ZakatResultCard", () => {
 
     const { getByText } = render(<ZakatResultCard result={result} />);
 
-    expect(getByText("7140.00")).toBeTruthy();
+    expect(getByText(formatMoney(7140, "MAD"))).toBeTruthy();
   });
 
   it("should display all expected labels", () => {

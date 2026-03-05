@@ -3,7 +3,19 @@ import React from "react";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import type { SupportedLanguage } from "../../types/i18n";
 
-// Mock the i18n hook
+jest.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        "languages.en": "English",
+        "languages.fr": "Français",
+        "languages.ar": "العربية",
+      };
+      return translations[key] || key;
+    },
+  }),
+}));
+
 jest.mock("../../i18n/i18n", () => ({
   useLanguageSwitcher: jest.fn(() => ({
     currentLanguage: "en" as SupportedLanguage,
@@ -18,7 +30,7 @@ describe("LanguageSwitcher", () => {
     jest.clearAllMocks();
   });
 
-  it("should render all supported language buttons", () => {
+  it("renders all supported language buttons", () => {
     const { getByText } = render(<LanguageSwitcher />);
 
     expect(getByText("English")).toBeTruthy();
@@ -26,15 +38,13 @@ describe("LanguageSwitcher", () => {
     expect(getByText("العربية")).toBeTruthy();
   });
 
-  it("should highlight the current language", () => {
+  it("highlights the current language", () => {
     const { getByText } = render(<LanguageSwitcher />);
 
-    // English should be active (current language)
-    const englishButton = getByText("English");
-    expect(englishButton).toBeTruthy();
+    expect(getByText("English")).toBeTruthy();
   });
 
-  it("should call switchLanguage when a language button is pressed", () => {
+  it("calls switchLanguage when a language button is pressed", () => {
     const { useLanguageSwitcher } = require("../../i18n/i18n");
     const mockSwitchLanguage = jest.fn();
     useLanguageSwitcher.mockReturnValue({
@@ -45,33 +55,26 @@ describe("LanguageSwitcher", () => {
     });
 
     const { getByText } = render(<LanguageSwitcher />);
-
-    const frenchButton = getByText("Français");
-    fireEvent.press(frenchButton);
+    fireEvent.press(getByText("Français"));
 
     expect(mockSwitchLanguage).toHaveBeenCalledWith("fr");
   });
 
-  it("should apply custom styles when provided", () => {
-    const customStyle = { backgroundColor: "red" };
-    const customButtonStyle = { borderWidth: 2 };
-    const customTextStyle = { fontSize: 16 };
-
+  it("applies custom styles when provided", () => {
     const { getByText } = render(
       <LanguageSwitcher
-        style={customStyle}
-        buttonStyle={customButtonStyle}
-        textStyle={customTextStyle}
+        style={{ backgroundColor: "red" }}
+        buttonStyle={{ borderWidth: 2 }}
+        textStyle={{ fontSize: 16 }}
       />,
     );
 
-    // Just verify it renders without errors
     expect(getByText("English")).toBeTruthy();
     expect(getByText("Français")).toBeTruthy();
     expect(getByText("العربية")).toBeTruthy();
   });
 
-  it("should handle Arabic as current language", () => {
+  it("handles Arabic as current language", () => {
     const { useLanguageSwitcher } = require("../../i18n/i18n");
     useLanguageSwitcher.mockReturnValue({
       currentLanguage: "ar" as SupportedLanguage,
@@ -81,13 +84,10 @@ describe("LanguageSwitcher", () => {
     });
 
     const { getByText } = render(<LanguageSwitcher />);
-
-    // Arabic should be active
-    const arabicButton = getByText("العربية");
-    expect(arabicButton).toBeTruthy();
+    expect(getByText("العربية")).toBeTruthy();
   });
 
-  it("should handle French as current language", () => {
+  it("handles French as current language", () => {
     const { useLanguageSwitcher } = require("../../i18n/i18n");
     useLanguageSwitcher.mockReturnValue({
       currentLanguage: "fr" as SupportedLanguage,
@@ -97,17 +97,11 @@ describe("LanguageSwitcher", () => {
     });
 
     const { getByText } = render(<LanguageSwitcher />);
-
-    // French should be active
-    const frenchButton = getByText("Français");
-    expect(frenchButton).toBeTruthy();
+    expect(getByText("Français")).toBeTruthy();
   });
 
-  it("should render correct number of language buttons", () => {
+  it("renders the correct number of language buttons", () => {
     const { getAllByTestId } = render(<LanguageSwitcher />);
-
-    // Should render 3 touchable elements for ar, fr, en
-    const buttons = getAllByTestId(/language-button/);
-    expect(buttons).toHaveLength(3);
+    expect(getAllByTestId(/language-button/)).toHaveLength(3);
   });
 });
