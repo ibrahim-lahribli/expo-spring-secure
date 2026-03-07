@@ -9,6 +9,7 @@ import {
   SecondaryButton,
 } from "../../../components/ui";
 import { buildHistoryPdfHtml } from "../../../features/history/pdf";
+import { buildTotalDisplay, resolveNonCashDueSummary } from "../../../features/history/totalDisplay";
 import { getGuestHistoryEntryById } from "../../../features/history/storage";
 import type { HistoryEntry } from "../../../features/history/types";
 import { formatMoney } from "../../../lib/currency";
@@ -66,6 +67,15 @@ export default function HistoryDetailsScreen() {
       { label: t("history.detailRows.netWealth"), value: wealthTotal, negative: false, emphasized: true },
     ];
   }, [entry, t]);
+  const totalDisplay = useMemo(() => {
+    if (!entry) return null;
+    return buildTotalDisplay({
+      cashTotal: entry.totalZakat,
+      currency: entry.currency,
+      nonCashDue: resolveNonCashDueSummary(entry.summary.nonCashDue),
+      labels: { kgUnit: t("history.kgUnit", { defaultValue: "kg" }) },
+    });
+  }, [entry, t]);
 
   const handleBackToHistory = () => {
     router.replace("/(public)/history");
@@ -74,7 +84,30 @@ export default function HistoryDetailsScreen() {
   const handleExportPdf = async () => {
     if (!entry || isExporting) return;
 
-    const html = buildHistoryPdfHtml(entry);
+    const html = buildHistoryPdfHtml(entry, {
+      kgUnit: t("history.kgUnit", { defaultValue: "kg" }),
+      titleQuick: t("history.quickCalculation"),
+      titleDetailed: t("history.detailedCalculation"),
+      savedPrefix: t("history.savedPrefix", { defaultValue: "Saved" }),
+      totalLabel: t("history.totalZakatDue"),
+      categoriesUsed: t("history.categoriesUsed"),
+      quickSnapshotTitle: t("history.inputsSnapshot"),
+      detailedBreakdownTitle: t("history.lineItemBreakdown"),
+      fieldHeader: t("history.pdf.field", { defaultValue: "Field" }),
+      categoryHeader: t("history.pdf.category", { defaultValue: "Category" }),
+      valueHeader: t("history.pdf.value", { defaultValue: "Value" }),
+      netWealthHeader: t("history.detailRows.netWealth"),
+      zakatDueHeader: t("history.zakatDue"),
+      generatedNote: t("history.pdf.generatedNote", {
+        defaultValue: "Generated from local history on this device.",
+      }),
+      quickRows: {
+        cashBank: t("history.detailRows.cashBank"),
+        goldSilver: t("history.detailRows.goldSilver"),
+        debtsOwed: t("history.detailRows.debtsOwed"),
+        netWealth: t("history.detailRows.netWealth"),
+      },
+    });
     if (Platform.OS === "web") {
       const popup = globalThis.open?.("", "_blank");
       if (!popup) {
@@ -161,7 +194,8 @@ export default function HistoryDetailsScreen() {
 
       <AppCard style={styles.summaryCard}>
         <Text style={styles.summaryLabel}>{t("history.totalZakatDue")}</Text>
-        <Text style={styles.summaryAmount}>{formatMoney(entry.totalZakat, entry.currency)}</Text>
+        <Text style={styles.summaryAmount}>{totalDisplay?.primaryDisplay ?? formatMoney(entry.totalZakat, entry.currency)}</Text>
+        {totalDisplay?.suffixDisplay ? <Text style={styles.summarySuffix}>+ {totalDisplay.suffixDisplay}</Text> : null}
       </AppCard>
 
       <AppCard style={styles.categoriesCard}>
@@ -260,6 +294,12 @@ const styles = StyleSheet.create({
     fontSize: 40,
     lineHeight: 44,
     fontWeight: "900",
+    textAlign: "center",
+  },
+  summarySuffix: {
+    color: "#D8F1EC",
+    fontSize: 13,
+    fontWeight: "700",
     textAlign: "center",
   },
   categoriesCard: {

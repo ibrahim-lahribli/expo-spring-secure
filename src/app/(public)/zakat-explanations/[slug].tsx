@@ -13,10 +13,16 @@ import type { LocalizedText, ZakatCategory } from "../../../features/zakat-expla
 export default function ZakatCategoryDetailScreen() {
   const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug?: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isArabic = (i18n.resolvedLanguage ?? "en").startsWith("ar");
 
   const category = slug ? getZakatCategoryBySlug(slug) : undefined;
-  const tr = (value: LocalizedText) => t(value.key, { defaultValue: value.defaultText });
+  const tr = (value: LocalizedText) => {
+    const lang = i18n.resolvedLanguage ?? "en";
+    const localizedDefault =
+      lang.startsWith("ar") ? value.arText ?? value.defaultText : lang.startsWith("fr") ? value.frText ?? value.defaultText : value.defaultText;
+    return t(value.key, { defaultValue: localizedDefault });
+  };
 
   if (!category) {
     return (
@@ -44,10 +50,10 @@ export default function ZakatCategoryDetailScreen() {
             icon="information-outline"
             style={styles.sectionCardCompact}
           >
-            <Text variant="bodyMedium" style={styles.sectionBodyText}>
+            <Text variant="bodyMedium" style={[styles.sectionBodyText, isArabic && styles.rtlText]}>
               {tr(category.overview.whatItCovers)}
             </Text>
-            <Text variant="bodyMedium" style={styles.sectionBodyText}>
+            <Text variant="bodyMedium" style={[styles.sectionBodyText, isArabic && styles.rtlText]}>
               {tr(category.overview.whenDue)}
             </Text>
           </SectionCard>
@@ -78,11 +84,11 @@ export default function ZakatCategoryDetailScreen() {
             style={styles.sectionCardCompact}
           >
             {category.calculationSteps.map((step, index) => (
-              <View key={step.title.key} style={styles.stepRow}>
-                <Text variant="labelLarge" style={styles.stepIndex}>
+              <View key={step.title.key} style={[styles.stepRow, isArabic && styles.stepRowRtl]}>
+                <Text variant="labelLarge" style={[styles.stepIndex, isArabic && styles.rtlText]}>
                   {`${index + 1}. ${tr(step.title)}`}
                 </Text>
-                <Text variant="bodyMedium" style={styles.stepDescription}>
+                <Text variant="bodyMedium" style={[styles.stepDescription, isArabic && styles.rtlText]}>
                   {tr(step.description)}
                 </Text>
               </View>
@@ -123,19 +129,21 @@ export default function ZakatCategoryDetailScreen() {
 }
 
 function HeaderSection({ category, tr }: { category: ZakatCategory; tr: (value: LocalizedText) => string }) {
+  const { i18n } = useTranslation();
+  const isArabic = (i18n.resolvedLanguage ?? "en").startsWith("ar");
   const accent = ZAKAT_UI.categoryAccents[category.slug] ?? ZAKAT_UI.colors.accent;
 
   return (
     <View style={styles.headerCard}>
-      <View style={styles.headerTopRow}>
+      <View style={[styles.headerTopRow, isArabic && styles.headerTopRowRtl]}>
         <View style={[styles.headerIconWrap, { backgroundColor: `${accent}1A` }]}>
           <MaterialCommunityIcons name={category.icon} size={24} color={accent} />
         </View>
         <View style={styles.headerTitleWrap}>
-          <Text variant="headlineSmall" style={styles.headerTitle}>
+          <Text variant="headlineSmall" style={[styles.headerTitle, isArabic && styles.rtlText]}>
             {tr(category.title)}
           </Text>
-          <Text variant="bodyMedium" style={styles.headerSubtitle}>
+          <Text variant="bodyMedium" style={[styles.headerSubtitle, isArabic && styles.rtlText]}>
             {tr(category.shortSummary)}
           </Text>
         </View>
@@ -188,6 +196,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: ZAKAT_UI.spacing.sm,
   },
+  headerTopRowRtl: {
+    flexDirection: "row-reverse",
+  },
   headerIconWrap: {
     width: 38,
     height: 38,
@@ -226,6 +237,9 @@ const styles = StyleSheet.create({
   stepRow: {
     gap: 4,
   },
+  stepRowRtl: {
+    alignItems: "flex-end",
+  },
   stepIndex: {
     color: ZAKAT_UI.colors.textPrimary,
     fontWeight: "700",
@@ -261,5 +275,9 @@ const styles = StyleSheet.create({
   },
   ctaButtonContent: {
     minHeight: 44,
+  },
+  rtlText: {
+    textAlign: "right",
+    writingDirection: "rtl",
   },
 });

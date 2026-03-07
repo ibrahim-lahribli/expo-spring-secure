@@ -9,8 +9,8 @@ import {
   deleteGuestHistoryEntry,
   getGuestHistoryEntries,
 } from "../../../features/history/storage";
+import { buildTotalDisplay, resolveNonCashDueSummary } from "../../../features/history/totalDisplay";
 import type { HistoryEntry, HistoryFlowType } from "../../../features/history/types";
-import { formatMoney } from "../../../lib/currency";
 import { appColors, appRadius, appSpacing, appTypography } from "../../../theme/designSystem";
 
 type FilterMode = "all" | HistoryFlowType;
@@ -88,6 +88,12 @@ export default function HistoryScreen() {
       </View>
 
       {filteredEntries.map((entry) => {
+        const totalDisplay = buildTotalDisplay({
+          cashTotal: entry.totalZakat,
+          currency: entry.currency,
+          nonCashDue: resolveNonCashDueSummary(entry.summary.nonCashDue),
+          labels: { kgUnit: t("history.kgUnit", { defaultValue: "kg" }) },
+        });
         return (
           <View key={entry.id} style={styles.entryCard}>
             <View style={styles.entryMetaRow}>
@@ -103,7 +109,8 @@ export default function HistoryScreen() {
                 : t("history.detailedCalculation")}
             </Text>
             <View style={styles.amountRow}>
-              <Text style={styles.amountText}>{formatMoney(entry.totalZakat, entry.currency)}</Text>
+              <Text style={styles.amountText}>{totalDisplay.primaryDisplay}</Text>
+              {totalDisplay.suffixDisplay ? <Text style={styles.amountSuffix}>+ {totalDisplay.suffixDisplay}</Text> : null}
               <Text style={styles.amountMeta}>{t("history.zakatDue")}</Text>
             </View>
 
@@ -215,13 +222,19 @@ const styles = StyleSheet.create({
   },
   amountRow: {
     flexDirection: "row",
-    alignItems: "baseline",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: appSpacing.xs,
   },
   amountText: {
     color: appColors.primary,
     fontSize: 30,
     fontWeight: "800",
+  },
+  amountSuffix: {
+    color: appColors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
   },
   amountMeta: {
     color: appColors.textSecondary,

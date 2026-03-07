@@ -162,7 +162,15 @@
     "pdfCreatedTitle": "PDF created",
     "pdfCreatedBody": "Saved PDF to {uri}",
     "exportFailedTitle": "Export failed",
-    "exportFailedBody": "Unable to create the PDF right now."
+    "exportFailedBody": "Unable to create the PDF right now.",
+    "kgUnit": "kg",
+    "savedPrefix": "Saved",
+    "pdf": {
+      "field": "Field",
+      "category": "Category",
+      "value": "Value",
+      "generatedNote": "Generated from local history on this device."
+    }
   },
   "settingsScreen": {
     "title": "Settings",
@@ -221,7 +229,13 @@
   "zakatExplanations": {
     "hub": {
       "title": "Zakat Categories",
-      "subtitle": "Choose a category to view the fatwa-based explanation."
+      "subtitle": "Choose a category to view the fatwa-based explanation.",
+      "introduction": {
+        "title": "Introduction",
+        "paragraph1": "Zakat is given by the believer in response to the command of Allah. The Quran clarifies that its purpose is not only to help those in need but also to benefit the giver by purifying the soul and freeing it from greed and miserliness.",
+        "verse": "\"Take from their wealth a charity by which you cleanse and purify them.\" (Quran 9:103)",
+        "paragraph2": "Therefore, Zakat is one of the pillars of Islam, one of its greatest obligations, and a fundamental foundation upon which many other rulings of Islamic life are built."
+      }
     },
     "detail": {
       "overview": {
@@ -255,6 +269,111 @@
       "notFound": {
         "title": "Category not found",
         "back": "Back to categories"
+      }
+    }
+  },
+  "detailedCalculator": {
+    "hero": {
+      "overline": "DETAILED ZAKAT CALCULATOR",
+      "selectCategory": "Select a Category",
+      "categoriesAdded": "{{count}} categories added"
+    },
+    "total": {
+      "label": "Total"
+    },
+    "instructions": "Tap a category below to add it to your zakat calculation.",
+    "addedPill": "Added",
+    "backToCategories": "Back to categories",
+    "addCategory": "Add This Category",
+    "saveToHistory": "Save to History",
+    "howCalculated": "How is this calculated?",
+    "hide": "Hide",
+    "show": "Show",
+    "notSet": "Not set",
+    "modes": {
+      "monthly": "Monthly",
+      "annual": "Annual"
+    },
+    "summary": {
+      "title": "Your Calculation Summary"
+    },
+    "preview": {
+      "title": "Live Preview",
+      "animalsDue": "Animals due",
+      "cashEquivalent": "Cash equivalent",
+      "harvestQuantity": "Harvest quantity",
+      "zakatDue": "Zakat due",
+      "zakatDueCashEstimate": "Zakat due (cash estimate)",
+      "zakatDueProduce": "Zakat due (produce)"
+    },
+    "livestock": {
+      "noDue": "No zakat due",
+      "types": {
+        "camels": "Camels",
+        "cattle": "Cattle",
+        "sheep_goats": "Sheep/Goats"
+      }
+    },
+    "history": {
+      "mode": "Mode",
+      "nisab": "Nisab",
+      "type": "Type",
+      "owned": "Owned",
+      "due": "Due",
+      "cashEstimate": "Cash estimate",
+      "watering": "Watering",
+      "dueProduce": "Due produce",
+      "cashEquivalent": "Cash equivalent"
+    },
+    "validation": {
+      "monthlyIncomeRequired": "Please enter your monthly income.",
+      "produceMarketValueRequired": "Please enter the produce market value.",
+      "harvestQuantityRequired": "Please enter harvested quantity in kg.",
+      "marketValueRequired": "Please enter the market value."
+    },
+    "categories": {
+      "salary": {
+        "title": "Salaries & Services",
+        "description": "Employment income, consulting, healthcare, legal fees"
+      },
+      "livestock": {
+        "title": "Livestock",
+        "description": "Camels, cattle, sheep and goats"
+      },
+      "produce": {
+        "title": "Grains & Fruits",
+        "description": "Agricultural harvest or produce held for trade"
+      },
+      "agri_other": {
+        "title": "Other Agricultural Products",
+        "description": "Vegetables, timber, fishing, poultry, beekeeping"
+      },
+      "trade_sector": {
+        "title": "Trade & Business",
+        "description": "Commercial goods, stocks, currencies, company profits"
+      },
+      "industrial_sector": {
+        "title": "Industrial Sector",
+        "description": "Manufacturing, food production, construction materials"
+      },
+      "debt": {
+        "title": "Debt",
+        "description": "Money owed to you or money you owe others"
+      }
+    }
+  },
+  "livestock": {
+    "dueItem": {
+      "sheep": "sheep",
+      "camel": {
+        "bint_makhad": "bint makhad",
+        "bint_labun": "bint labun",
+        "hiqqah": "hiqqah",
+        "jadhaah": "jadhaah"
+      },
+      "cattle": {
+        "tabi": "tabi",
+        "musinnah": "musinnah"
       }
     }
   }

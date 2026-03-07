@@ -63,6 +63,15 @@ export type DueItemPriceKey =
 
 export type DueItemPrices = Partial<Record<DueItemPriceKey, number>>;
 
+export type DueItemLabelKey =
+  | "livestock.dueItem.sheep"
+  | "livestock.dueItem.camel.bint_makhad"
+  | "livestock.dueItem.camel.bint_labun"
+  | "livestock.dueItem.camel.hiqqah"
+  | "livestock.dueItem.camel.jadhaah"
+  | "livestock.dueItem.cattle.tabi"
+  | "livestock.dueItem.cattle.musinnah";
+
 export function getDueItemPriceKey(item: DueItem): DueItemPriceKey {
   if (item.kind === "sheep") {
     return "sheep";
@@ -81,6 +90,23 @@ export function getDueItemLabel(item: DueItem): string {
     return camelClassLabel(item.class);
   }
   return cattleClassLabel(item.class);
+}
+
+export function getDueItemLabelKey(item: DueItem): DueItemLabelKey {
+  if (item.kind === "sheep") {
+    return "livestock.dueItem.sheep";
+  }
+  if (item.kind === "camel_class") {
+    return `livestock.dueItem.camel.${item.class}`;
+  }
+  return `livestock.dueItem.cattle.${item.class}`;
+}
+
+export function formatDueItems(
+  items: DueItem[],
+  resolveLabel: (item: DueItem) => string = getDueItemLabel,
+): string {
+  return items.map((item) => `${item.count} ${resolveLabel(item)}`).join(" + ");
 }
 
 export function calcCashEquivalent(
@@ -113,6 +139,8 @@ function calculateCamelZakat(
   owned: number,
   options?: LivestockCalcOptions,
 ): LivestockZakatResult {
+  // Fatwa alignment (Al-Majlis Al-Ilmi Al-A'la, "تقديم الفتوى"): camel nisab starts at 5,
+  // then uses the canonical bracket schedule and 40/50 decomposition for larger herds.
   if (owned <= 4) {
     return noDueResult();
   }
@@ -177,6 +205,7 @@ function calculateCamelZakat(
 }
 
 function calculateCattleZakat(owned: number): LivestockZakatResult {
+  // Fatwa alignment: cattle nisab starts at 30 and uses 30/40 decomposition afterwards.
   if (owned <= 29) {
     return noDueResult();
   }
@@ -207,6 +236,7 @@ function calculateCattleZakat(owned: number): LivestockZakatResult {
 }
 
 function calculateSheepGoatZakat(owned: number): LivestockZakatResult {
+  // Fatwa alignment: sheep/goat nisab starts at 40 with the standard stepped schedule.
   if (owned <= 39) {
     return noDueResult();
   }
@@ -239,10 +269,6 @@ function buildResult(dueItems: DueItem[]): LivestockZakatResult {
     dueText: formatDueItems(dueItems),
     isDue: true,
   };
-}
-
-function formatDueItems(items: DueItem[]): string {
-  return items.map((item) => `${item.count} ${getDueItemLabel(item)}`).join(" + ");
 }
 
 function camelClassLabel(value: CamelClass): string {

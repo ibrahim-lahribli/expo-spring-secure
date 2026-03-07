@@ -6,6 +6,8 @@ export type IconName = ComponentProps<typeof MaterialCommunityIcons>["name"];
 export interface LocalizedText {
   key: string;
   defaultText: string;
+  arText?: string;
+  frText?: string;
 }
 
 export interface RateInfo {

@@ -3,7 +3,9 @@ export { calculateProduceZakat } from "./produce";
 export {
   calcCashEquivalent,
   calcLivestockZakat,
+  formatDueItems,
   getDueItemLabel,
+  getDueItemLabelKey,
   getDueItemPriceKey,
 } from "./livestock";
 export type {
@@ -21,6 +23,7 @@ export type {
   CamelClass,
   CattleClass,
   DueItem,
+  DueItemLabelKey,
   DueItemPriceKey,
   DueItemPrices,
   LivestockType,

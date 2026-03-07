@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import React from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text } from "react-native-paper";
 import { useTranslation } from "react-i18next";
@@ -11,49 +11,54 @@ import type { LocalizedText } from "../../../features/zakat-explanations/types";
 
 export default function ZakatExplanationsHubScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
-  const [query, setQuery] = useState("");
+  const { t, i18n } = useTranslation();
+  const isArabic = (i18n.resolvedLanguage ?? "en").startsWith("ar");
 
-  const tr = (value: LocalizedText) => t(value.key, { defaultValue: value.defaultText });
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredCategories = useMemo(
-    () =>
-      normalizedQuery.length === 0
-        ? zakatCategories
-        : zakatCategories.filter((category) => {
-            const title = tr(category.title).toLowerCase();
-            const summary = tr(category.shortSummary).toLowerCase();
-            return title.includes(normalizedQuery) || summary.includes(normalizedQuery);
-          }),
-    [normalizedQuery, t],
-  );
+  const tr = (value: LocalizedText) => {
+    const lang = i18n.resolvedLanguage ?? "en";
+    const localizedDefault =
+      lang.startsWith("ar") ? value.arText ?? value.defaultText : lang.startsWith("fr") ? value.frText ?? value.defaultText : value.defaultText;
+    return t(value.key, { defaultValue: localizedDefault });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.heroCard}>
-          <Text variant="headlineSmall" style={styles.heroTitle}>
-            {t("zakatExplanations.hub.title", { defaultValue: "Learn About Zakat" })}
+        <View style={styles.introCard}>
+          <Text variant="titleLarge" style={[styles.introTitle, isArabic && styles.rtlText]}>
+            {t("zakatExplanations.hub.introduction.title", { defaultValue: "Introduction" })}
           </Text>
-          <Text variant="bodyMedium" style={styles.heroSubtitle}>
-            {t("zakatExplanations.hub.subtitle", {
-              defaultValue: "Tap a topic to read clear, step-by-step guidance.",
+          <Text variant="bodyMedium" style={[styles.introText, isArabic && styles.rtlText]}>
+            {t("zakatExplanations.hub.introduction.paragraph1", {
+              defaultValue:
+                "Zakat is given by the believer in response to the command of Allah. The Quran clarifies that its purpose is not only to help those in need but also to benefit the giver by purifying the soul and freeing it from greed and miserliness.",
             })}
           </Text>
-          <View style={styles.searchWrap}>
-            <MaterialCommunityIcons name="magnify" size={18} color={ZAKAT_UI.colors.textTertiary} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t("zakatExplanations.hub.search", { defaultValue: "Search topics..." })}
-              placeholderTextColor={ZAKAT_UI.colors.textTertiary}
-              style={styles.searchInput}
-            />
+          <View style={styles.verseCard}>
+            <Text variant="bodyMedium" style={[styles.verseText, isArabic && styles.rtlText, isArabic && styles.verseTextArabic]}>
+              {t("zakatExplanations.hub.introduction.verse", {
+                defaultValue: "\"Take from their wealth a charity by which you cleanse and purify them.\" (Quran 9:103)",
+              })}
+            </Text>
           </View>
+          <Text variant="bodyMedium" style={[styles.introText, isArabic && styles.rtlText]}>
+            {t("zakatExplanations.hub.introduction.paragraph2", {
+              defaultValue:
+                "Therefore, Zakat is one of the pillars of Islam, one of its greatest obligations, and a fundamental foundation upon which many other rulings of Islamic life are built.",
+            })}
+          </Text>
+          <Text variant="labelLarge" style={[styles.categoriesLabel, isArabic && styles.rtlText]}>
+            {t("zakatExplanations.hub.title", { defaultValue: "Zakat Categories" })}
+          </Text>
+          <Text variant="bodySmall" style={[styles.introSubtitle, isArabic && styles.rtlText]}>
+            {t("zakatExplanations.hub.subtitle", {
+              defaultValue: "Choose a category to view the fatwa-based explanation.",
+            })}
+          </Text>
         </View>
 
         <View style={styles.cardList}>
-          {filteredCategories.map((category) => {
+          {zakatCategories.map((category) => {
             const accent = ZAKAT_UI.categoryAccents[category.slug] ?? ZAKAT_UI.colors.accent;
             return (
               <Pressable
@@ -66,33 +71,26 @@ export default function ZakatExplanationsHubScreen() {
                     } as never,
                   )
                 }
-                style={({ pressed }) => [styles.topicCard, pressed && styles.topicCardPressed]}
+                style={({ pressed }) => [styles.topicCard, isArabic && styles.topicCardRtl, pressed && styles.topicCardPressed]}
                 accessibilityRole="button"
               >
-                <View style={[styles.topicIconWrap, { backgroundColor: `${accent}1A` }]}>
+                <View style={[styles.topicIconWrap, isArabic && styles.topicIconWrapRtl, { backgroundColor: `${accent}1A` }]}>
                   <MaterialCommunityIcons name={category.icon} size={16} color={accent} />
                 </View>
                 <View style={styles.topicBody}>
-                  <Text variant="titleMedium" style={styles.topicTitle}>
+                  <Text variant="titleMedium" style={[styles.topicTitle, isArabic && styles.rtlText]}>
                     {tr(category.title)}
                   </Text>
-                  <Text variant="bodySmall" style={styles.topicSummary} numberOfLines={2}>
+                  <Text variant="bodySmall" style={[styles.topicSummary, isArabic && styles.rtlText]} numberOfLines={2}>
                     {tr(category.shortSummary)}
                   </Text>
                 </View>
-                <View style={styles.topicChevronWrap}>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={ZAKAT_UI.colors.textTertiary} />
+                <View style={[styles.topicChevronWrap, isArabic && styles.topicChevronWrapRtl]}>
+                  <MaterialCommunityIcons name={isArabic ? "chevron-left" : "chevron-right"} size={20} color={ZAKAT_UI.colors.textTertiary} />
                 </View>
               </Pressable>
             );
           })}
-          {filteredCategories.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text variant="bodyMedium" style={styles.emptyStateText}>
-                {t("zakatExplanations.hub.empty", { defaultValue: "No topics matched your search." })}
-              </Text>
-            </View>
-          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -109,7 +107,7 @@ const styles = StyleSheet.create({
     paddingBottom: ZAKAT_UI.spacing.xl,
     gap: ZAKAT_UI.spacing.lg,
   },
-  heroCard: {
+  introCard: {
     backgroundColor: ZAKAT_UI.colors.surface,
     borderWidth: 1,
     borderColor: ZAKAT_UI.colors.border,
@@ -117,32 +115,41 @@ const styles = StyleSheet.create({
     padding: ZAKAT_UI.spacing.md,
     gap: ZAKAT_UI.spacing.sm,
   },
-  heroTitle: {
+  introTitle: {
     color: ZAKAT_UI.colors.textPrimary,
     fontWeight: "700",
-    fontSize: 25,
+    fontSize: 22,
   },
-  heroSubtitle: {
+  introSubtitle: {
     color: ZAKAT_UI.colors.textSecondary,
-    lineHeight: 20,
-    fontSize: 13,
+    lineHeight: 18,
+    fontSize: 12,
   },
-  searchWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: ZAKAT_UI.spacing.xs,
+  introText: {
+    color: ZAKAT_UI.colors.textSecondary,
+    lineHeight: 22,
+    fontSize: 14,
+  },
+  verseCard: {
+    backgroundColor: ZAKAT_UI.colors.surfaceMuted,
+    borderRadius: ZAKAT_UI.radius.md,
     borderWidth: 1,
     borderColor: ZAKAT_UI.colors.border,
-    borderRadius: ZAKAT_UI.radius.md,
-    paddingHorizontal: ZAKAT_UI.spacing.sm,
-    height: 44,
-    backgroundColor: ZAKAT_UI.colors.surfaceMuted,
+    padding: ZAKAT_UI.spacing.sm,
   },
-  searchInput: {
-    flex: 1,
+  verseText: {
     color: ZAKAT_UI.colors.textPrimary,
+    fontStyle: "italic",
+    lineHeight: 24,
     fontSize: 14,
-    paddingVertical: 0,
+  },
+  verseTextArabic: {
+    fontStyle: "normal",
+  },
+  categoriesLabel: {
+    color: ZAKAT_UI.colors.textPrimary,
+    fontWeight: "700",
+    marginTop: ZAKAT_UI.spacing.xs,
   },
   cardList: {
     gap: ZAKAT_UI.spacing.sm,
@@ -157,6 +164,9 @@ const styles = StyleSheet.create({
     padding: ZAKAT_UI.spacing.sm,
     minHeight: 84,
   },
+  topicCardRtl: {
+    flexDirection: "row-reverse",
+  },
   topicCardPressed: {
     opacity: 0.9,
   },
@@ -167,6 +177,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: ZAKAT_UI.spacing.sm,
+  },
+  topicIconWrapRtl: {
+    marginRight: 0,
+    marginLeft: ZAKAT_UI.spacing.sm,
   },
   topicBody: {
     flex: 1,
@@ -191,14 +205,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginLeft: ZAKAT_UI.spacing.sm,
   },
-  emptyState: {
-    borderWidth: 1,
-    borderColor: ZAKAT_UI.colors.border,
-    borderRadius: ZAKAT_UI.radius.md,
-    backgroundColor: ZAKAT_UI.colors.surface,
-    padding: ZAKAT_UI.spacing.md,
+  topicChevronWrapRtl: {
+    marginLeft: 0,
+    marginRight: ZAKAT_UI.spacing.sm,
   },
-  emptyStateText: {
-    color: ZAKAT_UI.colors.textSecondary,
+  rtlText: {
+    textAlign: "right",
+    writingDirection: "rtl",
   },
 });

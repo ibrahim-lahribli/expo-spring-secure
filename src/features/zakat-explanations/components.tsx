@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, StyleSheet, View, type ViewStyle } from "react-native";
 import { Text } from "react-native-paper";
+import { useTranslation } from "react-i18next";
 import { ZAKAT_UI } from "./ui";
 import type { IconName } from "./types";
 
@@ -14,9 +15,12 @@ const CARD_SHADOW = {
 } as const;
 
 export function InfoBadge({ label, tone = "default" }: { label: string; tone?: "default" | "accent" }) {
+  const { i18n } = useTranslation();
+  const isArabic = (i18n.resolvedLanguage ?? "en").startsWith("ar");
+
   return (
     <View style={[styles.badge, tone === "accent" && styles.badgeAccent]}>
-      <Text style={[styles.badgeText, tone === "accent" && styles.badgeTextAccent]}>{label}</Text>
+      <Text style={[styles.badgeText, tone === "accent" && styles.badgeTextAccent, isArabic && styles.rtlText]}>{label}</Text>
     </View>
   );
 }
@@ -28,10 +32,13 @@ export function BulletRow({
   text: string;
   icon?: IconName;
 }) {
+  const { i18n } = useTranslation();
+  const isArabic = (i18n.resolvedLanguage ?? "en").startsWith("ar");
+
   return (
-    <View style={styles.bulletRow}>
+    <View style={[styles.bulletRow, isArabic && styles.bulletRowRtl]}>
       <MaterialCommunityIcons name={icon} size={18} color={ZAKAT_UI.colors.accent} />
-      <Text style={styles.bulletText}>{text}</Text>
+      <Text style={[styles.bulletText, isArabic && styles.rtlText]}>{text}</Text>
     </View>
   );
 }
@@ -47,15 +54,18 @@ export function SectionCard({
   children: React.ReactNode;
   style?: ViewStyle;
 }) {
+  const { i18n } = useTranslation();
+  const isArabic = (i18n.resolvedLanguage ?? "en").startsWith("ar");
+
   return (
     <View style={[styles.sectionCard, CARD_SHADOW, style]}>
-      <View style={styles.sectionHeader}>
+      <View style={[styles.sectionHeader, isArabic && styles.sectionHeaderRtl]}>
         {icon ? (
           <View style={styles.sectionIconWrap}>
             <MaterialCommunityIcons name={icon} size={18} color={ZAKAT_UI.colors.accent} />
           </View>
         ) : null}
-        <Text variant="titleMedium" style={styles.sectionTitle}>
+        <Text variant="titleMedium" style={[styles.sectionTitle, isArabic && styles.rtlText]}>
           {title}
         </Text>
       </View>
@@ -79,32 +89,36 @@ export function CategoryCard({
   accentColor: string;
   onPress: () => void;
 }) {
+  const { i18n } = useTranslation();
+  const isArabic = (i18n.resolvedLanguage ?? "en").startsWith("ar");
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.categoryCard,
+        isArabic && styles.categoryCardRtl,
         CARD_SHADOW,
-        { borderLeftColor: accentColor },
+        isArabic ? { borderRightColor: accentColor } : { borderLeftColor: accentColor },
         pressed && styles.categoryCardPressed,
       ]}
       accessibilityRole="button"
     >
-      <View style={styles.categoryHeader}>
+      <View style={[styles.categoryHeader, isArabic && styles.categoryHeaderRtl]}>
         <View style={[styles.categoryIconWrap, { backgroundColor: `${accentColor}1A` }]}>
           <MaterialCommunityIcons name={icon} size={20} color={accentColor} />
         </View>
         <View style={styles.categoryTitleWrap}>
-          <Text variant="titleMedium" style={styles.categoryTitle}>
+          <Text variant="titleMedium" style={[styles.categoryTitle, isArabic && styles.rtlText]}>
             {title}
           </Text>
-          <Text variant="bodySmall" style={styles.categorySummary}>
+          <Text variant="bodySmall" style={[styles.categorySummary, isArabic && styles.rtlText]}>
             {summary}
           </Text>
         </View>
-        <MaterialCommunityIcons name="chevron-right" size={22} color={ZAKAT_UI.colors.textTertiary} />
+        <MaterialCommunityIcons name={isArabic ? "chevron-left" : "chevron-right"} size={22} color={ZAKAT_UI.colors.textTertiary} />
       </View>
-      <View style={styles.badgesWrap}>
+      <View style={[styles.badgesWrap, isArabic && styles.badgesWrapRtl]}>
         {badges.map((badge) => (
           <InfoBadge key={`${title}-${badge}`} label={badge} />
         ))}
@@ -140,6 +154,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: ZAKAT_UI.spacing.sm,
   },
+  bulletRowRtl: {
+    flexDirection: "row-reverse",
+  },
   bulletText: {
     flex: 1,
     color: ZAKAT_UI.colors.textSecondary,
@@ -158,6 +175,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: ZAKAT_UI.spacing.sm,
+  },
+  sectionHeaderRtl: {
+    flexDirection: "row-reverse",
   },
   sectionIconWrap: {
     width: 30,
@@ -183,6 +203,10 @@ const styles = StyleSheet.create({
     padding: ZAKAT_UI.spacing.md,
     gap: ZAKAT_UI.spacing.sm,
   },
+  categoryCardRtl: {
+    borderRightWidth: 4,
+    borderLeftWidth: 1,
+  },
   categoryCardPressed: {
     opacity: 0.9,
     transform: [{ scale: 0.995 }],
@@ -191,6 +215,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: ZAKAT_UI.spacing.sm,
+  },
+  categoryHeaderRtl: {
+    flexDirection: "row-reverse",
   },
   categoryIconWrap: {
     width: 36,
@@ -215,5 +242,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: ZAKAT_UI.spacing.xs,
+  },
+  badgesWrapRtl: {
+    flexDirection: "row-reverse",
+  },
+  rtlText: {
+    textAlign: "right",
+    writingDirection: "rtl",
   },
 });

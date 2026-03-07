@@ -162,7 +162,15 @@
     "pdfCreatedTitle": "PDF créé",
     "pdfCreatedBody": "PDF enregistré dans {uri}",
     "exportFailedTitle": "Échec de l'export",
-    "exportFailedBody": "Impossible de créer le PDF pour le moment."
+    "exportFailedBody": "Impossible de créer le PDF pour le moment.",
+    "kgUnit": "kg",
+    "savedPrefix": "Enregistr?",
+    "pdf": {
+      "field": "Champ",
+      "category": "Cat?gorie",
+      "value": "Valeur",
+      "generatedNote": "G?n?r? depuis l'historique local sur cet appareil."
+    }
   },
   "settingsScreen": {
     "title": "Paramètres",
@@ -221,7 +229,13 @@
   "zakatExplanations": {
     "hub": {
       "title": "Catégories de zakat",
-      "subtitle": "Choisissez une catégorie pour voir l'explication basée sur la fatwa."
+      "subtitle": "Choisissez une catégorie pour voir l'explication basée sur la fatwa.",
+      "introduction": {
+        "title": "Introduction",
+        "paragraph1": "La Zakāt est donnée par le croyant en réponse au commandement d’Allah. Le Coran explique que son objectif n’est pas seulement d’aider les nécessiteux, mais aussi de purifier celui qui donne et de le libérer de l’avarice et de l’égoïsme.",
+        "verse": "« Prélève de leurs biens une aumône par laquelle tu les purifies et les élèves. » (Coran 9:103)",
+        "paragraph2": "Ainsi, la Zakāt est l’un des piliers de l’Islam, une obligation majeure et un fondement essentiel sur lequel reposent de nombreuses règles de la vie musulmane."
+      }
     },
     "detail": {
       "overview": {
@@ -255,6 +269,111 @@
       "notFound": {
         "title": "Catégorie introuvable",
         "back": "Retour aux catégories"
+      }
+    }
+  },
+  "detailedCalculator": {
+    "hero": {
+      "overline": "CALCULATEUR D?TAILL? DE ZAKAT",
+      "selectCategory": "Choisir une cat?gorie",
+      "categoriesAdded": "{{count}} cat?gories ajout?es"
+    },
+    "total": {
+      "label": "Total"
+    },
+    "instructions": "Touchez une cat?gorie ci-dessous pour l'ajouter ? votre calcul de zakat.",
+    "addedPill": "Ajout?",
+    "backToCategories": "Retour aux cat?gories",
+    "addCategory": "Ajouter cette cat?gorie",
+    "saveToHistory": "Enregistrer dans l'historique",
+    "howCalculated": "Comment est-ce calcul? ?",
+    "hide": "Masquer",
+    "show": "Afficher",
+    "notSet": "Non d?fini",
+    "modes": {
+      "monthly": "Mensuel",
+      "annual": "Annuel"
+    },
+    "summary": {
+      "title": "R?sum? du calcul"
+    },
+    "preview": {
+      "title": "Aper?u en direct",
+      "animalsDue": "Animaux dus",
+      "cashEquivalent": "?quivalent en esp?ces",
+      "harvestQuantity": "Quantit? r?colt?e",
+      "zakatDue": "Zakat due",
+      "zakatDueCashEstimate": "Zakat due (estimation en esp?ces)",
+      "zakatDueProduce": "Zakat due (en nature)"
+    },
+    "livestock": {
+      "noDue": "Aucune zakat due",
+      "types": {
+        "camels": "Chameaux",
+        "cattle": "Bovins",
+        "sheep_goats": "Moutons/Ch?vres"
+      }
+    },
+    "history": {
+      "mode": "Mode",
+      "nisab": "Nisab",
+      "type": "Type",
+      "owned": "Poss?d?",
+      "due": "D?",
+      "cashEstimate": "Estimation en esp?ces",
+      "watering": "Irrigation",
+      "dueProduce": "Produit d?",
+      "cashEquivalent": "?quivalent en esp?ces"
+    },
+    "validation": {
+      "monthlyIncomeRequired": "Veuillez saisir votre revenu mensuel.",
+      "produceMarketValueRequired": "Veuillez saisir la valeur marchande des produits.",
+      "harvestQuantityRequired": "Veuillez saisir la quantit? r?colt?e en kg.",
+      "marketValueRequired": "Veuillez saisir la valeur marchande."
+    },
+    "categories": {
+      "salary": {
+        "title": "Salaires & Services",
+        "description": "Revenus d'emploi, conseil, sant?, honoraires juridiques"
+      },
+      "livestock": {
+        "title": "B?tail",
+        "description": "Chameaux, bovins, moutons et ch?vres"
+      },
+      "produce": {
+        "title": "C?r?ales & Fruits",
+        "description": "R?colte agricole ou produits d?tenus pour le commerce"
+      },
+      "agri_other": {
+        "title": "Autres produits agricoles",
+        "description": "L?gumes, bois, p?che, volaille, apiculture"
+      },
+      "trade_sector": {
+        "title": "Commerce & Affaires",
+        "description": "Biens commerciaux, actions, devises, profits d'entreprise"
+      },
+      "industrial_sector": {
+        "title": "Secteur industriel",
+        "description": "Fabrication, production alimentaire, mat?riaux de construction"
+      },
+      "debt": {
+        "title": "Dettes",
+        "description": "Argent qu'on vous doit ou que vous devez"
+      }
+    }
+  },
+  "livestock": {
+    "dueItem": {
+      "sheep": "mouton",
+      "camel": {
+        "bint_makhad": "bint makhad",
+        "bint_labun": "bint labun",
+        "hiqqah": "hiqqah",
+        "jadhaah": "jadhaah"
+      },
+      "cattle": {
+        "tabi": "tabi",
+        "musinnah": "musinnah"
       }
     }
   }

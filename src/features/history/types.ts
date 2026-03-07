@@ -13,6 +13,10 @@ export type HistorySummary = {
   categoriesUsed: string[];
   itemCount: number;
   note?: string;
+  nonCashDue?: {
+    livestock: string[];
+    produceKg: number;
+  };
 };
 
 export type QuickHistoryPayload = {

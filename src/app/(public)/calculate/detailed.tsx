@@ -1,9 +1,10 @@
+import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,31 +16,26 @@ import {
 import { appColors, appRadius, appSpacing } from "../../../theme/designSystem";
 import { upsertGuestHistoryEntry } from "../../../features/history/storage";
 import type { DetailedHistoryLineItem, HistoryEntry } from "../../../features/history/types";
+import { buildTotalDisplay, type NonCashDueSummary } from "../../../features/history/totalDisplay";
 import {
-  calcCashEquivalent,
   calcLivestockZakat,
   calculateProduceZakat,
   calculateSalaryZakat,
-  getDueItemLabel,
-  getDueItemPriceKey,
+  formatDueItems,
+  getDueItemLabelKey,
   type Camel121Choice,
   type DueItem,
-  type DueItemPriceKey,
-  type DueItemPrices,
   type LivestockType,
   type ProduceWateringMethod,
   type ZakatCalculationResult,
 } from "../../../lib/zakat-calculation";
 import { formatMoney } from "../../../lib/currency";
-import { calculateNisab, getNisabBreakdown } from "../../../lib/zakat-calculation/nisab";
+import { calculateNisab } from "../../../lib/zakat-calculation/nisab";
 import { useAppPreferencesStore, type SupportedCurrency } from "../../../store/appPreferencesStore";
 import { useNisabSettingsStore } from "../../../store/nisabSettingsStore";
 
-const DEFAULT_SILVER_PRICE_PER_GRAM = 12;
-const DEFAULT_GOLD_PRICE_PER_GRAM = 800;
-
 type CategoryId = "salary" | "livestock" | "produce" | "agri_other" | "trade_sector" | "industrial_sector" | "debt";
-type LivestockPaymentMethod = "in_kind" | "cash";
+type StepId = "pick" | "form";
 type SalaryCalculationMode = "annual" | "monthly";
 type SalaryValues = { monthlyIncome: string; livingExpense: string; calculationMode: SalaryCalculationMode };
 type AgriOtherValues = { marketValue: string; operatingCosts: string };
@@ -55,9 +51,8 @@ type ProduceValues = {
 type LivestockValues = {
   livestockType: LivestockType;
   ownedCount: number;
-  paymentMethod: LivestockPaymentMethod;
   camel121Choice: Camel121Choice;
-  prices: DueItemPrices;
+  cashEstimate?: number;
 };
 type SalaryLineItem = { id: string; category: "salary"; values: SalaryValues; result: ZakatCalculationResult };
 type AgriOtherLineItem = {
@@ -103,59 +98,71 @@ type LineItem =
   | IndustrialSectorLineItem;
 
 const CATEGORY_LABELS: Record<CategoryId, string> = {
-  debt: "Debt is of two kinds",
+  debt: "Debt",
   industrial_sector: "Industrial Sector",
-  salary: "Services Sector (Salaries and Service Income)",
+  salary: "Salaries & Services",
   livestock: "Livestock",
-  produce: "Grains and Fruits (Agricultural Produce)",
-  agri_other: "Agricultural Products (Other than Grains/Fruits)",
-  trade_sector: "Trade Sector and Related Activities (قطاع التجارة وتوابعها)",
+  produce: "Grains & Fruits",
+  agri_other: "Other Agricultural Products",
+  trade_sector: "Trade & Business",
 };
-const LIVESTOCK_LABELS: Record<LivestockType, string> = {
-  camels: "Camels",
-  cattle: "Cattle",
-  sheep_goats: "Sheep/Goats",
+const CATEGORY_ORDER: CategoryId[] = [
+  "salary",
+  "livestock",
+  "produce",
+  "agri_other",
+  "trade_sector",
+  "industrial_sector",
+  "debt",
+];
+const CATEGORY_DESCRIPTIONS: Record<CategoryId, string> = {
+  salary: "Employment income, consulting, healthcare, legal fees",
+  livestock: "Camels, cattle, sheep and goats",
+  produce: "Agricultural harvest or produce held for trade",
+  agri_other: "Vegetables, timber, fishing, poultry, beekeeping",
+  trade_sector: "Commercial goods, stocks, currencies, company profits",
+  industrial_sector: "Manufacturing, food production, construction materials",
+  debt: "Money owed to you or money you owe others",
 };
-
+const CATEGORY_ICONS: Record<CategoryId, string> = {
+  salary: "💼",
+  livestock: "🐄",
+  produce: "🌾",
+  agri_other: "🌿",
+  trade_sector: "🏪",
+  industrial_sector: "🏭",
+  debt: "📋",
+};
 const livestockSchema = z
   .object({
     livestockType: z.enum(["camels", "cattle", "sheep_goats"]),
     ownedCount: z.string().trim().refine((v) => /^\d+$/.test(v), "Owned must be an integer >= 0."),
-    paymentMethod: z.enum(["in_kind", "cash"]),
     camel121Choice: z.enum(["2_hiqqah", "3_bint_labun"]),
-    prices: z.record(z.string(), z.string().optional()).default({}),
+    cashEstimate: z.string().default(""),
   })
   .superRefine((v, ctx) => {
-    if (v.paymentMethod !== "cash") return;
-    const due = calcLivestockZakat(v.livestockType, Number(v.ownedCount), {
-      camel121Choice: v.camel121Choice,
-    });
-    for (const item of due.dueItems) {
-      const key = getDueItemPriceKey(item);
-      const price = Number(v.prices[key]);
-      if (!Number.isFinite(price) || price <= 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["prices", key],
-          message: "Enter a price > 0.",
-        });
-      }
+    if (!v.cashEstimate.trim()) return;
+    const estimate = Number(v.cashEstimate);
+    if (!Number.isFinite(estimate) || estimate <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["cashEstimate"],
+        message: "Enter a cash estimate > 0.",
+      });
     }
   });
 type LivestockForm = {
   livestockType: LivestockType;
   ownedCount: string;
-  paymentMethod: LivestockPaymentMethod;
   camel121Choice: Camel121Choice;
-  prices?: Record<string, string | undefined>;
+  cashEstimate?: string;
 };
 
 const defaultLivestockForm: LivestockForm = {
   livestockType: "camels",
   ownedCount: "",
-  paymentMethod: "in_kind",
   camel121Choice: "2_hiqqah",
-  prices: {},
+  cashEstimate: "",
 };
 const defaultProduceValues: ProduceValues = {
   isForTrade: false,
@@ -177,6 +184,25 @@ const defaultIndustrialSectorValues: IndustrialSectorValues = {
   operatingCosts: "",
 };
 
+function formatDueItemsLocalized(
+  items: DueItem[],
+  t: (key: any, options?: any) => string,
+): string {
+  if (items.length === 0) {
+    return t("detailedCalculator.livestock.noDue", { defaultValue: "No zakat due" });
+  }
+  return formatDueItems(items, (item) =>
+    t(getDueItemLabelKey(item), {
+      defaultValue:
+        item.kind === "sheep"
+          ? "sheep"
+          : item.kind === "camel_class"
+            ? item.class.replaceAll("_", " ")
+            : item.class,
+    }),
+  );
+}
+
 function parseOptionalPositive(v: string): number | undefined {
   if (!v.trim()) return undefined;
   const n = Number(v);
@@ -186,19 +212,8 @@ function toNonNegative(v: string): number {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
-function toPriceMap(prices: Record<string, string | undefined>): DueItemPrices {
-  const out: DueItemPrices = {};
-  for (const [k, v] of Object.entries(prices)) {
-    const n = Number(v);
-    if (Number.isFinite(n) && n > 0) out[k as DueItemPriceKey] = n;
-  }
-  return out;
-}
 function buildId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-function requiredPriceKeys(dueItems: DueItem[]): DueItemPriceKey[] {
-  return Array.from(new Set(dueItems.map((item) => getDueItemPriceKey(item))));
 }
 function calculateAgriOtherZakat(input: {
   nisabMethod: "silver" | "gold";
@@ -250,17 +265,36 @@ function calculateTradeSectorZakat(input: {
   };
 }
 
-function buildDetailedHistoryLineItem(item: LineItem, currency: SupportedCurrency): DetailedHistoryLineItem {
+function buildDetailedHistoryLineItem(
+  item: LineItem,
+  currency: SupportedCurrency,
+  labels: {
+    categoryLabel: (category: CategoryId) => string;
+    livestockTypeLabel: (type: LivestockType) => string;
+    dueText: (items: DueItem[]) => string;
+    modeMonthly: string;
+    modeAnnual: string;
+    detailMode: string;
+    detailNisab: string;
+    detailType: string;
+    detailOwned: string;
+    detailDue: string;
+    detailCashEstimate: string;
+    detailWatering: string;
+    detailDueProduce: string;
+    detailCashEquivalent: string;
+  },
+): DetailedHistoryLineItem {
   if (item.category === "salary") {
     return {
       id: item.id,
       category: item.category,
-      label: CATEGORY_LABELS[item.category],
+      label: labels.categoryLabel(item.category),
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
       details: [
-        `Mode: ${item.values.calculationMode}`,
-        `Nisab: ${formatMoney(item.result.nisab, currency)}`,
+        `${labels.detailMode}: ${item.values.calculationMode === "monthly" ? labels.modeMonthly : labels.modeAnnual}`,
+        `${labels.detailNisab}: ${formatMoney(item.result.nisab, currency)}`,
       ],
     };
   }
@@ -269,43 +303,51 @@ function buildDetailedHistoryLineItem(item: LineItem, currency: SupportedCurrenc
     return {
       id: item.id,
       category: item.category,
-      label: CATEGORY_LABELS[item.category],
+      label: labels.categoryLabel(item.category),
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
       details: [
-        `Type: ${item.values.livestockType}`,
-        `Owned: ${item.values.ownedCount}`,
-        `Due: ${item.dueText}`,
+        `${labels.detailType}: ${labels.livestockTypeLabel(item.values.livestockType)}`,
+        `${labels.detailOwned}: ${item.values.ownedCount}`,
+        `${labels.detailDue}: ${labels.dueText(item.dueItems)}`,
+        `${labels.detailCashEstimate}: ${formatMoney(item.values.cashEstimate ?? 0, currency)}`,
       ],
     };
   }
 
   if (item.category === "produce") {
+    const details = [
+      `${labels.detailMode}: ${item.values.isForTrade ? "trade" : "harvest"}`,
+      `${labels.detailWatering}: ${item.values.wateringMethod}`,
+      !item.values.isForTrade ? `${labels.detailDueProduce}: ${(item.dueQuantityKg ?? 0).toFixed(2)} kg` : null,
+      !item.values.isForTrade
+        ? `${labels.detailCashEquivalent}: ${formatMoney(item.cashEquivalent ?? 0, currency)}`
+        : null,
+    ].filter((line): line is string => Boolean(line));
     return {
       id: item.id,
       category: item.category,
-      label: CATEGORY_LABELS[item.category],
+      label: labels.categoryLabel(item.category),
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
-      details: [
-        `Mode: ${item.values.isForTrade ? "trade" : "harvest"}`,
-        `Watering: ${item.values.wateringMethod}`,
-      ],
+      details,
     };
   }
 
   return {
     id: item.id,
     category: item.category,
-    label: CATEGORY_LABELS[item.category],
+    label: labels.categoryLabel(item.category),
     totalZakat: item.result.totalZakat,
     totalWealth: item.result.totalWealth,
-    details: [`Nisab: ${formatMoney(item.result.nisab, currency)}`],
+    details: [`${labels.detailNisab}: ${formatMoney(item.result.nisab, currency)}`],
   };
 }
 
 export default function DetailedCalculateScreen() {
+  const { t } = useTranslation("common");
   const currency = useAppPreferencesStore((s) => s.currency);
+  const [step, setStep] = useState<StepId>("pick");
   const [activeCategory, setActiveCategory] = useState<CategoryId>("salary");
   const [salaryValues, setSalaryValues] = useState<SalaryValues>({
     monthlyIncome: "",
@@ -319,25 +361,29 @@ export default function DetailedCalculateScreen() {
   );
   const [produceValues, setProduceValues] = useState<ProduceValues>(defaultProduceValues);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
-  const [isCategoryPickerVisible, setIsCategoryPickerVisible] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [isNisabAdvancedOpen, setIsNisabAdvancedOpen] = useState(false);
-  const [showSavedToast, setShowSavedToast] = useState(false);
+  const [isHowCalculatedOpen, setIsHowCalculatedOpen] = useState(false);
   const [showHistorySavedToast, setShowHistorySavedToast] = useState(false);
+
+  const categoryLabel = (category: CategoryId) =>
+    t(`detailedCalculator.categories.${category}.title`, {
+      defaultValue: CATEGORY_LABELS[category],
+    });
+  const categoryDescription = (category: CategoryId) =>
+    t(`detailedCalculator.categories.${category}.description`, {
+      defaultValue: CATEGORY_DESCRIPTIONS[category],
+    });
+  const livestockTypeLabel = (type: LivestockType) =>
+    t(`detailedCalculator.livestock.types.${type}`, {
+      defaultValue:
+        type === "camels" ? "Camels" : type === "cattle" ? "Cattle" : "Sheep/Goats",
+    });
+  const dueText = (items: DueItem[]) => formatDueItemsLocalized(items, t);
 
   const nisabMethod = useNisabSettingsStore((s) => s.nisabMethod);
   const silverPricePerGram = useNisabSettingsStore((s) => s.silverPricePerGram);
   const goldPricePerGram = useNisabSettingsStore((s) => s.goldPricePerGram);
   const nisabOverride = useNisabSettingsStore((s) => s.nisabOverride);
-  const setNisabMethod = useNisabSettingsStore((s) => s.setNisabMethod);
-  const setSilverPricePerGram = useNisabSettingsStore((s) => s.setSilverPricePerGram);
-  const setGoldPricePerGram = useNisabSettingsStore((s) => s.setGoldPricePerGram);
-  const setNisabOverride = useNisabSettingsStore((s) => s.setNisabOverride);
-
-  const [draftNisabMethod, setDraftNisabMethod] = useState(nisabMethod);
-  const [draftSilver, setDraftSilver] = useState("");
-  const [draftGold, setDraftGold] = useState("");
-  const [draftOverride, setDraftOverride] = useState("");
 
   const {
     control,
@@ -351,37 +397,16 @@ export default function DetailedCalculateScreen() {
 
   const livestockType = useWatch({ control, name: "livestockType" }) ?? "camels";
   const livestockOwned = useWatch({ control, name: "ownedCount" }) ?? "";
-  const paymentMethod = useWatch({ control, name: "paymentMethod" }) ?? "in_kind";
   const camel121Choice = useWatch({ control, name: "camel121Choice" }) ?? "2_hiqqah";
-  const watchedPrices = useWatch({ control, name: "prices" }) ?? {};
+  const watchedCashEstimate = useWatch({ control, name: "cashEstimate" }) ?? "";
 
   const livestockPreview = useMemo(() => {
     const due = calcLivestockZakat(livestockType, /^\d+$/.test(livestockOwned) ? Number(livestockOwned) : 0, {
       camel121Choice,
     });
-    const cashEquivalent = calcCashEquivalent(due.dueItems, toPriceMap(watchedPrices));
-    return { due, cashEquivalent, keys: requiredPriceKeys(due.dueItems) };
-  }, [livestockType, livestockOwned, camel121Choice, watchedPrices]);
-
-  const nisabBreakdown = useMemo(
-    () => getNisabBreakdown({ nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride }),
-    [nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride],
-  );
-
-  useEffect(() => {
-    if (!isNisabAdvancedOpen) {
-      setDraftNisabMethod(nisabMethod);
-      setDraftSilver(silverPricePerGram > 0 ? String(silverPricePerGram) : "");
-      setDraftGold(goldPricePerGram > 0 ? String(goldPricePerGram) : "");
-      setDraftOverride(nisabOverride > 0 ? String(nisabOverride) : "");
-    }
-  }, [isNisabAdvancedOpen, nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride]);
-
-  useEffect(() => {
-    if (!showSavedToast) return;
-    const t = setTimeout(() => setShowSavedToast(false), 1800);
-    return () => clearTimeout(t);
-  }, [showSavedToast]);
+    const cashEstimate = parseOptionalPositive(watchedCashEstimate);
+    return { due, cashEstimate };
+  }, [livestockType, livestockOwned, camel121Choice, watchedCashEstimate]);
 
   useEffect(() => {
     if (!showHistorySavedToast) return;
@@ -486,6 +511,168 @@ export default function DetailedCalculateScreen() {
   }, [nisabMethod, silverPricePerGram, goldPricePerGram, nisabOverride, lineItems.length]);
 
   const combinedTotal = useMemo(() => lineItems.reduce((sum, i) => sum + i.result.totalZakat, 0), [lineItems]);
+  const addedCategoryCount = useMemo(() => new Set(lineItems.map((item) => item.category)).size, [lineItems]);
+  const livestockInKindBreakdown = useMemo(
+    () =>
+      lineItems
+        .filter((item): item is LivestockLineItem => item.category === "livestock")
+        .filter((item) => item.dueItems.length > 0)
+        .map((item) => `${livestockTypeLabel(item.values.livestockType)}: ${dueText(item.dueItems)}`),
+    [lineItems, t],
+  );
+  const produceDueKgTotal = useMemo(
+    () =>
+      lineItems
+        .filter((item): item is ProduceLineItem => item.category === "produce")
+        .filter((item) => !item.values.isForTrade)
+        .reduce((sum, item) => sum + (item.dueQuantityKg ?? 0), 0),
+    [lineItems],
+  );
+  const nonCashDueSummary = useMemo<NonCashDueSummary>(
+    () => ({
+      livestock: livestockInKindBreakdown,
+      produceKg: produceDueKgTotal,
+    }),
+    [livestockInKindBreakdown, produceDueKgTotal],
+  );
+  const totalDisplay = useMemo(
+    () =>
+      buildTotalDisplay({
+        cashTotal: combinedTotal,
+        currency,
+        nonCashDue: nonCashDueSummary,
+        labels: { kgUnit: t("history.kgUnit", { defaultValue: "kg" }) },
+      }),
+    [combinedTotal, currency, nonCashDueSummary, t],
+  );
+
+  const livePreview = useMemo(() => {
+    if (activeCategory === "salary") {
+      const result = calculateSalaryZakat({
+        nisabMethod,
+        silverPricePerGram,
+        goldPricePerGram,
+        nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+        salary: {
+          monthlyIncome: toNonNegative(salaryValues.monthlyIncome),
+          livingExpense: parseOptionalPositive(salaryValues.livingExpense),
+          calculationMode: salaryValues.calculationMode,
+        },
+      });
+      return {
+        netLabel: "Net zakatable amount",
+        netValue: formatMoney(result.totalWealth, currency),
+        dueLabel: "Zakat due",
+        dueValue: formatMoney(result.totalZakat, currency),
+      };
+    }
+    if (activeCategory === "livestock") {
+      return {
+        netLabel: t("detailedCalculator.preview.animalsDue", { defaultValue: "Animals due" }),
+        netValue: dueText(livestockPreview.due.dueItems),
+        dueLabel: t("detailedCalculator.preview.cashEquivalent", { defaultValue: "Cash equivalent" }),
+        dueValue:
+          livestockPreview.cashEstimate !== undefined
+            ? formatMoney(livestockPreview.cashEstimate, currency)
+            : t("detailedCalculator.notSet", { defaultValue: "Not set" }),
+      };
+    }
+    if (activeCategory === "agri_other" || activeCategory === "trade_sector" || activeCategory === "industrial_sector") {
+      const values =
+        activeCategory === "agri_other"
+          ? agriOtherValues
+          : activeCategory === "trade_sector"
+            ? tradeSectorValues
+            : industrialSectorValues;
+      const result = calculateTradeSectorZakat({
+        nisabMethod,
+        silverPricePerGram,
+        goldPricePerGram,
+        nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+        marketValue: toNonNegative(values.marketValue),
+        operatingCosts: toNonNegative(values.operatingCosts),
+      });
+      return {
+        netLabel: "Net zakatable amount",
+        netValue: formatMoney(result.totalWealth, currency),
+        dueLabel: "Zakat due",
+        dueValue: formatMoney(result.totalZakat, currency),
+      };
+    }
+    if (activeCategory === "produce") {
+      const result = calculateProduceZakat({
+        nisabMethod,
+        silverPricePerGram,
+        goldPricePerGram,
+        nisabOverride: nisabOverride > 0 ? nisabOverride : undefined,
+        produce: {
+          isForTrade: produceValues.isForTrade,
+          quantityKg: toNonNegative(produceValues.quantityKg),
+          marketValue: toNonNegative(produceValues.marketValue),
+          wateringMethod: produceValues.wateringMethod,
+        },
+      });
+      if (produceValues.isForTrade) {
+        return {
+          netLabel: "Net zakatable amount",
+          netValue: formatMoney(result.totalWealth, currency),
+          dueLabel: "Zakat due",
+          dueValue: formatMoney(result.totalZakat, currency),
+        };
+      }
+      const dueKg = result.totalZakat;
+      const pricePerKg = parseOptionalPositive(produceValues.pricePerKg);
+      const cashEquivalent = pricePerKg ? dueKg * pricePerKg : undefined;
+      if (cashEquivalent !== undefined) {
+        return {
+          netLabel: t("detailedCalculator.preview.harvestQuantity", { defaultValue: "Harvest quantity" }),
+          netValue: `${toNonNegative(produceValues.quantityKg).toFixed(2)} ${t("history.kgUnit", { defaultValue: "kg" })}`,
+          dueLabel: t("detailedCalculator.preview.zakatDueCashEstimate", {
+            defaultValue: "Zakat due (cash estimate)",
+          }),
+          dueValue: formatMoney(cashEquivalent, currency),
+          extraLabel: t("detailedCalculator.preview.zakatDueProduce", { defaultValue: "Zakat due (produce)" }),
+          extraValue: `${dueKg.toFixed(2)} ${t("history.kgUnit", { defaultValue: "kg" })}`,
+        };
+      }
+      return {
+        netLabel: t("detailedCalculator.preview.harvestQuantity", { defaultValue: "Harvest quantity" }),
+        netValue: `${toNonNegative(produceValues.quantityKg).toFixed(2)} ${t("history.kgUnit", { defaultValue: "kg" })}`,
+        dueLabel: t("detailedCalculator.preview.zakatDue", { defaultValue: "Zakat due" }),
+        dueValue: `${result.totalZakat.toFixed(2)} ${t("history.kgUnit", { defaultValue: "kg" })}`,
+      };
+    }
+    return null;
+  }, [
+    activeCategory,
+    agriOtherValues,
+    currency,
+    goldPricePerGram,
+    industrialSectorValues,
+    livestockPreview.cashEstimate,
+    livestockPreview.due.dueItems,
+    nisabMethod,
+    nisabOverride,
+    produceValues,
+    salaryValues,
+    silverPricePerGram,
+    tradeSectorValues,
+  ]);
+
+  const openCategory = (category: CategoryId) => {
+    setValidationError(null);
+    setIsHowCalculatedOpen(false);
+    setActiveCategory(category);
+    if (category === "salary") {
+      setSalaryValues({ monthlyIncome: "", livingExpense: "", calculationMode: "annual" });
+    }
+    if (category === "livestock") reset(defaultLivestockForm);
+    if (category === "agri_other") setAgriOtherValues(defaultAgriOtherValues);
+    if (category === "trade_sector") setTradeSectorValues(defaultTradeSectorValues);
+    if (category === "industrial_sector") setIndustrialSectorValues(defaultIndustrialSectorValues);
+    if (category === "produce") setProduceValues(defaultProduceValues);
+    setStep("form");
+  };
 
   const onSaveToHistory = async () => {
     if (lineItems.length === 0) {
@@ -493,7 +680,7 @@ export default function DetailedCalculateScreen() {
     }
 
     const now = new Date().toISOString();
-    const categoriesUsed = Array.from(new Set(lineItems.map((item) => CATEGORY_LABELS[item.category])));
+    const categoriesUsed = Array.from(new Set(lineItems.map((item) => categoryLabel(item.category))));
     const entry: HistoryEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       flowType: "detailed",
@@ -510,10 +697,34 @@ export default function DetailedCalculateScreen() {
       summary: {
         categoriesUsed,
         itemCount: lineItems.length,
+        nonCashDue: nonCashDueSummary,
       },
       payload: {
         kind: "detailed",
-        lineItems: lineItems.map((item) => buildDetailedHistoryLineItem(item, currency)),
+        lineItems: lineItems.map((item) =>
+          buildDetailedHistoryLineItem(item, currency, {
+            categoryLabel,
+            livestockTypeLabel,
+            dueText,
+            modeMonthly: t("detailedCalculator.modes.monthly", { defaultValue: "Monthly" }),
+            modeAnnual: t("detailedCalculator.modes.annual", { defaultValue: "Annual" }),
+            detailMode: t("detailedCalculator.history.mode", { defaultValue: "Mode" }),
+            detailNisab: t("detailedCalculator.history.nisab", { defaultValue: "Nisab" }),
+            detailType: t("detailedCalculator.history.type", { defaultValue: "Type" }),
+            detailOwned: t("detailedCalculator.history.owned", { defaultValue: "Owned" }),
+            detailDue: t("detailedCalculator.history.due", { defaultValue: "Due" }),
+            detailCashEstimate: t("detailedCalculator.history.cashEstimate", {
+              defaultValue: "Cash estimate",
+            }),
+            detailWatering: t("detailedCalculator.history.watering", { defaultValue: "Watering" }),
+            detailDueProduce: t("detailedCalculator.history.dueProduce", {
+              defaultValue: "Due produce",
+            }),
+            detailCashEquivalent: t("detailedCalculator.history.cashEquivalent", {
+              defaultValue: "Cash equivalent",
+            }),
+          }),
+        ),
         combinedTotal,
       },
     };
@@ -524,7 +735,11 @@ export default function DetailedCalculateScreen() {
 
   const onCalculateSalary = () => {
     if (!(Number(salaryValues.monthlyIncome) > 0)) {
-      setValidationError("Please enter your monthly income.");
+      setValidationError(
+        t("detailedCalculator.validation.monthlyIncomeRequired", {
+          defaultValue: "Please enter your monthly income.",
+        }),
+      );
       return;
     }
     const result = calculateSalaryZakat({
@@ -539,20 +754,19 @@ export default function DetailedCalculateScreen() {
       },
     });
     setLineItems((p) => [...p, { id: buildId(), category: "salary", values: { ...salaryValues }, result }]);
+    setStep("pick");
   };
 
   const onCalculateLivestock = handleSubmit((values) => {
     const due = calcLivestockZakat(values.livestockType, Number(values.ownedCount), {
       camel121Choice: values.camel121Choice,
     });
-    const pricesMap = toPriceMap(values.prices ?? {});
-    const cashEquivalent = calcCashEquivalent(due.dueItems, pricesMap);
-    const payment = values.paymentMethod;
+    const cashEstimate = parseOptionalPositive(values.cashEstimate ?? "");
     const result: ZakatCalculationResult = {
       nisab: 0,
       totalWealth: 0,
-      totalZakat: payment === "cash" ? cashEquivalent ?? 0 : 0,
-      hasZakatDue: payment === "cash" ? (cashEquivalent ?? 0) > 0 : false,
+      totalZakat: cashEstimate ?? 0,
+      hasZakatDue: (cashEstimate ?? 0) > 0,
       breakdown: {},
     };
     const line: LivestockLineItem = {
@@ -561,24 +775,32 @@ export default function DetailedCalculateScreen() {
       values: {
         livestockType: values.livestockType,
         ownedCount: Number(values.ownedCount),
-        paymentMethod: payment,
         camel121Choice: values.camel121Choice,
-        prices: pricesMap,
+        cashEstimate,
       },
       result,
       dueItems: due.dueItems,
-      dueText: due.dueText,
+      dueText: dueText(due.dueItems),
     };
     setLineItems((p) => [...p, line]);
+    setStep("pick");
   });
 
   const onCalculateProduce = () => {
     if (produceValues.isForTrade && !(Number(produceValues.marketValue) > 0)) {
-      setValidationError("Please enter the produce market value.");
+      setValidationError(
+        t("detailedCalculator.validation.produceMarketValueRequired", {
+          defaultValue: "Please enter the produce market value.",
+        }),
+      );
       return;
     }
     if (!produceValues.isForTrade && !(Number(produceValues.quantityKg) > 0)) {
-      setValidationError("Please enter harvested quantity in kg.");
+      setValidationError(
+        t("detailedCalculator.validation.harvestQuantityRequired", {
+          defaultValue: "Please enter harvested quantity in kg.",
+        }),
+      );
       return;
     }
 
@@ -607,6 +829,7 @@ export default function DetailedCalculateScreen() {
           cashEquivalent: produceResult.totalZakat,
         },
       ]);
+      setStep("pick");
       return;
     }
 
@@ -624,10 +847,15 @@ export default function DetailedCalculateScreen() {
         cashEquivalent,
       },
     ]);
+    setStep("pick");
   };
   const onCalculateAgriOther = () => {
     if (!(Number(agriOtherValues.marketValue) > 0)) {
-      setValidationError("Please enter the market value.");
+      setValidationError(
+        t("detailedCalculator.validation.marketValueRequired", {
+          defaultValue: "Please enter the market value.",
+        }),
+      );
       return;
     }
     const result = calculateAgriOtherZakat({
@@ -639,10 +867,15 @@ export default function DetailedCalculateScreen() {
       operatingCosts: toNonNegative(agriOtherValues.operatingCosts),
     });
     setLineItems((p) => [...p, { id: buildId(), category: "agri_other", values: { ...agriOtherValues }, result }]);
+    setStep("pick");
   };
   const onCalculateTradeSector = () => {
     if (!(Number(tradeSectorValues.marketValue) > 0)) {
-      setValidationError("Please enter the market value.");
+      setValidationError(
+        t("detailedCalculator.validation.marketValueRequired", {
+          defaultValue: "Please enter the market value.",
+        }),
+      );
       return;
     }
     const result = calculateTradeSectorZakat({
@@ -654,10 +887,15 @@ export default function DetailedCalculateScreen() {
       operatingCosts: toNonNegative(tradeSectorValues.operatingCosts),
     });
     setLineItems((p) => [...p, { id: buildId(), category: "trade_sector", values: { ...tradeSectorValues }, result }]);
+    setStep("pick");
   };
   const onCalculateIndustrialSector = () => {
     if (!(Number(industrialSectorValues.marketValue) > 0)) {
-      setValidationError("Please enter the market value.");
+      setValidationError(
+        t("detailedCalculator.validation.marketValueRequired", {
+          defaultValue: "Please enter the market value.",
+        }),
+      );
       return;
     }
     const result = calculateTradeSectorZakat({
@@ -672,6 +910,7 @@ export default function DetailedCalculateScreen() {
       ...p,
       { id: buildId(), category: "industrial_sector", values: { ...industrialSectorValues }, result },
     ]);
+    setStep("pick");
   };
 
   const onCalculate = () => {
@@ -685,47 +924,63 @@ export default function DetailedCalculateScreen() {
     else onCalculateProduce();
   };
 
-  const onSaveNisab = () => {
-    const silver = parseOptionalPositive(draftSilver) ?? DEFAULT_SILVER_PRICE_PER_GRAM;
-    const gold = parseOptionalPositive(draftGold) ?? DEFAULT_GOLD_PRICE_PER_GRAM;
-    const override = parseOptionalPositive(draftOverride) ?? 0;
-    setNisabMethod(draftNisabMethod);
-    setSilverPricePerGram(silver);
-    setGoldPricePerGram(gold);
-    setNisabOverride(override);
-    setIsNisabAdvancedOpen(false);
-    setShowSavedToast(true);
-  };
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Detailed Calculate</Text>
-
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Nisab Settings</Text>
-        <View style={styles.row}>
-          <Pressable style={[styles.chip, (isNisabAdvancedOpen ? draftNisabMethod : nisabMethod) === "silver" && styles.chipActive]} onPress={() => (isNisabAdvancedOpen ? setDraftNisabMethod("silver") : setNisabMethod("silver"))}><Text>Silver</Text></Pressable>
-          <Pressable style={[styles.chip, (isNisabAdvancedOpen ? draftNisabMethod : nisabMethod) === "gold" && styles.chipActive]} onPress={() => (isNisabAdvancedOpen ? setDraftNisabMethod("gold") : setNisabMethod("gold"))}><Text>Gold</Text></Pressable>
-          <Pressable onPress={() => setIsNisabAdvancedOpen((p) => !p)}><Text style={styles.link}>{isNisabAdvancedOpen ? "Collapse" : "Advanced"}</Text></Pressable>
-        </View>
-        {!isNisabAdvancedOpen ? <Text style={styles.caption}>{nisabBreakdown.shortSummary}</Text> : (
-          <>
-            <TextInput style={styles.input} keyboardType="numeric" value={draftSilver} onChangeText={setDraftSilver} placeholder="Silver price/g" />
-            <TextInput style={styles.input} keyboardType="numeric" value={draftGold} onChangeText={setDraftGold} placeholder="Gold price/g" />
-            <TextInput style={styles.input} keyboardType="numeric" value={draftOverride} onChangeText={setDraftOverride} placeholder="Nisab override" />
-            <TouchableOpacity style={styles.button} onPress={onSaveNisab}><Text style={styles.buttonText}>Save</Text></TouchableOpacity>
-          </>
-        )}
+      <View style={styles.hero}>
+        <Text style={styles.heroOverline}>
+          {t("detailedCalculator.hero.overline", { defaultValue: "DETAILED ZAKAT CALCULATOR" })}
+        </Text>
+        <Text style={styles.heroTitle}>
+          {step === "pick"
+            ? t("detailedCalculator.hero.selectCategory", { defaultValue: "Select a Category" })
+            : categoryLabel(activeCategory)}
+        </Text>
+        <Text style={styles.heroSubTitle}>
+          {t("detailedCalculator.hero.categoriesAdded", {
+            count: addedCategoryCount,
+            defaultValue: "{{count}} categories added",
+          })}{" "}
+          - {t("detailedCalculator.total.label", { defaultValue: "Total" })}: {totalDisplay.primaryDisplay}
+          {totalDisplay.suffixDisplay ? ` + ${totalDisplay.suffixDisplay}` : ""}
+        </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Category</Text>
-        <Pressable style={styles.selector} onPress={() => setIsCategoryPickerVisible(true)}>
-          <Text>{CATEGORY_LABELS[activeCategory]}</Text>
-          <Text style={styles.link}>Change</Text>
-        </Pressable>
-
-        {activeCategory === "salary" ? (
+      {step === "pick" ? (
+        <>
+          <Text style={styles.instructions}>
+            {t("detailedCalculator.instructions", {
+              defaultValue: "Tap a category below to add it to your zakat calculation.",
+            })}
+          </Text>
+          {CATEGORY_ORDER.map((category) => {
+            const added = lineItems.some((item) => item.category === category);
+            return (
+              <Pressable key={category} style={styles.categoryCard} onPress={() => openCategory(category)}>
+                <Text style={styles.categoryIcon}>{CATEGORY_ICONS[category]}</Text>
+                <View style={styles.categoryContent}>
+                  <View style={styles.categoryRow}>
+                    <Text style={styles.categoryTitle}>{categoryLabel(category)}</Text>
+                    {added ? <Text style={styles.addedPill}>Added ✓</Text> : null}
+                  </View>
+                  <Text style={styles.categoryDesc}>{categoryDescription(category)}</Text>
+                </View>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
+            );
+          })}
+        </>
+      ) : (
+        <>
+          <Pressable style={styles.backButton} onPress={() => setStep("pick")}>
+            <Ionicons name="arrow-back" size={18} color={appColors.textPrimary} />
+            <Text style={styles.backButtonText}>
+              {t("detailedCalculator.backToCategories", { defaultValue: "Back to categories" })}
+            </Text>
+          </Pressable>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>{categoryLabel(activeCategory)}</Text>
+            <Text style={styles.caption}>{categoryDescription(activeCategory)}</Text>
+            {activeCategory === "salary" ? (
           <>
             <View style={styles.rowWrap}>
               <Pressable
@@ -755,7 +1010,7 @@ export default function DetailedCalculateScreen() {
             <Controller control={control} name="livestockType" render={({ field: { value, onChange } }) => (
               <View style={styles.rowWrap}>
                 {(["camels", "cattle", "sheep_goats"] as LivestockType[]).map((t) => (
-                  <Pressable key={t} style={[styles.chip, value === t && styles.chipActive]} onPress={() => onChange(t)}><Text>{LIVESTOCK_LABELS[t]}</Text></Pressable>
+                  <Pressable key={t} style={[styles.chip, value === t && styles.chipActive]} onPress={() => onChange(t)}><Text>{livestockTypeLabel(t)}</Text></Pressable>
                 ))}
               </View>
             )} />
@@ -763,13 +1018,6 @@ export default function DetailedCalculateScreen() {
               <TextInput style={styles.input} keyboardType="numeric" value={value} onChangeText={onChange} placeholder="Owned count" />
             )} />
             {errors.ownedCount ? <Text style={styles.error}>{errors.ownedCount.message}</Text> : null}
-
-            <Controller control={control} name="paymentMethod" render={({ field: { value, onChange } }) => (
-              <View style={styles.rowWrap}>
-                <Pressable style={[styles.chip, value === "in_kind" && styles.chipActive]} onPress={() => onChange("in_kind")}><Text>In-kind</Text></Pressable>
-                <Pressable style={[styles.chip, value === "cash" && styles.chipActive]} onPress={() => onChange("cash")}><Text>Cash</Text></Pressable>
-              </View>
-            )} />
 
             {livestockPreview.due.camel121ChoiceOptions ? (
               <Controller control={control} name="camel121Choice" render={({ field: { value, onChange } }) => (
@@ -780,28 +1028,24 @@ export default function DetailedCalculateScreen() {
               )} />
             ) : null}
 
-            <Text style={styles.caption}>Due: {livestockPreview.due.dueText}</Text>
-            {paymentMethod === "cash" ? livestockPreview.keys.map((key) => (
-              <Controller key={key} control={control} name={`prices.${key}`} render={({ field: { value, onChange } }) => (
-                <View>
-                  <TextInput
-                    style={styles.input}
-                    keyboardType="numeric"
-                    value={value ?? ""}
-                    onChangeText={onChange}
-                    placeholder={`Price for ${key} (${currency})`}
-                  />
-                  {(errors.prices as Record<string, { message?: string }> | undefined)?.[key]?.message ? <Text style={styles.error}>{(errors.prices as Record<string, { message?: string }>)[key].message}</Text> : null}
-                </View>
-              )} />
-            )) : null}
-            {paymentMethod === "cash" ? (
-              <Text style={styles.caption}>
-                {livestockPreview.cashEquivalent === undefined
-                  ? "Cash equivalent: missing price"
-                  : `Cash equivalent: ${formatMoney(livestockPreview.cashEquivalent, currency)}`}
-              </Text>
-            ) : null}
+            <Text style={styles.caption}>
+              {t("detailedCalculator.history.due", { defaultValue: "Due" })}: {dueText(livestockPreview.due.dueItems)}
+            </Text>
+            <Controller control={control} name="cashEstimate" render={({ field: { value, onChange } }) => (
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={value}
+                onChangeText={onChange}
+                placeholder={`Livestock cash estimate (${currency}) (optional)`}
+              />
+            )} />
+            {errors.cashEstimate ? <Text style={styles.error}>{errors.cashEstimate.message}</Text> : null}
+            <Text style={styles.caption}>
+              {livestockPreview.cashEstimate === undefined
+                ? "Cash equivalent: not set"
+                : `Cash equivalent: ${formatMoney(livestockPreview.cashEstimate, currency)}`}
+            </Text>
           </>
         ) : activeCategory === "agri_other" ? (
           <>
@@ -888,30 +1132,14 @@ export default function DetailedCalculateScreen() {
           </>
         ) : activeCategory === "debt" ? (
           <>
-            <Text style={styles.caption}>The fatwa says debt is either:</Text>
-            <Text style={styles.caption}>1) Debt owed to you (someone owes you money), or</Text>
-            <Text style={styles.caption}>2) Debt you owe to others</Text>
-
-            <Text style={styles.caption}>1) Debt owed to you (الذي لك)</Text>
-            <Text style={styles.caption}>This is divided into two types:</Text>
-            <Text style={styles.caption}>A) Collectible / expected debt (دين مرجو)</Text>
-            <Text style={styles.caption}>This is when the person who owes you money is known to repay and financially able to pay (solvent).</Text>
-            <Text style={styles.caption}>Zakat ruling:</Text>
-            <Text style={styles.caption}>If repayment is near the zakat year (hawl), include it and pay zakat on it.</Text>
-            <Text style={styles.caption}>If repayment is far (not expected soon), pay zakat when you actually receive it.</Text>
-            <Text style={styles.caption}>Simple meaning: if the debt is realistically recoverable soon, treat it like your zakatable wealth. If not soon, then pay when it comes in.</Text>
-
-            <Text style={styles.caption}>B) Uncollectible / doubtful debt (دين ميؤوس منه)</Text>
-            <Text style={styles.caption}>This is when the debtor is always in hardship/insolvent, or known for not repaying.</Text>
-            <Text style={styles.caption}>Zakat ruling: no zakat on this debt unless you actually receive it.</Text>
-            <Text style={styles.caption}>Simple meaning: if the money is basically not expected, you do not pay zakat on it while it is stuck. You only deal with zakat when/if it is finally collected.</Text>
-
-            <Text style={styles.caption}>2) Debt you owe (الدين الذي عليك)</Text>
-            <Text style={styles.caption}>This is money you owe to others.</Text>
-            <Text style={styles.caption}>Zakat ruling: no zakat is due on it, because it is not really your wealth.</Text>
-            <Text style={styles.caption}>So you deduct it from what you have (trade money or other assets), then check what remains:</Text>
-            <Text style={styles.caption}>If after deduction a nisab or more remains, you pay zakat on the remainder.</Text>
-            <Text style={styles.caption}>If less than nisab remains, no zakat.</Text>
+            <View style={styles.infoBox}>
+              <Text style={styles.bold}>Money owed to you</Text>
+              <Text style={styles.caption}>If collectible soon, include it. If doubtful, handle zakat when received.</Text>
+            </View>
+            <View style={styles.infoBox}>
+              <Text style={styles.bold}>Money you owe</Text>
+              <Text style={styles.caption}>Deduct due debt first, then check if remaining wealth is still above nisab.</Text>
+            </View>
           </>
         ) : (
           <>
@@ -984,22 +1212,54 @@ export default function DetailedCalculateScreen() {
               </>
             )}
           </>
-        )}
-      </View>
-
-      {validationError ? <Text style={styles.error}>{validationError}</Text> : null}
-      {activeCategory !== "debt" ? (
-        <TouchableOpacity style={styles.button} onPress={onCalculate}><Text style={styles.buttonText}>Calculate Zakat</Text></TouchableOpacity>
-      ) : null}
+            )}
+            {livePreview ? (
+              <View style={styles.previewBox}>
+                <Text style={styles.previewTitle}>
+                  {t("detailedCalculator.preview.title", { defaultValue: "Live Preview" })}
+                </Text>
+                <View style={styles.row}><Text style={styles.previewLabel}>{livePreview.netLabel}</Text><Text style={styles.previewValue}>{livePreview.netValue}</Text></View>
+                <View style={styles.row}><Text style={styles.previewLabel}>{livePreview.dueLabel}</Text><Text style={styles.previewValue}>{livePreview.dueValue}</Text></View>
+                {"extraLabel" in livePreview && livePreview.extraLabel && livePreview.extraValue ? (
+                  <View style={styles.row}><Text style={styles.previewLabel}>{livePreview.extraLabel}</Text><Text style={styles.previewValue}>{livePreview.extraValue}</Text></View>
+                ) : null}
+              </View>
+            ) : null}
+            <Pressable style={styles.accordionHeader} onPress={() => setIsHowCalculatedOpen((p) => !p)}>
+              <Text style={styles.bold}>
+                {t("detailedCalculator.howCalculated", { defaultValue: "How is this calculated?" })}
+              </Text>
+              <Text style={styles.link}>
+                {isHowCalculatedOpen
+                  ? t("detailedCalculator.hide", { defaultValue: "Hide" })
+                  : t("detailedCalculator.show", { defaultValue: "Show" })}
+              </Text>
+            </Pressable>
+            {isHowCalculatedOpen ? <Text style={styles.caption}>{categoryDescription(activeCategory)}</Text> : null}
+            {validationError ? <Text style={styles.error}>{validationError}</Text> : null}
+            {activeCategory !== "debt" ? (
+              <TouchableOpacity style={styles.button} onPress={onCalculate}>
+                <Text style={styles.buttonText}>
+                  {t("detailedCalculator.addCategory", { defaultValue: "Add This Category" })}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </>
+      )}
 
       {lineItems.length > 0 ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Category Breakdown</Text>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryHeader}>
+            {t("detailedCalculator.summary.title", { defaultValue: "Your Calculation Summary" })}
+          </Text>
           {lineItems.map((item) => (
-            <View key={item.id} style={styles.lineItem}>
+            <View key={item.id} style={styles.summaryItem}>
               <View style={styles.row}>
-                <Text style={styles.bold}>{CATEGORY_LABELS[item.category]}</Text>
-                <Pressable onPress={() => setLineItems((p) => p.filter((x) => x.id !== item.id))}><Text style={styles.link}>Remove</Text></Pressable>
+                <Text style={styles.bold}>{categoryLabel(item.category)}</Text>
+                <Pressable onPress={() => setLineItems((p) => p.filter((x) => x.id !== item.id))}>
+                  <Text style={styles.link}>{t("delete", { defaultValue: "Delete" })}</Text>
+                </Pressable>
               </View>
               {item.category === "salary" ? (
                 <>
@@ -1010,11 +1270,10 @@ export default function DetailedCalculateScreen() {
                 </>
               ) : item.category === "livestock" ? (
                 <>
-                  <Text>Type: {LIVESTOCK_LABELS[item.values.livestockType]}</Text>
+                  <Text>Type: {livestockTypeLabel(item.values.livestockType)}</Text>
                   <Text>Owned: {item.values.ownedCount}</Text>
-                  <Text>Due animals: {item.dueText}</Text>
-                  <Text>Payment: {item.values.paymentMethod}</Text>
-                  <Text>Cash Included: {formatMoney(item.result.totalZakat, currency)}</Text>
+                  <Text>Due animals: {dueText(item.dueItems)}</Text>
+                  <Text>Cash Included: {formatMoney(item.values.cashEstimate ?? 0, currency)}</Text>
                 </>
               ) : item.category === "agri_other" ? (
                 <>
@@ -1067,50 +1326,44 @@ export default function DetailedCalculateScreen() {
               )}
             </View>
           ))}
-          <Text style={styles.bold}>Combined Total Zakat Due: {formatMoney(combinedTotal, currency)}</Text>
+          <View style={styles.totalRow}>
+            <Text style={styles.bold}>{t("history.totalZakatDue", { defaultValue: "Total Zakat Due" })}</Text>
+            <View style={styles.totalValueWrap}>
+              <Text style={styles.totalValue}>{totalDisplay.primaryDisplay}</Text>
+              {totalDisplay.suffixDisplay ? <Text style={styles.totalSuffix}>+ {totalDisplay.suffixDisplay}</Text> : null}
+            </View>
+          </View>
           <TouchableOpacity style={styles.saveHistoryButton} onPress={onSaveToHistory}>
-            <Text style={styles.buttonText}>Save to History</Text>
+            <Text style={styles.buttonText}>
+              {t("detailedCalculator.saveToHistory", { defaultValue: "Save to History" })}
+            </Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
-      {showSavedToast ? <View style={styles.toast}><Text style={styles.toastText}>Nisab settings saved</Text></View> : null}
-      {showHistorySavedToast ? <View style={styles.toast}><Text style={styles.toastText}>Saved to local history</Text></View> : null}
-
-      <Modal transparent animationType="fade" visible={isCategoryPickerVisible} onRequestClose={() => setIsCategoryPickerVisible(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setIsCategoryPickerVisible(false)}>
-          <Pressable style={styles.modalCard}>
-            {(["salary", "livestock", "agri_other", "trade_sector", "industrial_sector", "produce", "debt"] as CategoryId[]).map((category) => (
-              <Pressable key={category} style={styles.modalOption} onPress={() => {
-                setActiveCategory(category);
-                setValidationError(null);
-                if (category === "salary") {
-                  setSalaryValues({ monthlyIncome: "", livingExpense: "", calculationMode: "annual" });
-                }
-                if (category === "livestock") reset(defaultLivestockForm);
-                if (category === "agri_other") setAgriOtherValues(defaultAgriOtherValues);
-                if (category === "trade_sector") setTradeSectorValues(defaultTradeSectorValues);
-                if (category === "industrial_sector") setIndustrialSectorValues(defaultIndustrialSectorValues);
-                if (category === "produce") setProduceValues(defaultProduceValues);
-                setIsCategoryPickerVisible(false);
-              }}>
-                <Text>{CATEGORY_LABELS[category]}</Text>
-              </Pressable>
-            ))}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {showHistorySavedToast ? (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>
+            {t("quickResult.saved.body", { defaultValue: "Saved to local history" })}
+          </Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: appColors.background },
-  content: { padding: appSpacing.md, paddingBottom: appSpacing.xxl },
-  title: { fontSize: 30, fontWeight: "800", marginBottom: appSpacing.sm, color: appColors.textPrimary },
+  content: { paddingBottom: appSpacing.xxl },
+  hero: { backgroundColor: appColors.primary, paddingHorizontal: appSpacing.lg, paddingVertical: appSpacing.lg, marginBottom: appSpacing.md },
+  heroOverline: { color: "#D4F0EA", fontSize: 11, fontWeight: "700", letterSpacing: 0.7 },
+  heroTitle: { color: "#fff", fontSize: 34, fontWeight: "800", marginTop: appSpacing.xs },
+  heroSubTitle: { color: "#D7EFE9", fontSize: 14, marginTop: appSpacing.xs, fontWeight: "600" },
+  instructions: { marginHorizontal: appSpacing.lg, marginBottom: appSpacing.sm, color: appColors.textPrimary, fontSize: 15 },
   card: { backgroundColor: appColors.surface, borderRadius: appRadius.md, padding: appSpacing.sm, marginBottom: appSpacing.sm, borderWidth: 1, borderColor: appColors.border },
   sectionTitle: { fontWeight: "700", marginBottom: appSpacing.xs, fontSize: 18, color: appColors.textPrimary },
-  selector: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, padding: appSpacing.sm, marginBottom: appSpacing.sm, flexDirection: "row", justifyContent: "space-between", backgroundColor: appColors.surface },
+  backButton: { marginHorizontal: appSpacing.lg, marginBottom: appSpacing.sm, flexDirection: "row", alignItems: "center", gap: appSpacing.xs },
+  backButtonText: { color: appColors.textPrimary, fontWeight: "700" },
   input: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, padding: appSpacing.sm, marginBottom: appSpacing.xs, backgroundColor: appColors.surface, color: appColors.textPrimary, minHeight: 48, fontSize: 16 },
   button: { backgroundColor: appColors.primary, borderRadius: appRadius.sm, alignItems: "center", paddingVertical: appSpacing.sm, marginBottom: appSpacing.sm, minHeight: 48, justifyContent: "center" },
   buttonText: { color: "#fff", fontWeight: "700" },
@@ -1122,11 +1375,29 @@ const styles = StyleSheet.create({
   caption: { color: appColors.textSecondary, fontSize: 13, marginBottom: appSpacing.xs },
   error: { color: appColors.error, marginBottom: appSpacing.xs, fontSize: 13 },
   lineItem: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, padding: appSpacing.sm, marginBottom: appSpacing.xs },
+  categoryCard: { marginHorizontal: appSpacing.lg, marginBottom: appSpacing.sm, borderRadius: appRadius.md, borderWidth: 1, borderColor: "#BAC7C2", backgroundColor: appColors.surface, padding: appSpacing.md, flexDirection: "row", alignItems: "center", minHeight: 84 },
+  categoryIcon: { fontSize: 22, marginRight: appSpacing.sm },
+  categoryContent: { flex: 1 },
+  categoryRow: { flexDirection: "row", alignItems: "center", marginBottom: 2 },
+  categoryTitle: { color: appColors.textPrimary, fontSize: 21, fontWeight: "800", flexShrink: 1 },
+  categoryDesc: { color: appColors.textSecondary, fontSize: 13 },
+  addedPill: { color: "#1F6A5E", fontWeight: "700", fontSize: 12, marginLeft: appSpacing.xs, backgroundColor: "#E0F3EE", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  chevron: { color: appColors.primary, fontSize: 24, marginLeft: appSpacing.sm },
+  infoBox: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, padding: appSpacing.sm, backgroundColor: "#F8FAF8", marginBottom: appSpacing.xs },
+  previewBox: { backgroundColor: appColors.primary, borderRadius: appRadius.sm, padding: appSpacing.sm, marginTop: appSpacing.xs, marginBottom: appSpacing.xs },
+  previewTitle: { color: "#DDF6F2", fontSize: 12, fontWeight: "700", marginBottom: appSpacing.xs, textTransform: "uppercase" },
+  previewLabel: { color: "#E5FAF6", fontSize: 14, fontWeight: "600" },
+  previewValue: { color: "#fff", fontSize: 18, fontWeight: "800" },
+  accordionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderColor: appColors.border, paddingTop: appSpacing.sm, marginTop: appSpacing.xs },
+  summaryCard: { backgroundColor: appColors.surface, borderRadius: appRadius.md, borderWidth: 1, borderColor: appColors.primary, marginHorizontal: appSpacing.lg, marginBottom: appSpacing.sm, overflow: "hidden" },
+  summaryHeader: { backgroundColor: appColors.primary, color: "#fff", fontSize: 18, fontWeight: "800", paddingHorizontal: appSpacing.md, paddingVertical: appSpacing.sm },
+  summaryItem: { borderBottomWidth: 1, borderBottomColor: appColors.border, padding: appSpacing.sm },
+  totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#E2EFEA", borderRadius: appRadius.sm, margin: appSpacing.sm, padding: appSpacing.sm },
+  totalValueWrap: { alignItems: "flex-end", flex: 1, marginLeft: appSpacing.sm },
+  totalValue: { color: appColors.primary, fontWeight: "800", fontSize: 20, textAlign: "right" },
+  totalSuffix: { color: appColors.textSecondary, fontSize: 12, textAlign: "right", marginTop: 2 },
   bold: { fontWeight: "700" },
   saveHistoryButton: { marginTop: appSpacing.xs, backgroundColor: appColors.success, borderRadius: appRadius.sm, alignItems: "center", paddingVertical: appSpacing.sm, minHeight: 48, justifyContent: "center" },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: appSpacing.lg },
-  modalCard: { backgroundColor: appColors.surface, borderRadius: appRadius.md, padding: appSpacing.sm },
-  modalOption: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, padding: appSpacing.sm, marginBottom: appSpacing.xs },
   toast: { position: "absolute", bottom: 18, left: 16, right: 16, backgroundColor: appColors.textPrimary, borderRadius: appRadius.sm, paddingVertical: appSpacing.xs, alignItems: "center" },
   toastText: { color: "#fff", fontWeight: "600" },
 });

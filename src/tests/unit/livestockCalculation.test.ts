@@ -1,6 +1,8 @@
 import {
   calcCashEquivalent,
   calcLivestockZakat,
+  formatDueItems,
+  getDueItemLabelKey,
   type DueItem,
   type LivestockType,
 } from "../../lib/zakat-calculation/livestock";
@@ -94,6 +96,18 @@ describe("calcCashEquivalent", () => {
     });
 
     expect(total).toBeUndefined();
+  });
+});
+
+describe("livestock due-item localization keys", () => {
+  it("returns stable translation keys and supports custom formatting", () => {
+    const due = calcLivestockZakat("camels", 130).dueItems;
+    expect(getDueItemLabelKey(due[0])).toBe("livestock.dueItem.camel.bint_labun");
+
+    const rendered = formatDueItems(due, (item) => getDueItemLabelKey(item));
+    expect(rendered).toBe(
+      "2 livestock.dueItem.camel.bint_labun + 1 livestock.dueItem.camel.hiqqah",
+    );
   });
 });
 
