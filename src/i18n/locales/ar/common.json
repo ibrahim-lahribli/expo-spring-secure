@@ -274,91 +274,177 @@
   },
   "detailedCalculator": {
     "hero": {
-      "overline": "Detailed Zakat Calculator",
-      "selectCategory": "Select a Category",
-      "categoriesAdded": "{{count}} categories added"
+      "overline": "الحاسبة التفصيلية للزكاة",
+      "selectCategory": "اختر الفئة",
+      "categoriesAdded": "تمت إضافة {{count}} فئات"
     },
     "total": {
-      "label": "Total"
+      "label": "الإجمالي"
     },
-    "instructions": "Tap a category below to add it to your zakat calculation.",
-    "addedPill": "Added",
-    "backToCategories": "Back to categories",
-    "addCategory": "Add This Category",
-    "saveToHistory": "Save to History",
-    "howCalculated": "How is this calculated?",
-    "hide": "Hide",
-    "show": "Show",
-    "notSet": "Not set",
+    "instructions": "اختر فئة من الأسفل لإضافتها إلى حساب الزكاة.",
+    "addedPill": "مضافة",
+    "backToCategories": "العودة إلى الفئات",
+    "addCategory": "إضافة هذه الفئة",
+    "saveToHistory": "حفظ في السجل",
+    "howCalculated": "كيف تم هذا الحساب؟",
+    "hide": "إخفاء",
+    "show": "إظهار",
+    "notSet": "غير محدد",
     "modes": {
-      "monthly": "Monthly",
-      "annual": "Annual"
+      "monthly": "شهري",
+      "annual": "سنوي"
     },
     "summary": {
-      "title": "Your Calculation Summary"
+      "title": "ملخص الحساب",
+      "modeValue": "النمط: {value}",
+      "nisabValue": "النصاب: {value}",
+      "netWealthValue": "صافي المال: {value}",
+      "zakatDueValue": "الزكاة الواجبة: {value}",
+      "typeValue": "النوع: {value}",
+      "ownedValue": "المملوك: {value}",
+      "dueAnimalsValue": "الواجب من الأنعام: {value}",
+      "cashIncludedValue": "المكافئ النقدي المحتسب: {value}",
+      "marketValueValue": "القيمة السوقية: {value}",
+      "operatingCostsValue": "التكاليف التشغيلية: {value}",
+      "netValueValue": "القيمة الصافية: {value}",
+      "ruleAgriOther": "القاعدة: تعامل كعروض تجارة، وتخرج 2.5% إذا بلغت القيمة الصافية النصاب.",
+      "tradeAssetsValue": "أصول التجارة/النشاط: {value}",
+      "dueOperatingCostsValue": "التكاليف الواجبة الخصم: {value}",
+      "netZakatableAmountValue": "الصافي الزكوي: {value}",
+      "ruleTradeSector": "القاعدة: يخرج ربع العشر (2.5%) إذا بلغ الصافي النصاب.",
+      "industrialAssetsValue": "قيمة الأصول/المخرجات الصناعية: {value}",
+      "productionCostsValue": "تكاليف الإنتاج: {value}",
+      "ruleIndustrial": "القاعدة: بعد خصم تكاليف الإنتاج يخرج 2.5% إذا بلغ الصافي النصاب.",
+      "ruleProduceTrade": "القاعدة: إذا عوملت كتجارة فالواجب 2.5%.",
+      "harvestQuantityValue": "كمية المحصول: {value}",
+      "ruleWateringValue": "القاعدة: {value}",
+      "zakatDueProduceValue": "الزكاة الواجبة (من المحصول): {value}",
+      "pricePerKgValue": "السعر/كغ: {value}",
+      "cashEquivalentIncludedValue": "المكافئ النقدي المحتسب: {value}",
+      "cashEquivalentValue": "المكافئ النقدي: {value}",
+      "cashEquivalentNotSet": "المكافئ النقدي: غير محدد"
     },
     "preview": {
-      "title": "Live Preview",
-      "animalsDue": "Animals due",
-      "cashEquivalent": "Cash equivalent",
-      "harvestQuantity": "Harvest quantity",
-      "zakatDue": "Zakat due",
-      "zakatDueCashEstimate": "Zakat due (cash estimate)",
-      "zakatDueProduce": "Zakat due (produce)"
+      "title": "معاينة فورية",
+      "netZakatableAmount": "الصافي الزكوي",
+      "animalsDue": "الواجب من الأنعام",
+      "cashEquivalent": "المكافئ النقدي",
+      "harvestQuantity": "كمية المحصول",
+      "zakatDue": "الزكاة الواجبة",
+      "zakatDueCashEstimate": "الزكاة الواجبة (تقدير نقدي)",
+      "zakatDueProduce": "الزكاة الواجبة (من المحصول)"
     },
     "livestock": {
-      "noDue": "No zakat due",
+      "noDue": "لا زكاة واجبة",
       "types": {
-        "camels": "Camels",
-        "cattle": "Cattle",
-        "sheep_goats": "Sheep/Goats"
+        "camels": "الإبل",
+        "cattle": "البقر",
+        "sheep_goats": "الغنم/المعز"
       }
     },
     "history": {
-      "mode": "Mode",
-      "nisab": "Nisab",
-      "type": "Type",
-      "owned": "Owned",
-      "due": "Due",
-      "cashEstimate": "Cash estimate",
-      "watering": "Watering",
-      "dueProduce": "Due produce",
-      "cashEquivalent": "Cash equivalent"
+      "mode": "النمط",
+      "nisab": "النصاب",
+      "type": "النوع",
+      "owned": "المملوك",
+      "due": "الواجب",
+      "cashEstimate": "التقدير النقدي",
+      "watering": "طريقة السقي",
+      "dueProduce": "الواجب من المحصول",
+      "cashEquivalent": "المكافئ النقدي",
+      "modeTrade": "عروض تجارة",
+      "modeHarvest": "محصول زراعي",
+      "wateringNatural": "سقي طبيعي (10%)",
+      "wateringPaidIrrigation": "سقي بكلفة (5%)"
     },
     "validation": {
-      "monthlyIncomeRequired": "Please enter your monthly income.",
-      "produceMarketValueRequired": "Please enter the produce market value.",
-      "harvestQuantityRequired": "Please enter harvested quantity in kg.",
-      "marketValueRequired": "Please enter the market value."
+      "monthlyIncomeRequired": "يرجى إدخال الدخل الشهري.",
+      "produceMarketValueRequired": "يرجى إدخال القيمة السوقية للمحصول.",
+      "harvestQuantityRequired": "يرجى إدخال كمية المحصول بالكيلوغرام.",
+      "marketValueRequired": "يرجى إدخال القيمة السوقية.",
+      "ownedCountInteger": "عدد المملوك يجب أن يكون عددا صحيحا أكبر أو يساوي 0.",
+      "cashEstimatePositive": "أدخل تقديرا نقديا أكبر من 0."
     },
     "categories": {
       "salary": {
-        "title": "Salaries & Services",
-        "description": "Employment income, consulting, healthcare, legal fees"
+        "title": "الأجور والخدمات",
+        "description": "دخل الوظائف والخدمات المهنية والاستشارات ونحوها"
       },
       "livestock": {
-        "title": "Livestock",
-        "description": "Camels, cattle, sheep and goats"
+        "title": "الأنعام",
+        "description": "الإبل والبقر والغنم والمعز"
       },
       "produce": {
-        "title": "Grains & Fruits",
-        "description": "Agricultural harvest or produce held for trade"
+        "title": "الحبوب والثمار",
+        "description": "محصول زراعي أو منتجات معدة للتجارة"
       },
       "agri_other": {
-        "title": "Other Agricultural Products",
-        "description": "Vegetables, timber, fishing, poultry, beekeeping"
+        "title": "منتجات زراعية أخرى",
+        "description": "الخضر والأخشاب والصيد والنشاط الحيواني التجاري"
       },
       "trade_sector": {
-        "title": "Trade & Business",
-        "description": "Commercial goods, stocks, currencies, company profits"
+        "title": "التجارة والأعمال",
+        "description": "البضائع والأسهم والعملات وأرباح الأنشطة التجارية"
       },
       "industrial_sector": {
-        "title": "Industrial Sector",
-        "description": "Manufacturing, food production, construction materials"
+        "title": "القطاع الصناعي",
+        "description": "الصناعات التحويلية والإنتاجية ومواد البناء"
       },
       "debt": {
-        "title": "Debt",
-        "description": "Money owed to you or money you owe others"
+        "title": "الديون",
+        "description": "ما لك على الغير وما عليك للغير"
+      }
+    },
+    "form": {
+      "salary": {
+        "annualMode": "نمط سنوي",
+        "monthlyMode": "نمط شهري",
+        "monthlyIncomePlaceholder": "دخل الخدمات الشهري",
+        "livingExpensePlaceholder": "المصاريف الأساسية الشهرية (اختياري)",
+        "scope": "يشمل الأجور والرواتب ومداخيل الخدمات كالصحة والاستشارات والأعمال المهنية المباحة.",
+        "modeHint": "في النمط السنوي يُنظر إلى صافي الادخار السنوي، وفي النمط الشهري يُنظر إلى صافي كل شهر مقارنة بالنصاب."
+      },
+      "livestock": {
+        "ownedCountPlaceholder": "عدد الرؤوس المملوكة",
+        "camel121Option2Hiqqah": "حقتان (2)",
+        "camel121Option3BintLabun": "ثلاث بنات لبون",
+        "cashEstimatePlaceholder": "تقدير نقدي للواجب في الأنعام ({currency}) (اختياري)"
+      },
+      "agriOther": {
+        "marketValuePlaceholder": "إجمالي القيمة السوقية/قيمة البيع",
+        "operatingCostsPlaceholder": "التكاليف/المصاريف التشغيلية (اختياري)",
+        "scope": "يشمل المنتجات الزراعية المعدة للبيع، والمنتجات الغابوية، ومنتجات الصيد، وأنشطة الإنتاج الحيواني المتخذة للتجارة.",
+        "rule": "القاعدة: تعامل معاملة عروض التجارة، فالزكاة على القيمة السوقية لا على الوزن، ويخرج 2.5% عند بلوغ الصافي النصاب."
+      },
+      "trade": {
+        "marketValuePlaceholder": "إجمالي قيمة أصول التجارة/النشاط",
+        "operatingCostsPlaceholder": "التكاليف التشغيلية الواجبة الخصم (أجور، كراء، ضرائب...)",
+        "scopeMain": "يشمل المبادلات التجارية للسلع والأصول ذات القيمة المالية والمال المباح القابل للتحويل إلى نقد.",
+        "scopeSecondary": "ويشمل كذلك المتاجرة في الأسهم والعملات وعوائد الشركات وسائر المداخيل التجارية المماثلة.",
+        "rule": "طريقة الحساب: تخصم التكاليف الواجبة ثم يخرج ربع العشر (2.5%) إذا بلغ الباقي النصاب."
+      },
+      "industrial": {
+        "marketValuePlaceholder": "إجمالي قيمة الأصول/المخرجات الصناعية",
+        "productionCostsPlaceholder": "تكاليف الإنتاج (مواد أولية، تصنيع، إلخ)",
+        "scope": "يشمل الصناعات الغذائية وغيرها من الأنشطة الصناعية مثل مواد البناء والمعادن والكيماويات والإلكترونيات والنسيج والطاقة والأثاث.",
+        "rule": "القاعدة: تعامل معاملة النشاط التجاري الإنتاجي، وتخصم تكاليف الإنتاج ثم يخرج 2.5% إذا بلغ الصافي النصاب."
+      },
+      "debt": {
+        "owedToYouTitle": "المال الذي لك على الغير",
+        "owedToYouBody": "إن كان مرجو التحصيل قريبا أُدخل في الحساب، وإن كان غير مرجو فيراعى عند القبض.",
+        "youOweTitle": "المال الذي عليك",
+        "youOweBody": "يخصم الدين الحال أولا، ثم ينظر هل بقي المال بالغا للنصاب."
+      },
+      "produce": {
+        "harvestMode": "محصول فلاحي",
+        "tradeMode": "مخزون للتجارة",
+        "marketValuePlaceholder": "القيمة السوقية",
+        "quantityPlaceholder": "كمية المحصول (كغ)",
+        "pricePerKgPlaceholder": "السعر لكل كغ (اختياري)",
+        "naturalWatering": "سقي طبيعي (10%)",
+        "paidIrrigation": "سقي بكلفة (5%)",
+        "tradeRule": "إذا كان المحصول معدا للتجارة فالواجب 2.5% عند بلوغ القيمة النصاب.",
+        "harvestRule": "نصاب زكاة الزروع والثمار 653 كغ (خمسة أوسق). الواجب 10% مع السقي الطبيعي و5% مع السقي بكلفة. يمكن إدخال سعر الكيلو لإظهار التقدير النقدي."
       }
     }
   },

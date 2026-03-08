@@ -4,6 +4,29 @@ import DetailedCalculateScreen from "../../app/(public)/calculate/detailed";
 import { useAppPreferencesStore } from "../../store/appPreferencesStore";
 import { useNisabSettingsStore } from "../../store/nisabSettingsStore";
 
+jest.mock("react-i18next", () => ({
+  useTranslation: () => {
+    const mockEnCommon = require("../../i18n/locales/en/common.json") as Record<string, unknown>;
+    return {
+      t: (key: string, options?: Record<string, unknown>) => {
+        const normalized = key.includes(":") ? key.split(":")[1] : key;
+        const value = normalized.split(".").reduce<unknown>((acc, part) => {
+          if (acc && typeof acc === "object" && part in (acc as Record<string, unknown>)) {
+            return (acc as Record<string, unknown>)[part];
+          }
+          return undefined;
+        }, mockEnCommon);
+        const template = typeof value === "string" ? value : key;
+        if (!options) return template;
+        return template.replace(/\{\{?(\w+)\}?\}/g, (match, token) => {
+          if (!(token in options)) return match;
+          return String(options[token]);
+        });
+      },
+    };
+  },
+}));
+
 describe("DetailedCalculateScreen", () => {
   beforeEach(() => {
     useAppPreferencesStore.setState({ currency: "MAD" });

@@ -295,10 +295,38 @@
       "annual": "Annual"
     },
     "summary": {
-      "title": "Your Calculation Summary"
+      "title": "Your Calculation Summary",
+      "modeValue": "Mode: {value}",
+      "nisabValue": "Nisab: {value}",
+      "netWealthValue": "Net Wealth: {value}",
+      "zakatDueValue": "Zakat Due: {value}",
+      "typeValue": "Type: {value}",
+      "ownedValue": "Owned: {value}",
+      "dueAnimalsValue": "Due animals: {value}",
+      "cashIncludedValue": "Cash Included: {value}",
+      "marketValueValue": "Market value: {value}",
+      "operatingCostsValue": "Operating costs: {value}",
+      "netValueValue": "Net value: {value}",
+      "ruleAgriOther": "Rule: 2.5% (one quarter of a tenth) if net value reaches nisab",
+      "tradeAssetsValue": "Trade/business assets: {value}",
+      "dueOperatingCostsValue": "Due operating costs: {value}",
+      "netZakatableAmountValue": "Net zakatable amount: {value}",
+      "ruleTradeSector": "Rule: 2.5% (one quarter of a tenth) if net amount reaches nisab",
+      "industrialAssetsValue": "Industrial assets/output value: {value}",
+      "productionCostsValue": "Production costs: {value}",
+      "ruleIndustrial": "Rule: 2.5% after deducting production costs if net amount reaches nisab",
+      "ruleProduceTrade": "Rule: 2.5% as trade goods",
+      "harvestQuantityValue": "Harvest quantity: {value}",
+      "ruleWateringValue": "Rule: {value}",
+      "zakatDueProduceValue": "Zakat Due (produce): {value}",
+      "pricePerKgValue": "Price/kg: {value}",
+      "cashEquivalentIncludedValue": "Cash Equivalent Included: {value}",
+      "cashEquivalentValue": "Cash equivalent: {value}",
+      "cashEquivalentNotSet": "Cash equivalent: not set"
     },
     "preview": {
       "title": "Live Preview",
+      "netZakatableAmount": "Net zakatable amount",
       "animalsDue": "Animals due",
       "cashEquivalent": "Cash equivalent",
       "harvestQuantity": "Harvest quantity",
@@ -323,13 +351,19 @@
       "cashEstimate": "Cash estimate",
       "watering": "Watering",
       "dueProduce": "Due produce",
-      "cashEquivalent": "Cash equivalent"
+      "cashEquivalent": "Cash equivalent",
+      "modeTrade": "Trade goods",
+      "modeHarvest": "Agricultural harvest",
+      "wateringNatural": "Natural watering (10%)",
+      "wateringPaidIrrigation": "Paid irrigation (5%)"
     },
     "validation": {
       "monthlyIncomeRequired": "Please enter your monthly income.",
       "produceMarketValueRequired": "Please enter the produce market value.",
       "harvestQuantityRequired": "Please enter harvested quantity in kg.",
-      "marketValueRequired": "Please enter the market value."
+      "marketValueRequired": "Please enter the market value.",
+      "ownedCountInteger": "Owned count must be an integer >= 0.",
+      "cashEstimatePositive": "Enter a cash estimate > 0."
     },
     "categories": {
       "salary": {
@@ -359,6 +393,58 @@
       "debt": {
         "title": "Debt",
         "description": "Money owed to you or money you owe others"
+      }
+    },
+    "form": {
+      "salary": {
+        "annualMode": "Annual mode",
+        "monthlyMode": "Monthly mode",
+        "monthlyIncomePlaceholder": "Monthly services income",
+        "livingExpensePlaceholder": "Monthly essential expense (optional)",
+        "scope": "Scope: salaries/wages and service-based earnings (healthcare, legal, consulting, telecom, media rights, and similar services).",
+        "modeHint": "Annual mode: checks yearly net savings against nisab. Monthly mode: checks each month's net against nisab."
+      },
+      "livestock": {
+        "ownedCountPlaceholder": "Owned count",
+        "camel121Option2Hiqqah": "2 hiqqah",
+        "camel121Option3BintLabun": "3 bint labun",
+        "cashEstimatePlaceholder": "Livestock cash estimate ({currency}) (optional)"
+      },
+      "agriOther": {
+        "marketValuePlaceholder": "Total market/sale value",
+        "operatingCostsPlaceholder": "Operating costs/expenses (optional)",
+        "scope": "Includes cultivated products for market, forest products, fishing products, and traded animal-production activities.",
+        "rule": "Rule: treated as trade assets. Zakat is on market value, not weight. If net value reaches nisab, due is one quarter of a tenth (2.5%)."
+      },
+      "trade": {
+        "marketValuePlaceholder": "Total value of trade/business assets",
+        "operatingCostsPlaceholder": "Due operating costs (wages, rent, taxes, etc.)",
+        "scopeMain": "Includes commercial exchange of goods, assets with financial value, and lawful wealth convertible into money.",
+        "scopeSecondary": "Also includes stocks (shares), currencies, and income/proceeds of commercial companies and similar business earnings.",
+        "rule": "Calculation: subtract due business expenses, then pay 2.5% (one quarter of a tenth) if the remaining amount reaches nisab."
+      },
+      "industrial": {
+        "marketValuePlaceholder": "Total value of industrial/manufacturing assets/output",
+        "productionCostsPlaceholder": "Production costs (raw materials, manufacturing, etc.)",
+        "scope": "Includes food manufacturing and broader industrial activities such as construction materials, metals, chemicals, electronics, textiles, energy equipment, and furniture.",
+        "rule": "Rule: treated as commercial/productive business assets. Deduct production costs, then pay 2.5% if net value reaches nisab."
+      },
+      "debt": {
+        "owedToYouTitle": "Money owed to you",
+        "owedToYouBody": "If collectible soon, include it. If doubtful, handle zakat when received.",
+        "youOweTitle": "Money you owe",
+        "youOweBody": "Deduct due debt first, then check if remaining wealth is still above nisab."
+      },
+      "produce": {
+        "harvestMode": "Farmer harvest",
+        "tradeMode": "Trade stock",
+        "marketValuePlaceholder": "Market value",
+        "quantityPlaceholder": "Harvest quantity (kg)",
+        "pricePerKgPlaceholder": "Price per kg (optional)",
+        "naturalWatering": "Natural watering (10%)",
+        "paidIrrigation": "Paid irrigation (5%)",
+        "tradeRule": "Treated as trade goods: zakat is 2.5% if market value reaches nisab.",
+        "harvestRule": "Crop-zakat nisab is 653 kg (5 awsuq). If reached: 10% natural watering, 5% paid irrigation. Add price/kg to include a cash estimate in combined total."
       }
     }
   },

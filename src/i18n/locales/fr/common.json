@@ -274,36 +274,64 @@
   },
   "detailedCalculator": {
     "hero": {
-      "overline": "CALCULATEUR D?TAILL? DE ZAKAT",
-      "selectCategory": "Choisir une cat?gorie",
-      "categoriesAdded": "{{count}} cat?gories ajout?es"
+      "overline": "CALCULATEUR DETAILLE DE ZAKAT",
+      "selectCategory": "Choisir une categorie",
+      "categoriesAdded": "{{count}} categories ajoutees"
     },
     "total": {
       "label": "Total"
     },
-    "instructions": "Touchez une cat?gorie ci-dessous pour l'ajouter ? votre calcul de zakat.",
-    "addedPill": "Ajout?",
-    "backToCategories": "Retour aux cat?gories",
-    "addCategory": "Ajouter cette cat?gorie",
+    "instructions": "Touchez une categorie ci-dessous pour l'ajouter a votre calcul de zakat.",
+    "addedPill": "Ajoute",
+    "backToCategories": "Retour aux categories",
+    "addCategory": "Ajouter cette categorie",
     "saveToHistory": "Enregistrer dans l'historique",
-    "howCalculated": "Comment est-ce calcul? ?",
+    "howCalculated": "Comment ce calcul est-il fait ?",
     "hide": "Masquer",
     "show": "Afficher",
-    "notSet": "Non d?fini",
+    "notSet": "Non defini",
     "modes": {
       "monthly": "Mensuel",
       "annual": "Annuel"
     },
     "summary": {
-      "title": "R?sum? du calcul"
+      "title": "Resume du calcul",
+      "modeValue": "Mode : {value}",
+      "nisabValue": "Nisab : {value}",
+      "netWealthValue": "Patrimoine net : {value}",
+      "zakatDueValue": "Zakat due : {value}",
+      "typeValue": "Type : {value}",
+      "ownedValue": "Possede : {value}",
+      "dueAnimalsValue": "Animaux dus : {value}",
+      "cashIncludedValue": "Equivalent en especes inclus : {value}",
+      "marketValueValue": "Valeur de marche : {value}",
+      "operatingCostsValue": "Couts d'exploitation : {value}",
+      "netValueValue": "Valeur nette : {value}",
+      "ruleAgriOther": "Regle : 2,5% si la valeur nette atteint le nisab.",
+      "tradeAssetsValue": "Actifs commerciaux : {value}",
+      "dueOperatingCostsValue": "Charges exigibles : {value}",
+      "netZakatableAmountValue": "Montant net zakatable : {value}",
+      "ruleTradeSector": "Regle : 2,5% si le montant net atteint le nisab.",
+      "industrialAssetsValue": "Valeur des actifs/sorties industrielles : {value}",
+      "productionCostsValue": "Couts de production : {value}",
+      "ruleIndustrial": "Regle : 2,5% apres deduction des couts si le montant net atteint le nisab.",
+      "ruleProduceTrade": "Regle : 2,5% comme biens commerciaux.",
+      "harvestQuantityValue": "Quantite recoltee : {value}",
+      "ruleWateringValue": "Regle : {value}",
+      "zakatDueProduceValue": "Zakat due (en nature) : {value}",
+      "pricePerKgValue": "Prix/kg : {value}",
+      "cashEquivalentIncludedValue": "Equivalent en especes inclus : {value}",
+      "cashEquivalentValue": "Equivalent en especes : {value}",
+      "cashEquivalentNotSet": "Equivalent en especes : non defini"
     },
     "preview": {
-      "title": "Aper?u en direct",
+      "title": "Apercu en direct",
+      "netZakatableAmount": "Montant net zakatable",
       "animalsDue": "Animaux dus",
-      "cashEquivalent": "?quivalent en esp?ces",
-      "harvestQuantity": "Quantit? r?colt?e",
+      "cashEquivalent": "Equivalent en especes",
+      "harvestQuantity": "Quantite recoltee",
       "zakatDue": "Zakat due",
-      "zakatDueCashEstimate": "Zakat due (estimation en esp?ces)",
+      "zakatDueCashEstimate": "Zakat due (estimation en especes)",
       "zakatDueProduce": "Zakat due (en nature)"
     },
     "livestock": {
@@ -311,54 +339,112 @@
       "types": {
         "camels": "Chameaux",
         "cattle": "Bovins",
-        "sheep_goats": "Moutons/Ch?vres"
+        "sheep_goats": "Moutons/Chevres"
       }
     },
     "history": {
       "mode": "Mode",
       "nisab": "Nisab",
       "type": "Type",
-      "owned": "Poss?d?",
-      "due": "D?",
-      "cashEstimate": "Estimation en esp?ces",
+      "owned": "Possede",
+      "due": "Du",
+      "cashEstimate": "Estimation en especes",
       "watering": "Irrigation",
-      "dueProduce": "Produit d?",
-      "cashEquivalent": "?quivalent en esp?ces"
+      "dueProduce": "Produit du",
+      "cashEquivalent": "Equivalent en especes",
+      "modeTrade": "Biens commerciaux",
+      "modeHarvest": "Recolte agricole",
+      "wateringNatural": "Irrigation naturelle (10%)",
+      "wateringPaidIrrigation": "Irrigation payante (5%)"
     },
     "validation": {
       "monthlyIncomeRequired": "Veuillez saisir votre revenu mensuel.",
-      "produceMarketValueRequired": "Veuillez saisir la valeur marchande des produits.",
-      "harvestQuantityRequired": "Veuillez saisir la quantit? r?colt?e en kg.",
-      "marketValueRequired": "Veuillez saisir la valeur marchande."
+      "produceMarketValueRequired": "Veuillez saisir la valeur de marche du produit.",
+      "harvestQuantityRequired": "Veuillez saisir la quantite recoltee en kg.",
+      "marketValueRequired": "Veuillez saisir la valeur de marche.",
+      "ownedCountInteger": "Le nombre possede doit etre un entier >= 0.",
+      "cashEstimatePositive": "Saisissez une estimation en especes > 0."
     },
     "categories": {
       "salary": {
-        "title": "Salaires & Services",
-        "description": "Revenus d'emploi, conseil, sant?, honoraires juridiques"
+        "title": "Salaires et Services",
+        "description": "Revenus d'emploi, conseil, sante, honoraires juridiques"
       },
       "livestock": {
-        "title": "B?tail",
-        "description": "Chameaux, bovins, moutons et ch?vres"
+        "title": "Betail",
+        "description": "Chameaux, bovins, moutons et chevres"
       },
       "produce": {
-        "title": "C?r?ales & Fruits",
-        "description": "R?colte agricole ou produits d?tenus pour le commerce"
+        "title": "Cereales et Fruits",
+        "description": "Recolte agricole ou produits detenus pour le commerce"
       },
       "agri_other": {
         "title": "Autres produits agricoles",
-        "description": "L?gumes, bois, p?che, volaille, apiculture"
+        "description": "Legumes, bois, peche, volaille, apiculture"
       },
       "trade_sector": {
-        "title": "Commerce & Affaires",
+        "title": "Commerce et Affaires",
         "description": "Biens commerciaux, actions, devises, profits d'entreprise"
       },
       "industrial_sector": {
         "title": "Secteur industriel",
-        "description": "Fabrication, production alimentaire, mat?riaux de construction"
+        "description": "Fabrication, production alimentaire, materiaux de construction"
       },
       "debt": {
         "title": "Dettes",
         "description": "Argent qu'on vous doit ou que vous devez"
+      }
+    },
+    "form": {
+      "salary": {
+        "annualMode": "Mode annuel",
+        "monthlyMode": "Mode mensuel",
+        "monthlyIncomePlaceholder": "Revenu mensuel des services",
+        "livingExpensePlaceholder": "Depenses essentielles mensuelles (optionnel)",
+        "scope": "Champ : salaires/revenus et gains de services.",
+        "modeHint": "Le mode annuel verifie l'epargne nette annuelle. Le mode mensuel verifie le net de chaque mois."
+      },
+      "livestock": {
+        "ownedCountPlaceholder": "Nombre possede",
+        "camel121Option2Hiqqah": "2 hiqqah",
+        "camel121Option3BintLabun": "3 bint labun",
+        "cashEstimatePlaceholder": "Estimation en especes pour le betail ({currency}) (optionnel)"
+      },
+      "agriOther": {
+        "marketValuePlaceholder": "Valeur totale de marche/vente",
+        "operatingCostsPlaceholder": "Couts/depenses d'exploitation (optionnel)",
+        "scope": "Inclut produits agricoles vendus, produits forestiers, peche et activites animales commerciales.",
+        "rule": "Regle : traite comme actifs commerciaux ; 2,5% si la valeur nette atteint le nisab."
+      },
+      "trade": {
+        "marketValuePlaceholder": "Valeur totale des actifs commerciaux",
+        "operatingCostsPlaceholder": "Charges exigibles (salaires, loyer, taxes, etc.)",
+        "scopeMain": "Inclut echange commercial de biens et actifs financiers licites.",
+        "scopeSecondary": "Inclut aussi actions, devises et revenus d'entreprises commerciales.",
+        "rule": "Calcul : deduire les charges exigibles, puis appliquer 2,5% si le reste atteint le nisab."
+      },
+      "industrial": {
+        "marketValuePlaceholder": "Valeur totale des actifs/sorties industrielles",
+        "productionCostsPlaceholder": "Couts de production (matieres premieres, fabrication, etc.)",
+        "scope": "Inclut activites industrielles et manufacturieres, y compris agroalimentaire et materiaux.",
+        "rule": "Regle : deduire les couts de production puis appliquer 2,5% si le net atteint le nisab."
+      },
+      "debt": {
+        "owedToYouTitle": "Argent qu'on vous doit",
+        "owedToYouBody": "Si recouvrable bientot, incluez-le. Si douteux, traiter la zakat a l'encaissement.",
+        "youOweTitle": "Argent que vous devez",
+        "youOweBody": "Deductez d'abord les dettes exigibles puis verifiez le nisab restant."
+      },
+      "produce": {
+        "harvestMode": "Recolte agricole",
+        "tradeMode": "Stock commercial",
+        "marketValuePlaceholder": "Valeur de marche",
+        "quantityPlaceholder": "Quantite recoltee (kg)",
+        "pricePerKgPlaceholder": "Prix par kg (optionnel)",
+        "naturalWatering": "Irrigation naturelle (10%)",
+        "paidIrrigation": "Irrigation payante (5%)",
+        "tradeRule": "Traite comme biens commerciaux : 2,5% si la valeur de marche atteint le nisab.",
+        "harvestRule": "Le nisab des cultures est 653 kg (5 awsuq). Si atteint : 10% naturel, 5% payant. Ajoutez le prix/kg pour une estimation en especes."
       }
     }
   },
