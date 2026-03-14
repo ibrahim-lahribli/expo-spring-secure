@@ -68,9 +68,10 @@ export default function PublicLayout() {
         }}
       />
       <Tabs.Screen
-        name="calculate/index"
+        name="calculate"
         options={{
           title: t("navigation.calculate"),
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <TabBarIconWithLabel color={color} icon="calculator-outline" label={t("navigation.calculate")} />
           ),
@@ -101,22 +102,6 @@ export default function PublicLayout() {
           tabBarIcon: ({ color }) => (
             <TabBarIconWithLabel color={color} icon="settings-outline" label={t("navigation.settings")} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="calculate/detailed"
-        options={{
-          title: t("navigation.detailedCalculator"),
-          href: null,
-          headerShown: true,
-        }}
-      />
-      <Tabs.Screen
-        name="calculate/result"
-        options={{
-          title: t("navigation.quickResult"),
-          href: null,
-          headerShown: true,
         }}
       />
       <Tabs.Screen

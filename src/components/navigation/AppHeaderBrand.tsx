@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { I18nManager, StyleSheet, Text, View } from "react-native";
 import { appColors, appSpacing } from "../../theme/designSystem";
 
 export function AppHeaderBrand() {
+  const isRTL = I18nManager.isRTL;
   return (
-    <View style={styles.brandWrap}>
+    <View style={[styles.brandWrap, isRTL && styles.rowReverse]}>
       <Ionicons name="moon-outline" size={18} color={appColors.primary} />
       <Text style={styles.brandName}>ZakatCalc</Text>
     </View>
@@ -17,11 +18,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: appSpacing.xs,
-    marginLeft: appSpacing.sm,
+    marginStart: appSpacing.sm,
   },
   brandName: {
     color: appColors.primary,
     fontWeight: "700",
     fontSize: 20,
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
   },
 });

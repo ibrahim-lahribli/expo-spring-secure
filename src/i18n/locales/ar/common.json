@@ -46,7 +46,8 @@
     "detailedCalculator": "الحساب التفصيلي",
     "quickResult": "النتيجة السريعة",
     "learnZakat": "تعلّم الزكاة",
-    "historyDetails": "تفاصيل السجل"
+    "historyDetails": "تفاصيل السجل",
+    "detailedSetup": "تهيئة الحساب التفصيلي"
   },
   "validation": {
     "required": "هذا الحقل مطلوب",
@@ -146,6 +147,23 @@
     "categoriesUsed": "الفئات المستخدمة",
     "inputsSnapshot": "لقطة المدخلات",
     "lineItemBreakdown": "تفصيل البنود",
+    "zakatBeforeAdjustments": "الزكاة قبل التعديلات",
+    "categoryZakatBeforeAdjustmentsValue": "زكاة الفئة قبل التعديلات: {value}",
+    "finalCalculation": {
+      "title": "الحساب النهائي للزكاة",
+      "debtAdjustmentTitle": "تعديل الديون",
+      "collectibleReceivables": "الديون المرجوة",
+      "doubtfulReceivables": "الديون غير المرجوة",
+      "doubtfulReceivablesExcluded": "الديون غير المرجوة (غير محتسبة)",
+      "debtsDueNow": "الديون الحالة",
+      "debtNetImpact": "الأثر الصافي على الوعاء",
+      "finalZakatableBase": "الوعاء الزكوي النهائي",
+      "finalZakatDueRate": "الزكاة النهائية الواجبة (2.5%)",
+      "adjustedCashPoolDue": "زكاة الوعاء النقدي المعدل (2.5%)",
+      "independentCashDue": "المبلغ النقدي المستحق للفئات غير القابلة لتعديل الديون",
+      "totalPayableDueNow": "إجمالي المستحق للدفع الآن",
+      "doubtfulExcludedNote": "الديون غير المرجوة مستبعدة حتى يتم قبضها."
+    },
     "detailRows": {
       "cashBank": "النقد والبنك",
       "goldSilver": "الذهب والفضة",
@@ -276,7 +294,12 @@
     "hero": {
       "overline": "الحاسبة التفصيلية للزكاة",
       "selectCategory": "اختر الفئة",
-      "categoriesAdded": "تمت إضافة {{count}} فئات"
+      "categoriesAdded": "تمت إضافة {count} فئات",
+      "hawlSetup": "إعداد الحول",
+      "hawlSummaryModeOnly": "وضع المتابعة: {mode}",
+      "hawlSummaryWithDate": "وضع المتابعة: {mode} - التاريخ المرجعي: {date}",
+      "hawlSummaryEstimatedToday": "وضع المتابعة: {mode} - البدء من اليوم",
+      "hawlSummaryNotSet": "لم يتم تحديد وضع المتابعة"
     },
     "total": {
       "label": "الإجمالي"
@@ -284,6 +307,7 @@
     "instructions": "اختر فئة من الأسفل لإضافتها إلى حساب الزكاة.",
     "addedPill": "مضافة",
     "backToCategories": "العودة إلى الفئات",
+    "backToSetup": "العودة إلى إعداد الحول",
     "addCategory": "إضافة هذه الفئة",
     "saveToHistory": "حفظ في السجل",
     "howCalculated": "كيف تم هذا الحساب؟",
@@ -300,6 +324,7 @@
       "nisabValue": "النصاب: {value}",
       "netWealthValue": "صافي المال: {value}",
       "zakatDueValue": "الزكاة الواجبة: {value}",
+      "zakatBeforeAdjustmentsValue": "الزكاة قبل التعديلات: {value}",
       "typeValue": "النوع: {value}",
       "ownedValue": "المملوك: {value}",
       "dueAnimalsValue": "الواجب من الأنعام: {value}",
@@ -322,7 +347,27 @@
       "pricePerKgValue": "السعر/كغ: {value}",
       "cashEquivalentIncludedValue": "المكافئ النقدي المحتسب: {value}",
       "cashEquivalentValue": "المكافئ النقدي: {value}",
-      "cashEquivalentNotSet": "المكافئ النقدي: غير محدد"
+      "cashEquivalentNotSet": "المكافئ النقدي: غير محدد",
+      "debtCollectibleValue": "الديون المرجوة: {value}",
+      "debtDoubtfulValue": "الديون غير المرجوة: {value}",
+      "debtOwedNowValue": "الديون الحالة عليك: {value}",
+      "debtCollectibleAppliedValue": "الديون المرجوة (+): {value}",
+      "debtOwedNowAppliedValue": "الديون الحالة عليك (-): {value}",
+      "debtDoubtfulExcludedValue": "الديون غير المرجوة (غير محتسبة): {value}",
+      "debtDoubtfulExcludedNote": "الديون غير المرجوة لا تدخل في الزكاة الحالية حتى يتم قبضها.",
+      "debtNetImpactValue": "الأثر الصافي على الوعاء: {value}",
+      "debtAdjustmentTitle": "تعديل الديون",
+      "debtAdjustmentSeeSection": "تفاصيل الديون معروضة في قسم تعديل الديون أدناه.",
+      "debtScopeNote": "هذا التعديل يطبق فقط على الفئات النقدية مثل الرواتب والتجارة والدخل المهني.",
+      "debtImpactAppliedBadge": "تعديل الديون مطبق",
+      "debtImpactNotAppliedBadge": "تعديل الديون غير مطبق",
+      "belowNisabAfterDebtTitle": "أقل من النصاب بعد تعديل الديون",
+      "belowNisabAfterDebtBody": "خفضت ديونك الوعاء الزكوي المعدل إلى أقل من النصاب. لا زكاة واجبة على هذا الوعاء حاليا.",
+      "finalZakatableBaseValue": "الوعاء الزكوي النهائي: {value}",
+      "finalZakatCalculationTitle": "الحساب النهائي للزكاة",
+      "finalZakatDueRateValue": "زكاة الوعاء النقدي المعدل (2.5%): {value}",
+      "independentCashDueValue": "المبلغ النقدي المستحق للفئات غير القابلة لتعديل الديون: {value}",
+      "totalPayableDueNowValue": "إجمالي المستحق للدفع الآن: {value}"
     },
     "preview": {
       "title": "معاينة فورية",
@@ -332,7 +377,9 @@
       "harvestQuantity": "كمية المحصول",
       "zakatDue": "الزكاة الواجبة",
       "zakatDueCashEstimate": "الزكاة الواجبة (تقدير نقدي)",
-      "zakatDueProduce": "الزكاة الواجبة (من المحصول)"
+      "zakatDueProduce": "الزكاة الواجبة (من المحصول)",
+      "debtNetImpact": "الأثر الصافي للديون",
+      "finalZakatableBase": "الوعاء الزكوي النهائي"
     },
     "livestock": {
       "noDue": "لا زكاة واجبة",
@@ -355,7 +402,11 @@
       "modeTrade": "عروض تجارة",
       "modeHarvest": "محصول زراعي",
       "wateringNatural": "سقي طبيعي (10%)",
-      "wateringPaidIrrigation": "سقي بكلفة (5%)"
+      "wateringPaidIrrigation": "سقي بكلفة (5%)",
+      "debtCollectible": "الديون المرجوة",
+      "debtDoubtful": "الديون غير المرجوة (غير محتسبة)",
+      "debtOwedNow": "الديون الحالة",
+      "debtNetImpact": "الأثر الصافي"
     },
     "validation": {
       "monthlyIncomeRequired": "يرجى إدخال الدخل الشهري.",
@@ -363,7 +414,8 @@
       "harvestQuantityRequired": "يرجى إدخال كمية المحصول بالكيلوغرام.",
       "marketValueRequired": "يرجى إدخال القيمة السوقية.",
       "ownedCountInteger": "عدد المملوك يجب أن يكون عددا صحيحا أكبر أو يساوي 0.",
-      "cashEstimatePositive": "أدخل تقديرا نقديا أكبر من 0."
+      "cashEstimatePositive": "أدخل تقديرا نقديا أكبر من 0.",
+      "debtAnyRequired": "أدخل قيمة دين واحدة على الأقل."
     },
     "categories": {
       "salary": {
@@ -431,9 +483,14 @@
       },
       "debt": {
         "owedToYouTitle": "المال الذي لك على الغير",
-        "owedToYouBody": "إن كان مرجو التحصيل قريبا أُدخل في الحساب، وإن كان غير مرجو فيراعى عند القبض.",
+        "owedToYouBody": "الديون المرجوة تدخل في حساب الدورة الحالية، أما غير المرجوة فتؤجل إلى حين القبض.",
         "youOweTitle": "المال الذي عليك",
-        "youOweBody": "يخصم الدين الحال أولا، ثم ينظر هل بقي المال بالغا للنصاب."
+        "youOweBody": "يخصم الدين الحال أولا، ثم ينظر هل بقي المال بالغا للنصاب.",
+        "collectiblePlaceholder": "ديون مرجوة (الدورة الحالية)",
+        "doubtfulPlaceholder": "ديون غير مرجوة (للتوثيق)",
+        "owedNowPlaceholder": "ديون حالة عليك",
+        "whatCountsLink": "لست متأكدا مما يدخل ضمن الديون؟",
+        "whatCountsExamples": "أمثلة شائعة: فواتير موردين غير مدفوعة، قروض شخصية قصيرة الأجل، وفواتير مستحقة قبل تاريخ الزكاة."
       },
       "produce": {
         "harvestMode": "محصول فلاحي",
@@ -446,7 +503,8 @@
         "tradeRule": "إذا كان المحصول معدا للتجارة فالواجب 2.5% عند بلوغ القيمة النصاب.",
         "harvestRule": "نصاب زكاة الزروع والثمار 653 كغ (خمسة أوسق). الواجب 10% مع السقي الطبيعي و5% مع السقي بكلفة. يمكن إدخال سعر الكيلو لإظهار التقدير النقدي."
       }
-    }
+    },
+    "updateDebt": "تحديث الديون"
   },
   "livestock": {
     "dueItem": {
@@ -462,5 +520,61 @@
         "musinnah": "مسنة"
       }
     }
+  },
+  "detailedSetup": {
+    "title": "تهيئة الحساب التفصيلي",
+    "subtitle": "قبل اختيار الفئات، راجع طريقة عمل الحساب التفصيلي وحدد إعداد تتبع الحول لهذه الجلسة.",
+    "cards": {
+      "detailed": {
+        "title": "كيف يعمل الحساب المفصل؟",
+        "body1": "يسمح لك الحساب المفصل بحساب الزكاة على عدة أنواع من الأموال في نفس الوقت، مثل الادخار من الراتب، التجارة، المواشي، أو المنتجات الزراعية.",
+        "body2": "يقوم التطبيق بحساب كل فئة بشكل مستقل، ثم يجمع فقط الأموال التي تجب فيها الزكاة الآن في المجموع النهائي.",
+        "noteTitle": "مهم:",
+        "noteBody": "ليست كل الفئات تدخل في الحساب النهائي؛ فبعضها قد لا تكون الزكاة واجبة عليها بعد."
+      },
+      "debt": {
+        "title": "كيف تؤثر الديون على الزكاة؟",
+        "body1": "قد تؤثر الديون على مقدار المال الذي تجب فيه الزكاة.",
+        "body2": "في الحساب المفصل، يقوم التطبيق بموازنة:",
+        "bullet1": "الديون التي لك على الآخرين (المرجوة)",
+        "bullet2": "الديون التي عليك ويجب سدادها",
+        "noteTitle": "ملاحظة:",
+        "noteBody": "ثم يتم تطبيق هذا التعديل فقط على الأموال المالية القابلة للزكاة مثل الادخار أو التجارة. بعض الفئات مثل المواشي أو المحاصيل لا تتأثر بالديون في الحساب."
+      },
+      "hawl": {
+        "title": "ما هو الحول في الزكاة؟",
+        "body1": "في بعض أنواع الأموال، تجب الزكاة بعد مرور سنة قمرية كاملة على بلوغ المال النصاب. وهذا يسمى الحول.",
+        "body2": "في هذا التطبيق، سنحدد كيف تتابع سنة الزكاة الخاصة بك حتى نعرف:",
+        "bullet1": "هل الزكاة واجبة الآن؟",
+        "bullet2": "أو ستصبح واجبة لاحقًا.",
+        "noteTitle": "ملاحظة:",
+        "noteBody": "بعض الفئات مثل المحاصيل الزراعية لا تحتاج إلى حول، وتجب الزكاة فيها عند الحصاد."
+      }
+    },
+    "form": {
+      "question": "كيف تتابع سنة الزكاة الخاصة بك؟",
+      "referenceDateLabel": "التاريخ المرجعي",
+      "referenceDatePlaceholder": "YYYY-MM-DD",
+      "options": {
+        "yearly": "لدي تاريخ زكاة سنوي",
+        "nisab": "أعرف متى بلغ مالي النصاب لأول مرة",
+        "estimated": "لست متأكدًا"
+      },
+      "yearly": {
+        "saveAsDefault": "حفظ كإعداد افتراضي"
+      },
+      "estimated": {
+        "question": "اختر أحد الخيارين:",
+        "startToday": "البدء من اليوم",
+        "approximateDate": "تاريخ تقريبي"
+      }
+    },
+    "validation": {
+      "trackingModeRequired": "يرجى اختيار طريقة تتبع سنة الزكاة.",
+      "referenceDateRequired": "يرجى إدخال التاريخ المرجعي.",
+      "estimatedChoiceRequired": "يرجى اختيار طريقة البدء في التتبع التقديري للحول.",
+      "invalidDate": "يرجى إدخال تاريخ صحيح بصيغة YYYY-MM-DD."
+    }
   }
 }
+

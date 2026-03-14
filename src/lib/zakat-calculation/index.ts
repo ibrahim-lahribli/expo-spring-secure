@@ -1,5 +1,6 @@
 export { calculateSalaryZakat } from "./salary";
 export { calculateProduceZakat } from "./produce";
+export { applyDebtAdjustment, calculateDebtAdjustment, calculateDebtZakat } from "./debt";
 export {
   calcCashEquivalent,
   calcLivestockZakat,
@@ -12,6 +13,7 @@ export type {
   CategoryZakatResult,
   NisabMethod,
   ProduceWateringMethod,
+  DebtZakatInput,
   SalaryCalculationMode,
   ProduceZakatInput,
   SalaryInput,

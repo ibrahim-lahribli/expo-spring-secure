@@ -12,7 +12,7 @@ import type { LocalizedText, ZakatCategory } from "../../../features/zakat-expla
 
 export default function ZakatCategoryDetailScreen() {
   const router = useRouter();
-  const { slug } = useLocalSearchParams<{ slug?: string }>();
+  const { slug, returnTo } = useLocalSearchParams<{ slug?: string; returnTo?: string }>();
   const { t, i18n } = useTranslation();
   const isArabic = (i18n.resolvedLanguage ?? "en").startsWith("ar");
 
@@ -118,7 +118,13 @@ export default function ZakatCategoryDetailScreen() {
             mode="contained"
             style={styles.ctaButton}
             contentStyle={styles.ctaButtonContent}
-            onPress={() => router.push("/(public)/calculate/detailed")}
+            onPress={() =>
+              router.push(
+                typeof returnTo === "string" && returnTo.length > 0
+                  ? (returnTo as never)
+                  : ("/(public)/calculate/detailed/setup" as never),
+              )
+            }
           >
             {t("zakatExplanations.detail.cta", { defaultValue: "Calculate this category" })}
           </Button>

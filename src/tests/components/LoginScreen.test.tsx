@@ -43,6 +43,8 @@ jest.mock("react-i18next", () => ({
         "auth:loginScreen.emailLabel": "Email Address",
         "auth:loginScreen.securityNote": "Your connection is secure and private.",
         "auth:loginScreen.passwordHintError": "Please enter your correct password.",
+        "auth:validation.invalidEmail": "Invalid email address",
+        "auth:validation.passwordMinLength": "Password must be at least 6 characters",
         "auth:forgotPassword": "Forgot password?",
         "common:loading": "Loading...",
         error: "Error",

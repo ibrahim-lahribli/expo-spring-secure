@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { I18nManager, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useLanguageSwitcher } from "../i18n/i18n";
 import type { LanguageSwitcherProps, SupportedLanguage } from "../types/i18n";
 
@@ -12,13 +12,14 @@ export function LanguageSwitcher({
   const { t } = useTranslation("common");
   const { currentLanguage, switchLanguage, supportedLanguages } =
     useLanguageSwitcher();
+  const isRTL = I18nManager.isRTL;
 
   const getLanguageLabel = (language: SupportedLanguage): string => {
     return t(`languages.${language}`);
   };
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, isRTL && styles.rowReverse, style]}>
       {supportedLanguages.map((language) => (
         <TouchableOpacity
           key={language}
@@ -71,6 +72,9 @@ const styles = StyleSheet.create({
   },
   activeText: {
     color: "#fff",
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
   },
 });
 

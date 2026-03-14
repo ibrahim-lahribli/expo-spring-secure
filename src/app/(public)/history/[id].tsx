@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, StyleSheet, Text, View } from "react-native";
+import { Alert, I18nManager, Platform, StyleSheet, Text, View } from "react-native";
 import {
   AppCard,
   AppHeader,
@@ -9,6 +9,7 @@ import {
   SecondaryButton,
 } from "../../../components/ui";
 import { buildHistoryPdfHtml } from "../../../features/history/pdf";
+import { resolveHistoryCategoryLabel } from "../../../features/history/categoryLabels";
 import { buildTotalDisplay, resolveNonCashDueSummary } from "../../../features/history/totalDisplay";
 import { getGuestHistoryEntryById } from "../../../features/history/storage";
 import type { HistoryEntry } from "../../../features/history/types";
@@ -28,6 +29,7 @@ function formatDate(value: string) {
 export default function HistoryDetailsScreen() {
   const router = useRouter();
   const { t } = useTranslation("common");
+  const isRTL = I18nManager.isRTL;
   const { id } = useLocalSearchParams<{ id: string }>();
   const [entry, setEntry] = useState<HistoryEntry | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -76,6 +78,12 @@ export default function HistoryDetailsScreen() {
       labels: { kgUnit: t("history.kgUnit", { defaultValue: "kg" }) },
     });
   }, [entry, t]);
+  const detailedPayload = entry?.payload.kind === "detailed" ? entry.payload : null;
+  const resolveCategoryLabel = useMemo(
+    () => (categoryIdOrLabel: string, fallbackLabel?: string) =>
+      resolveHistoryCategoryLabel(categoryIdOrLabel, (key) => t(key as never), fallbackLabel),
+    [t],
+  );
 
   const handleBackToHistory = () => {
     router.replace("/(public)/history");
@@ -93,20 +101,36 @@ export default function HistoryDetailsScreen() {
       categoriesUsed: t("history.categoriesUsed"),
       quickSnapshotTitle: t("history.inputsSnapshot"),
       detailedBreakdownTitle: t("history.lineItemBreakdown"),
+      finalCalculationTitle: t("history.finalCalculation.title"),
+      debtAdjustmentTitle: t("history.finalCalculation.debtAdjustmentTitle"),
       fieldHeader: t("history.pdf.field", { defaultValue: "Field" }),
       categoryHeader: t("history.pdf.category", { defaultValue: "Category" }),
       valueHeader: t("history.pdf.value", { defaultValue: "Value" }),
       netWealthHeader: t("history.detailRows.netWealth"),
       zakatDueHeader: t("history.zakatDue"),
+      zakatBeforeAdjustmentsHeader: t("history.zakatBeforeAdjustments"),
       generatedNote: t("history.pdf.generatedNote", {
         defaultValue: "Generated from local history on this device.",
       }),
+      finalCalculationRows: {
+        collectibleReceivables: t("history.finalCalculation.collectibleReceivables"),
+        doubtfulReceivablesExcluded: t("history.finalCalculation.doubtfulReceivablesExcluded"),
+        debtsDueNow: t("history.finalCalculation.debtsDueNow"),
+        debtNetImpact: t("history.finalCalculation.debtNetImpact"),
+        finalZakatableBase: t("history.finalCalculation.finalZakatableBase"),
+        adjustedCashPoolDue: t("history.finalCalculation.adjustedCashPoolDue"),
+        independentCashDue: t("history.finalCalculation.independentCashDue"),
+        totalPayableDueNow: t("history.finalCalculation.totalPayableDueNow"),
+        finalZakatDueRate: t("history.finalCalculation.finalZakatDueRate"),
+        doubtfulExcludedNote: t("history.finalCalculation.doubtfulExcludedNote"),
+      },
       quickRows: {
         cashBank: t("history.detailRows.cashBank"),
         goldSilver: t("history.detailRows.goldSilver"),
         debtsOwed: t("history.detailRows.debtsOwed"),
         netWealth: t("history.detailRows.netWealth"),
       },
+      resolveCategoryLabel,
     });
     if (Platform.OS === "web") {
       const popup = globalThis.open?.("", "_blank");
@@ -200,10 +224,10 @@ export default function HistoryDetailsScreen() {
 
       <AppCard style={styles.categoriesCard}>
         <Text style={styles.sectionTitle}>{t("history.categoriesUsed")}</Text>
-        <View style={styles.categoryList}>
+        <View style={[styles.categoryList, isRTL && styles.rowReverse]}>
           {entry.summary.categoriesUsed.map((category) => (
             <View key={category} style={styles.categoryChip}>
-              <Text style={styles.categoryChipText}>{category}</Text>
+              <Text style={styles.categoryChipText}>{resolveCategoryLabel(category, category)}</Text>
             </View>
           ))}
         </View>
@@ -220,7 +244,7 @@ export default function HistoryDetailsScreen() {
               : `${row.value}`;
 
           return (
-            <View key={row.label} style={styles.snapshotRow}>
+            <View key={row.label} style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
               <Text style={[styles.snapshotRowLabel, row.emphasized && styles.snapshotRowLabelStrong]}>
                 {row.label}
               </Text>
@@ -238,15 +262,25 @@ export default function HistoryDetailsScreen() {
         })}
       </AppCard>
 
-      {entry.payload.kind === "detailed" ? (
+      {detailedPayload ? (
         <AppCard style={styles.breakdownCard}>
           <Text style={styles.sectionTitle}>{t("history.lineItemBreakdown")}</Text>
-          {entry.payload.lineItems.map((item) => (
+          {detailedPayload.lineItems.map((item) => (
             <View key={item.id} style={styles.lineItem}>
-              <View style={styles.lineItemHeader}>
-                <Text style={styles.lineItemTitle}>{item.label}</Text>
+              <View style={[styles.lineItemHeader, isRTL && styles.rowReverse]}>
+                <Text style={styles.lineItemTitle}>
+                  {resolveCategoryLabel(item.category, item.label)}
+                </Text>
                 <Text style={styles.lineItemAmount}>{formatMoney(item.totalZakat, entry.currency)}</Text>
               </View>
+              {detailedPayload.finalCalculation?.hasDebtLineItem &&
+              ["salary", "agri_other", "trade_sector", "industrial_sector"].includes(item.category) ? (
+                <Text style={styles.lineItemMeta}>
+                  {t("history.categoryZakatBeforeAdjustmentsValue", {
+                    value: formatMoney(item.totalZakat, entry.currency),
+                  })}
+                </Text>
+              ) : null}
               <Text style={styles.lineItemMeta}>
                 {t("history.netWealthValue", {
                   value: formatMoney(item.totalWealth, entry.currency),
@@ -259,6 +293,77 @@ export default function HistoryDetailsScreen() {
               ))}
             </View>
           ))}
+        </AppCard>
+      ) : null}
+      {detailedPayload?.finalCalculation?.hasDebtLineItem ? (
+        <AppCard style={styles.breakdownCard}>
+          <Text style={styles.sectionTitle}>{t("history.finalCalculation.title")}</Text>
+          <View style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
+            <Text style={styles.snapshotRowLabel}>{t("history.finalCalculation.debtAdjustmentTitle")}</Text>
+          </View>
+          <View style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
+            <Text style={styles.snapshotRowLabel}>{t("history.finalCalculation.collectibleReceivables")}</Text>
+            <Text style={styles.snapshotRowValue}>
+              {formatMoney(detailedPayload.finalCalculation.debtAdjustment.collectibleReceivablesCurrent, entry.currency)}
+            </Text>
+          </View>
+          <View style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
+            <Text style={styles.snapshotRowLabel}>{t("history.finalCalculation.doubtfulReceivablesExcluded")}</Text>
+            <Text style={styles.snapshotRowValue}>
+              {formatMoney(detailedPayload.finalCalculation.debtAdjustment.doubtfulReceivables, entry.currency)}
+            </Text>
+          </View>
+          <View style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
+            <Text style={styles.snapshotRowLabel}>{t("history.finalCalculation.debtsDueNow")}</Text>
+            <Text style={[styles.snapshotRowValue, styles.snapshotNegativeValue]}>
+              {formatMoney(-Math.abs(detailedPayload.finalCalculation.debtAdjustment.debtsYouOweDueNow), entry.currency)}
+            </Text>
+          </View>
+          <View style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
+            <Text style={styles.snapshotRowLabel}>{t("history.finalCalculation.debtNetImpact")}</Text>
+            <Text
+              style={[
+                styles.snapshotRowValue,
+                detailedPayload.finalCalculation.debtAdjustment.netAdjustment < 0 ? styles.snapshotNegativeValue : null,
+              ]}
+            >
+              {formatMoney(detailedPayload.finalCalculation.debtAdjustment.netAdjustment, entry.currency)}
+            </Text>
+          </View>
+          <View style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
+            <Text style={[styles.snapshotRowLabel, styles.snapshotRowLabelStrong]}>
+              {t("history.finalCalculation.finalZakatableBase")}
+            </Text>
+            <Text style={[styles.snapshotRowValue, styles.snapshotStrongValue]}>
+              {formatMoney(detailedPayload.finalCalculation.finalZakatableBase, entry.currency)}
+            </Text>
+          </View>
+          <View style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
+            <Text style={[styles.snapshotRowLabel, styles.snapshotRowLabelStrong]}>
+              {t("history.finalCalculation.adjustedCashPoolDue")}
+            </Text>
+            <Text style={[styles.snapshotRowValue, styles.snapshotStrongValue]}>
+              {formatMoney(
+                detailedPayload.finalCalculation.adjustedCashPoolZakatDue ?? detailedPayload.finalCalculation.finalZakatDue,
+                entry.currency,
+              )}
+            </Text>
+          </View>
+          <View style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
+            <Text style={styles.snapshotRowLabel}>{t("history.finalCalculation.independentCashDue")}</Text>
+            <Text style={styles.snapshotRowValue}>
+              {formatMoney(detailedPayload.finalCalculation.independentNonDebtAdjustableCashDue ?? 0, entry.currency)}
+            </Text>
+          </View>
+          <View style={styles.snapshotRow}>
+            <Text style={[styles.snapshotRowLabel, styles.snapshotRowLabelStrong]}>
+              {t("history.finalCalculation.totalPayableDueNow")}
+            </Text>
+            <Text style={[styles.snapshotRowValue, styles.snapshotStrongValue]}>
+              {formatMoney(detailedPayload.finalCalculation.finalZakatDue, entry.currency)}
+            </Text>
+          </View>
+          <Text style={styles.lineItemMeta}>{t("history.finalCalculation.doubtfulExcludedNote")}</Text>
         </AppCard>
       ) : null}
 
@@ -393,5 +498,8 @@ const styles = StyleSheet.create({
   missingBody: {
     ...appTypography.body,
     color: appColors.textSecondary,
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
   },
 });

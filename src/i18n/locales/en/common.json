@@ -44,6 +44,7 @@
     "history": "History",
     "learn": "Learn",
     "detailedCalculator": "Detailed Calculator",
+    "detailedSetup": "Detailed Setup",
     "quickResult": "Quick Result",
     "learnZakat": "Learn Zakat",
     "historyDetails": "History Details"
@@ -146,6 +147,23 @@
     "categoriesUsed": "Categories Used",
     "inputsSnapshot": "Inputs Snapshot",
     "lineItemBreakdown": "Line Item Breakdown",
+    "zakatBeforeAdjustments": "Zakat Before Adjustments",
+    "categoryZakatBeforeAdjustmentsValue": "Category zakat before adjustments: {value}",
+    "finalCalculation": {
+      "title": "Final Zakat Calculation",
+      "debtAdjustmentTitle": "Debt Adjustment",
+      "collectibleReceivables": "Collectible receivables",
+      "doubtfulReceivables": "Doubtful receivables",
+      "doubtfulReceivablesExcluded": "Doubtful receivables (excluded)",
+      "debtsDueNow": "Debts currently due",
+      "debtNetImpact": "Net base impact",
+      "finalZakatableBase": "Final zakatable base",
+      "finalZakatDueRate": "Final zakat due (2.5%)",
+      "adjustedCashPoolDue": "Adjusted cash-pool zakat due (2.5%)",
+      "independentCashDue": "Independent non-debt-adjustable cash due",
+      "totalPayableDueNow": "Total payable due now",
+      "doubtfulExcludedNote": "Doubtful receivables are excluded until they are collected."
+    },
     "detailRows": {
       "cashBank": "Cash & Bank",
       "goldSilver": "Gold & Silver",
@@ -272,11 +290,71 @@
       }
     }
   },
+  "detailedSetup": {
+    "title": "Detailed Calculation Setup",
+    "subtitle": "Before category selection, review how this flow works and set your hawl tracking preference for this session.",
+    "cards": {
+      "detailed": {
+        "title": "How does the detailed calculation work?",
+        "body1": "The detailed calculator allows you to calculate zakat on multiple types of wealth at the same time, such as savings from salary, business assets, livestock, or agricultural products.",
+        "body2": "The app calculates each category separately, then combines only the wealth that is currently subject to zakat in the final total.",
+        "noteTitle": "Important:",
+        "noteBody": "Not every category will be included in the final amount if its zakat is not yet due."
+      },
+      "debt": {
+        "title": "How do debts affect zakat?",
+        "body1": "Debts can affect the amount of wealth on which zakat is calculated.",
+        "body2": "In the detailed calculation, the app considers:",
+        "bullet1": "money owed to you that is likely to be collected",
+        "bullet2": "debts that you currently owe",
+        "noteTitle": "Note:",
+        "noteBody": "This adjustment is applied only to monetary zakatable assets such as savings or business assets. Some categories like livestock or harvested crops are not adjusted by debts."
+      },
+      "hawl": {
+        "title": "What is Hawl (the zakat year)?",
+        "body1": "For some types of wealth, zakat becomes due after a full lunar year has passed while the wealth remains above the nisab. This is called hawl.",
+        "body2": "In this step, we will determine how you track your zakat year so the app can identify:",
+        "bullet1": "whether zakat is due now",
+        "bullet2": "or whether it will be due later.",
+        "noteTitle": "Note:",
+        "noteBody": "Some categories, such as agricultural harvests, do not require a hawl and are due at harvest."
+      }
+    },
+    "form": {
+      "question": "How do you track your zakat year?",
+      "referenceDateLabel": "Reference date",
+      "referenceDatePlaceholder": "YYYY-MM-DD",
+      "options": {
+        "yearly": "I have a yearly zakat date",
+        "nisab": "I know when my wealth first reached nisab",
+        "estimated": "I'm not sure"
+      },
+      "yearly": {
+        "saveAsDefault": "Save as default"
+      },
+      "estimated": {
+        "question": "Choose one option:",
+        "startToday": "start from today",
+        "approximateDate": "approximate date"
+      }
+    },
+    "validation": {
+      "trackingModeRequired": "Please choose how you track your zakat year.",
+      "referenceDateRequired": "Please provide a reference date.",
+      "estimatedChoiceRequired": "Please choose how to start your estimated hawl tracking.",
+      "invalidDate": "Please enter a valid date in YYYY-MM-DD format."
+    }
+  },
   "detailedCalculator": {
     "hero": {
       "overline": "DETAILED ZAKAT CALCULATOR",
       "selectCategory": "Select a Category",
-      "categoriesAdded": "{{count}} categories added"
+      "categoriesAdded": "{count} categories added",
+      "hawlSetup": "Hawl Setup",
+      "hawlSummaryModeOnly": "Tracking mode: {mode}",
+      "hawlSummaryWithDate": "Tracking mode: {mode} - Reference date: {date}",
+      "hawlSummaryEstimatedToday": "Tracking mode: {mode} - Start from today",
+      "hawlSummaryNotSet": "Tracking mode not set"
     },
     "total": {
       "label": "Total"
@@ -284,7 +362,9 @@
     "instructions": "Tap a category below to add it to your zakat calculation.",
     "addedPill": "Added",
     "backToCategories": "Back to categories",
+    "backToSetup": "Back to setup",
     "addCategory": "Add This Category",
+    "updateDebt": "Update Debt",
     "saveToHistory": "Save to History",
     "howCalculated": "How is this calculated?",
     "hide": "Hide",
@@ -300,6 +380,7 @@
       "nisabValue": "Nisab: {value}",
       "netWealthValue": "Net Wealth: {value}",
       "zakatDueValue": "Zakat Due: {value}",
+      "zakatBeforeAdjustmentsValue": "Zakat before adjustments: {value}",
       "typeValue": "Type: {value}",
       "ownedValue": "Owned: {value}",
       "dueAnimalsValue": "Due animals: {value}",
@@ -322,7 +403,27 @@
       "pricePerKgValue": "Price/kg: {value}",
       "cashEquivalentIncludedValue": "Cash Equivalent Included: {value}",
       "cashEquivalentValue": "Cash equivalent: {value}",
-      "cashEquivalentNotSet": "Cash equivalent: not set"
+      "cashEquivalentNotSet": "Cash equivalent: not set",
+      "debtCollectibleValue": "Collectible receivables: {value}",
+      "debtDoubtfulValue": "Doubtful receivables: {value}",
+      "debtOwedNowValue": "Debts currently due: {value}",
+      "debtCollectibleAppliedValue": "Collectible receivables (+): {value}",
+      "debtOwedNowAppliedValue": "Debts currently due (-): {value}",
+      "debtDoubtfulExcludedValue": "Doubtful receivables (excluded): {value}",
+      "debtDoubtfulExcludedNote": "Doubtful receivables are excluded until they are collected.",
+      "debtNetImpactValue": "Net base impact: {value}",
+      "debtAdjustmentTitle": "Debt Adjustment",
+      "debtAdjustmentSeeSection": "Debt figures are shown in the Debt Adjustment section below.",
+      "debtScopeNote": "This adjustment applies only to cash-based categories such as salary, trade, and business income.",
+      "debtImpactAppliedBadge": "Debt adjustment applied",
+      "debtImpactNotAppliedBadge": "Debt adjustment not applied",
+      "belowNisabAfterDebtTitle": "Below nisab after debt adjustment",
+      "belowNisabAfterDebtBody": "Your debts reduced the adjusted zakatable base below the nisab. No zakat is due for this pool at this time.",
+      "finalZakatableBaseValue": "Final zakatable base: {value}",
+      "finalZakatCalculationTitle": "Final Zakat Calculation",
+      "finalZakatDueRateValue": "Adjusted cash-pool zakat due (2.5%): {value}",
+      "independentCashDueValue": "Independent non-debt-adjustable cash due: {value}",
+      "totalPayableDueNowValue": "Total payable due now: {value}"
     },
     "preview": {
       "title": "Live Preview",
@@ -332,7 +433,9 @@
       "harvestQuantity": "Harvest quantity",
       "zakatDue": "Zakat due",
       "zakatDueCashEstimate": "Zakat due (cash estimate)",
-      "zakatDueProduce": "Zakat due (produce)"
+      "zakatDueProduce": "Zakat due (produce)",
+      "debtNetImpact": "Debt net impact",
+      "finalZakatableBase": "Final zakatable base"
     },
     "livestock": {
       "noDue": "No zakat due",
@@ -352,6 +455,10 @@
       "watering": "Watering",
       "dueProduce": "Due produce",
       "cashEquivalent": "Cash equivalent",
+      "debtCollectible": "Collectible receivables",
+      "debtDoubtful": "Doubtful receivables (excluded)",
+      "debtOwedNow": "Debts currently due",
+      "debtNetImpact": "Net base impact",
       "modeTrade": "Trade goods",
       "modeHarvest": "Agricultural harvest",
       "wateringNatural": "Natural watering (10%)",
@@ -363,7 +470,8 @@
       "harvestQuantityRequired": "Please enter harvested quantity in kg.",
       "marketValueRequired": "Please enter the market value.",
       "ownedCountInteger": "Owned count must be an integer >= 0.",
-      "cashEstimatePositive": "Enter a cash estimate > 0."
+      "cashEstimatePositive": "Enter a cash estimate > 0.",
+      "debtAnyRequired": "Enter at least one debt value."
     },
     "categories": {
       "salary": {
@@ -430,10 +538,15 @@
         "rule": "Rule: treated as commercial/productive business assets. Deduct production costs, then pay 2.5% if net value reaches nisab."
       },
       "debt": {
+        "collectiblePlaceholder": "Collectible receivables (current cycle)",
+        "doubtfulPlaceholder": "Doubtful receivables (record only)",
+        "owedNowPlaceholder": "Debts currently due by you",
         "owedToYouTitle": "Money owed to you",
-        "owedToYouBody": "If collectible soon, include it. If doubtful, handle zakat when received.",
+        "owedToYouBody": "Collectible receivables are counted in this cycle. Doubtful receivables are deferred until collection.",
         "youOweTitle": "Money you owe",
-        "youOweBody": "Deduct due debt first, then check if remaining wealth is still above nisab."
+        "youOweBody": "Deduct due debt first, then check if remaining wealth is still above nisab.",
+        "whatCountsLink": "Not sure what counts as debt?",
+        "whatCountsExamples": "Typical examples: unpaid supplier invoices, short-term personal loans, and bills due before your zakat date."
       },
       "produce": {
         "harvestMode": "Farmer harvest",

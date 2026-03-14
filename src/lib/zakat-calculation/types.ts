@@ -30,6 +30,18 @@ export interface ProduceZakatInput {
   };
 }
 
+export interface DebtZakatInput {
+  nisabMethod?: NisabMethod;
+  silverPricePerGram?: number;
+  goldPricePerGram?: number;
+  nisabOverride?: number;
+  debt: {
+    collectibleReceivablesCurrent?: number;
+    doubtfulReceivables?: number;
+    debtsYouOweDueNow?: number;
+  };
+}
+
 export interface CategoryZakatResult {
   zakatAmount: number;
   isApplicable: boolean;
@@ -44,5 +56,6 @@ export interface ZakatCalculationResult {
   breakdown: {
     salary?: CategoryZakatResult;
     produce?: CategoryZakatResult;
+    debt?: CategoryZakatResult;
   };
 }

@@ -30,18 +30,34 @@ export type HistoryPdfLabels = {
   categoriesUsed: string;
   quickSnapshotTitle: string;
   detailedBreakdownTitle: string;
+  finalCalculationTitle: string;
+  debtAdjustmentTitle: string;
   fieldHeader: string;
   categoryHeader: string;
   valueHeader: string;
   netWealthHeader: string;
   zakatDueHeader: string;
+  zakatBeforeAdjustmentsHeader: string;
   generatedNote: string;
+  finalCalculationRows: {
+    collectibleReceivables: string;
+    doubtfulReceivablesExcluded: string;
+    debtsDueNow: string;
+    debtNetImpact: string;
+    finalZakatableBase: string;
+    adjustedCashPoolDue: string;
+    independentCashDue: string;
+    totalPayableDueNow: string;
+    finalZakatDueRate: string;
+    doubtfulExcludedNote: string;
+  };
   quickRows: {
     cashBank: string;
     goldSilver: string;
     debtsOwed: string;
     netWealth: string;
   };
+  resolveCategoryLabel?: (categoryIdOrLabel: string, fallbackLabel?: string) => string;
 };
 
 export function buildHistoryPdfHtml(
@@ -55,7 +71,7 @@ export function buildHistoryPdfHtml(
     labels: { kgUnit: labels.kgUnit },
   });
   const categories = entry.summary.categoriesUsed
-    .map((category) => `<li>${escapeHtml(category)}</li>`)
+    .map((category) => `<li>${escapeHtml(labels.resolveCategoryLabel?.(category, category) ?? category)}</li>`)
     .join("");
 
   const body =
@@ -70,13 +86,33 @@ export function buildHistoryPdfHtml(
           .map(
             (item) => `
               <tr>
-                <td>${escapeHtml(item.label)}</td>
+                <td>${escapeHtml(labels.resolveCategoryLabel?.(item.category, item.label) ?? item.label ?? item.category)}</td>
                 <td>${formatMoney(item.totalWealth, entry.currency)}</td>
                 <td>${formatMoney(item.totalZakat, entry.currency)}</td>
               </tr>
             `,
           )
           .join("");
+  const detailedFinalSection =
+    entry.payload.kind === "detailed" && entry.payload.finalCalculation?.hasDebtLineItem
+      ? `
+        <h2>${escapeHtml(labels.finalCalculationTitle)}</h2>
+        <table>
+          <tbody>
+            <tr><td>${escapeHtml(labels.debtAdjustmentTitle)}</td><td></td></tr>
+            <tr><td>${escapeHtml(labels.finalCalculationRows.collectibleReceivables)}</td><td>${formatMoney(entry.payload.finalCalculation.debtAdjustment.collectibleReceivablesCurrent, entry.currency)}</td></tr>
+            <tr><td>${escapeHtml(labels.finalCalculationRows.doubtfulReceivablesExcluded)}</td><td>${formatMoney(entry.payload.finalCalculation.debtAdjustment.doubtfulReceivables, entry.currency)}</td></tr>
+            <tr><td>${escapeHtml(labels.finalCalculationRows.debtsDueNow)}</td><td>${formatMoney(-Math.abs(entry.payload.finalCalculation.debtAdjustment.debtsYouOweDueNow), entry.currency)}</td></tr>
+            <tr><td>${escapeHtml(labels.finalCalculationRows.debtNetImpact)}</td><td>${formatMoney(entry.payload.finalCalculation.debtAdjustment.netAdjustment, entry.currency)}</td></tr>
+            <tr><td><strong>${escapeHtml(labels.finalCalculationRows.finalZakatableBase)}</strong></td><td><strong>${formatMoney(entry.payload.finalCalculation.finalZakatableBase, entry.currency)}</strong></td></tr>
+            <tr><td><strong>${escapeHtml(labels.finalCalculationRows.adjustedCashPoolDue)}</strong></td><td><strong>${formatMoney(entry.payload.finalCalculation.adjustedCashPoolZakatDue ?? entry.payload.finalCalculation.finalZakatDue, entry.currency)}</strong></td></tr>
+            <tr><td>${escapeHtml(labels.finalCalculationRows.independentCashDue)}</td><td>${formatMoney(entry.payload.finalCalculation.independentNonDebtAdjustableCashDue ?? 0, entry.currency)}</td></tr>
+            <tr><td><strong>${escapeHtml(labels.finalCalculationRows.totalPayableDueNow)}</strong></td><td><strong>${formatMoney(entry.payload.finalCalculation.finalZakatDue, entry.currency)}</strong></td></tr>
+          </tbody>
+        </table>
+        <p class="note">${escapeHtml(labels.finalCalculationRows.doubtfulExcludedNote)}</p>
+      `
+      : "";
 
   return `
     <!DOCTYPE html>
@@ -117,11 +153,20 @@ export function buildHistoryPdfHtml(
             <tr>
               <th>${escapeHtml(entry.payload.kind === "quick" ? labels.fieldHeader : labels.categoryHeader)}</th>
               <th>${escapeHtml(entry.payload.kind === "quick" ? labels.valueHeader : labels.netWealthHeader)}</th>
-              ${entry.payload.kind === "quick" ? "" : `<th>${escapeHtml(labels.zakatDueHeader)}</th>`}
+              ${
+                entry.payload.kind === "quick"
+                  ? ""
+                  : `<th>${escapeHtml(
+                      entry.payload.finalCalculation?.hasDebtLineItem
+                        ? labels.zakatBeforeAdjustmentsHeader
+                        : labels.zakatDueHeader,
+                    )}</th>`
+              }
             </tr>
           </thead>
           <tbody>${body}</tbody>
         </table>
+        ${detailedFinalSection}
         <p class="note">${escapeHtml(labels.generatedNote)}</p>
       </body>
     </html>

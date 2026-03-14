@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, Text, View } from "react-native";
+import { I18nManager, StyleSheet, Text, View } from "react-native";
 import {
   AppCard,
   AppScreen,
@@ -22,6 +22,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation(["common", "home"]);
   const { user } = useAuthStore();
+  const isRTL = I18nManager.isRTL;
   const currency = useAppPreferencesStore((s) => s.currency);
   const nisabMethod = useNisabSettingsStore((s) => s.nisabMethod);
   const silverPricePerGram = useNisabSettingsStore((s) => s.silverPricePerGram);
@@ -33,14 +34,17 @@ export default function HomeScreen() {
   return (
     <AppScreen>
       <View style={styles.greetingWrap}>
-        <Text style={styles.greetingTitle}>{t("home:greetingTitle")}</Text>
-        <Text style={styles.greetingSubtitle}>
+        <Text style={[styles.greetingTitle, isRTL && styles.rtlText]}>{t("home:greetingTitle")}</Text>
+        <Text style={[styles.greetingSubtitle, isRTL && styles.rtlText]}>
           {t("home:greetingSubtitle")}
         </Text>
       </View>
 
       <PrimaryButton label={t("home:actions.calculate")} iconName="calculator-outline" onPress={() => router.push("/(public)/calculate")} />
-      <SecondaryButton label={t("home:actions.detailed")} onPress={() => router.push("/(public)/calculate/detailed")} />
+      <SecondaryButton
+        label={t("home:actions.detailed")}
+        onPress={() => router.push("/(public)/calculate/detailed/setup")}
+      />
 
       <NisabCard
         amount={formatMoney(nisabValue, currency)}
@@ -53,7 +57,7 @@ export default function HomeScreen() {
       />
 
       <SectionTitle title={t("home:quickLinksTitle")} />
-      <View style={styles.quickLinks}>
+      <View style={[styles.quickLinks, isRTL && styles.rowReverse]}>
         <IconTileButton label={t("common:navigation.history")} icon="time-outline" onPress={() => router.push("/(public)/history")} />
         <IconTileButton label={t("common:navigation.learn")} icon="book-outline" onPress={() => router.push("/(public)/zakat-explanations")} />
         <IconTileButton label={t("home:quickLinks.nisab")} icon="options-outline" onPress={() => router.push("/(public)/settings")} />
@@ -68,7 +72,7 @@ export default function HomeScreen() {
         ) : (
           <>
             <SectionTitle title={t("home:guest.title")} subtitle={t("home:guest.subtitle")} />
-            <View style={styles.authButtons}>
+            <View style={[styles.authButtons, isRTL && styles.rowReverse]}>
               <SecondaryButton style={styles.halfButton} label={t("common:login")} onPress={() => router.push("/auth/login")} />
               <PrimaryButton style={styles.halfButton} label={t("common:signup")} onPress={() => router.push("/auth/signup")} />
             </View>
@@ -104,5 +108,12 @@ const styles = StyleSheet.create({
   },
   halfButton: {
     flex: 1,
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
+  },
+  rtlText: {
+    textAlign: "right",
+    writingDirection: "rtl",
   },
 });

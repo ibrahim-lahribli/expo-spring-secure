@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { I18nManager, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button, Dialog, Portal } from "react-native-paper";
 import { AppScreen, PrimaryButton } from "../../../components/ui";
@@ -29,6 +29,7 @@ function formatDate(value: string) {
 export default function HistoryScreen() {
   const router = useRouter();
   const { t } = useTranslation("common");
+  const isRTL = I18nManager.isRTL;
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [entryIdPendingDelete, setEntryIdPendingDelete] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export default function HistoryScreen() {
 
   return (
     <AppScreen contentContainerStyle={styles.screenContent}>
-      <View style={styles.filterContainer}>
+      <View style={[styles.filterContainer, isRTL && styles.rowReverse]}>
         {(["all", "quick", "detailed"] as FilterMode[]).map((mode) => {
           const isActive = filterMode === mode;
           const label = t(`history.filters.${mode}`);
@@ -96,8 +97,8 @@ export default function HistoryScreen() {
         });
         return (
           <View key={entry.id} style={styles.entryCard}>
-            <View style={styles.entryMetaRow}>
-              <View style={styles.dateRow}>
+            <View style={[styles.entryMetaRow, isRTL && styles.rowReverse]}>
+              <View style={[styles.dateRow, isRTL && styles.rowReverse]}>
                 <Ionicons name="calendar-outline" size={12} color={appColors.textSecondary} />
                 <Text style={styles.metaText}>{formatDate(entry.createdAt)}</Text>
               </View>
@@ -108,19 +109,22 @@ export default function HistoryScreen() {
                 ? t("history.quickCalculation")
                 : t("history.detailedCalculation")}
             </Text>
-            <View style={styles.amountRow}>
+            <View style={[styles.amountRow, isRTL && styles.rowReverse]}>
               <Text style={styles.amountText}>{totalDisplay.primaryDisplay}</Text>
               {totalDisplay.suffixDisplay ? <Text style={styles.amountSuffix}>+ {totalDisplay.suffixDisplay}</Text> : null}
               <Text style={styles.amountMeta}>{t("history.zakatDue")}</Text>
             </View>
 
-            <View style={styles.actionsRow}>
-              <Pressable style={styles.actionBtn} onPress={() => router.push(`/(public)/history/${entry.id}` as never)}>
+            <View style={[styles.actionsRow, isRTL && styles.rowReverse]}>
+              <Pressable
+                style={[styles.actionBtn, isRTL && styles.rowReverse]}
+                onPress={() => router.push(`/(public)/history/${entry.id}` as never)}
+              >
                 <Ionicons name="eye-outline" size={14} color={appColors.textSecondary} />
                 <Text style={styles.actionLabel}>{t("history.view")}</Text>
               </Pressable>
               <Pressable
-                style={[styles.actionBtn, styles.actionDeleteBtn]}
+                style={[styles.actionBtn, styles.actionDeleteBtn, isRTL && styles.rowReverse]}
                 onPress={() => confirmDelete(entry.id)}
               >
                 <Ionicons name="trash-outline" size={14} color={appColors.error} />
@@ -308,5 +312,8 @@ const styles = StyleSheet.create({
     ...appTypography.body,
     textAlign: "center",
     color: appColors.textSecondary,
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
   },
 });

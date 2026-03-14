@@ -37,16 +37,33 @@ export type QuickHistoryPayload = {
 export type DetailedHistoryLineItem = {
   id: string;
   category: string;
-  label: string;
+  label?: string;
   totalZakat: number;
   totalWealth: number;
   details: string[];
+};
+
+export type DetailedHistoryFinalCalculation = {
+  cashBaseBeforeDebt: number;
+  debtAdjustment: {
+    collectibleReceivablesCurrent: number;
+    doubtfulReceivables: number;
+    debtsYouOweDueNow: number;
+    netAdjustment: number;
+  };
+  finalZakatableBase: number;
+  finalZakatRate: number;
+  adjustedCashPoolZakatDue?: number;
+  independentNonDebtAdjustableCashDue?: number;
+  finalZakatDue: number;
+  hasDebtLineItem: boolean;
 };
 
 export type DetailedHistoryPayload = {
   kind: "detailed";
   lineItems: DetailedHistoryLineItem[];
   combinedTotal: number;
+  finalCalculation?: DetailedHistoryFinalCalculation;
 };
 
 export type HistoryPayload = QuickHistoryPayload | DetailedHistoryPayload;

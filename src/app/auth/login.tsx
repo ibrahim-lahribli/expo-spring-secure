@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Alert, I18nManager, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { getGuestHistoryEntries } from "../../features/history/storage";
 import { LoginFormData, loginSchema } from "../../lib/auth";
 import { useAuthStore } from "../../store/authStore";
@@ -15,8 +15,10 @@ export default function LoginScreen() {
   const router = useRouter();
   const { signIn, isLoading } = useAuthStore();
   const { t } = useTranslation(["common", "auth"]);
-  const [authError, setAuthError] = React.useState<string | null>(null);
+  const [authErrorKey, setAuthErrorKey] = React.useState<string | null>(null);
+  const [authErrorRaw, setAuthErrorRaw] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
+  const isRTL = I18nManager.isRTL;
   const isCompact = width < 380;
   const isWide = width >= 768;
 
@@ -29,21 +31,25 @@ export default function LoginScreen() {
   });
 
   const onLogin = async (data: LoginFormData) => {
-    setAuthError(null);
+    setAuthErrorKey(null);
+    setAuthErrorRaw(null);
     const { error } = await signIn(data.email, data.password);
 
     if (error) {
-      let errorMessage = t("auth:loginFailed");
+      let nextErrorKey: string | null = "auth:loginFailed";
+      let nextErrorRaw: string | null = null;
       if (error.message?.includes("Invalid login credentials")) {
-        errorMessage = t("auth:invalidCredentials");
+        nextErrorKey = "auth:invalidCredentials";
       } else if (error.message?.includes("Email not confirmed")) {
-        errorMessage = t("auth:emailNotConfirmed");
+        nextErrorKey = "auth:emailNotConfirmed";
       } else if (error.message?.includes("Too many requests")) {
-        errorMessage = t("auth:tooManyAttempts");
+        nextErrorKey = "auth:tooManyAttempts";
       } else if (error.message) {
-        errorMessage = error.message;
+        nextErrorKey = null;
+        nextErrorRaw = error.message;
       }
-      setAuthError(errorMessage);
+      setAuthErrorKey(nextErrorKey);
+      setAuthErrorRaw(nextErrorRaw);
       return;
     }
 
@@ -69,8 +75,8 @@ export default function LoginScreen() {
   };
 
   const passwordFooterError =
-    errors.password?.message ??
-    (authError ? t("auth:loginScreen.passwordHintError") : undefined);
+    (errors.password?.message ? t(String(errors.password.message) as never) : undefined) ??
+    (authErrorKey || authErrorRaw ? t("auth:loginScreen.passwordHintError") : undefined);
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -87,11 +93,19 @@ export default function LoginScreen() {
             <Pressable
               onPress={() => router.back()}
               hitSlop={10}
-              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.backButton,
+                isRTL && styles.backButtonRtl,
+                pressed && styles.pressed,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={t("common:back")}
             >
-              <Ionicons name="arrow-back" size={20} color={appColors.primary} />
+              <Ionicons
+                name={isRTL ? "arrow-forward" : "arrow-back"}
+                size={20}
+                color={appColors.primary}
+              />
             </Pressable>
             <Text style={styles.topBarTitle}>{t("auth:login")}</Text>
           </View>
@@ -106,10 +120,12 @@ export default function LoginScreen() {
           </View>
 
           <View style={[styles.formCard, isWide ? styles.formCardWide : null, isCompact ? styles.formCardCompact : null]}>
-            {authError ? (
-              <View style={styles.authErrorCard}>
+            {authErrorKey || authErrorRaw ? (
+              <View style={[styles.authErrorCard, isRTL && styles.rowReverse]}>
                 <Ionicons name="alert-circle-outline" size={16} color={appColors.error} />
-                <Text style={styles.authErrorText}>{authError}</Text>
+                <Text style={styles.authErrorText}>
+                  {authErrorKey ? t(authErrorKey as never) : authErrorRaw}
+                </Text>
               </View>
             ) : null}
 
@@ -127,8 +143,9 @@ export default function LoginScreen() {
                     textContentType="emailAddress"
                     onBlur={onBlur}
                     onChangeText={(text) => {
-                      if (authError) {
-                        setAuthError(null);
+                      if (authErrorKey || authErrorRaw) {
+                        setAuthErrorKey(null);
+                        setAuthErrorRaw(null);
                       }
                       onChange(text);
                     }}
@@ -136,7 +153,9 @@ export default function LoginScreen() {
                     style={[styles.input, isCompact ? styles.inputCompact : null, errors.email ? styles.errorInput : null]}
                     placeholderTextColor="#83918D"
                   />
-                  {errors.email?.message ? <Text style={styles.fieldError}>{errors.email.message}</Text> : null}
+                  {errors.email?.message ? (
+                    <Text style={styles.fieldError}>{t(String(errors.email.message) as never)}</Text>
+                  ) : null}
                 </View>
               )}
             />
@@ -150,8 +169,9 @@ export default function LoginScreen() {
                   <View
                     style={[
                       styles.passwordInputWrap,
+                      isRTL && styles.rowReverse,
                       isCompact ? styles.passwordInputWrapCompact : null,
-                      errors.password || authError ? styles.errorInput : null,
+                      errors.password || authErrorKey || authErrorRaw ? styles.errorInput : null,
                     ]}
                   >
                     <TextInput
@@ -161,8 +181,9 @@ export default function LoginScreen() {
                       textContentType="password"
                       onBlur={onBlur}
                       onChangeText={(text) => {
-                        if (authError) {
-                          setAuthError(null);
+                        if (authErrorKey || authErrorRaw) {
+                          setAuthErrorKey(null);
+                          setAuthErrorRaw(null);
                         }
                         onChange(text);
                       }}
@@ -178,7 +199,7 @@ export default function LoginScreen() {
                     </Pressable>
                   </View>
                   {passwordFooterError ? (
-                    <View style={styles.passwordErrorRow}>
+                    <View style={[styles.passwordErrorRow, isRTL && styles.rowReverse]}>
                       <Ionicons name="alert-circle-outline" size={13} color={appColors.error} />
                       <Text style={styles.fieldError}>{passwordFooterError}</Text>
                     </View>
@@ -217,14 +238,14 @@ export default function LoginScreen() {
             </Text>
           </Pressable>
 
-          <View style={styles.signUpRow}>
+          <View style={[styles.signUpRow, isRTL && styles.rowReverse]}>
             <Text style={styles.signUpPrompt}>{t("auth:dontHaveAccount")} </Text>
             <Pressable onPress={() => router.push("/auth/signup" as any)} style={({ pressed }) => [pressed && styles.pressed]}>
               <Text style={styles.signUpLink}>{t("auth:signup")}</Text>
             </Pressable>
           </View>
 
-          <View style={styles.securityRow}>
+          <View style={[styles.securityRow, isRTL && styles.rowReverse]}>
             <Ionicons name="lock-closed-outline" size={12} color="#90A29D" />
             <Text style={styles.securityText}>{t("auth:loginScreen.securityNote")}</Text>
           </View>
@@ -289,6 +310,10 @@ const styles = StyleSheet.create({
     height: 24,
     alignItems: "center",
     justifyContent: "center",
+  },
+  backButtonRtl: {
+    left: undefined,
+    right: 14,
   },
   topBarTitle: {
     color: "#1B615C",
@@ -396,8 +421,8 @@ const styles = StyleSheet.create({
     borderColor: "#D6DDDB",
     borderRadius: 6,
     backgroundColor: "#FFFFFF",
-    paddingLeft: 12,
-    paddingRight: 6,
+    paddingStart: 12,
+    paddingEnd: 6,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -509,5 +534,8 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.75,
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
   },
 });

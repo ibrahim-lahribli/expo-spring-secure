@@ -2,6 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
+  I18nManager,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -65,6 +66,7 @@ type ButtonProps = {
 
 export function PrimaryButton({ label, onPress, disabled, loading, style, iconName, testID }: ButtonProps) {
   const { t } = useTranslation("common");
+  const isRTL = I18nManager.isRTL;
   return (
     <Pressable
       onPress={onPress}
@@ -74,6 +76,7 @@ export function PrimaryButton({ label, onPress, disabled, loading, style, iconNa
         styles.primaryButton,
         (pressed || loading) && styles.primaryButtonPressed,
         (disabled || loading) && styles.disabledButton,
+        isRTL && styles.rowReverse,
         style,
       ]}
     >
@@ -85,6 +88,7 @@ export function PrimaryButton({ label, onPress, disabled, loading, style, iconNa
 
 export function SecondaryButton({ label, onPress, disabled, loading, style, iconName, testID }: ButtonProps) {
   const { t } = useTranslation("common");
+  const isRTL = I18nManager.isRTL;
   return (
     <Pressable
       onPress={onPress}
@@ -94,6 +98,7 @@ export function SecondaryButton({ label, onPress, disabled, loading, style, icon
         styles.secondaryButton,
         (pressed || loading) && styles.secondaryButtonPressed,
         (disabled || loading) && styles.disabledButton,
+        isRTL && styles.rowReverse,
         style,
       ]}
     >
@@ -128,9 +133,10 @@ export function AppCard({ children, style }: { children: React.ReactNode; style?
 
 export function NisabCard({ amount, helper }: { amount: string; helper: string }) {
   const { t } = useTranslation("common");
+  const isRTL = I18nManager.isRTL;
   return (
     <View style={styles.nisabCard}>
-      <View style={styles.nisabTitleWrap}>
+      <View style={[styles.nisabTitleWrap, isRTL && styles.rowReverse]}>
         <Ionicons name="link-outline" size={16} color={appColors.accent} />
         <Text style={styles.nisabTitle}>{t("nisab.current")}</Text>
       </View>
@@ -177,8 +183,9 @@ export function SegmentedControl<T extends string>({
   options: { label: string; value: T }[];
   onChange: (value: T) => void;
 }) {
+  const isRTL = I18nManager.isRTL;
   return (
-    <View style={styles.segmentRow}>
+    <View style={[styles.segmentRow, isRTL && styles.rowReverse]}>
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -216,11 +223,12 @@ export function ResultSummaryCard({
   rows: { label: string; value: string }[];
   footerLabel?: string;
 }) {
+  const isRTL = I18nManager.isRTL;
   return (
     <AppCard>
       <Text style={styles.resultTitle}>{title}</Text>
       {rows.map((row) => (
-        <View key={`${row.label}-${row.value}`} style={styles.resultRow}>
+        <View key={`${row.label}-${row.value}`} style={[styles.resultRow, isRTL && styles.rowReverse]}>
           <Text style={styles.resultLabel}>{row.label}</Text>
           <Text style={styles.resultValue}>{row.value}</Text>
         </View>
@@ -243,13 +251,26 @@ export function ListRow({
   danger?: boolean;
   rightLabel?: string;
 }) {
+  const isRTL = I18nManager.isRTL;
   return (
-    <Pressable onPress={onPress} disabled={!onPress} style={styles.listRow}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={[styles.listRow, isRTL && styles.rowReverse]}
+    >
       <View style={styles.listRowLeft}>
         <Text style={[styles.listRowTitle, danger && styles.listRowDanger]}>{title}</Text>
         {subtitle ? <Text style={styles.listRowSubtitle}>{subtitle}</Text> : null}
       </View>
-      {rightLabel ? <Text style={styles.listRowRight}>{rightLabel}</Text> : <MaterialCommunityIcons name="chevron-right" size={20} color={appColors.textSecondary} />}
+      {rightLabel ? (
+        <Text style={styles.listRowRight}>{rightLabel}</Text>
+      ) : (
+        <MaterialCommunityIcons
+          name={isRTL ? "chevron-left" : "chevron-right"}
+          size={20}
+          color={appColors.textSecondary}
+        />
+      )}
     </Pressable>
   );
 }
@@ -588,5 +609,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: appColors.textPrimary,
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
   },
 });

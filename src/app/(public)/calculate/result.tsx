@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { I18nManager, Pressable, StyleSheet, Text, View } from "react-native";
 import { upsertGuestHistoryEntry } from "../../../features/history/storage";
 import type { HistoryEntry } from "../../../features/history/types";
 import { formatMoney } from "../../../lib/currency";
@@ -30,6 +30,7 @@ function toParamString(value: string | string[] | undefined): string {
 export default function QuickCalculationResultScreen() {
   const router = useRouter();
   const { t } = useTranslation("common");
+  const isRTL = I18nManager.isRTL;
   const setDraft = useQuickCalculationDraftStore((state) => state.setDraft);
   const currency = useAppPreferencesStore((state) => state.currency);
   const params = useLocalSearchParams<{
@@ -77,11 +78,7 @@ export default function QuickCalculationResultScreen() {
         override: nisabOverride > 0 ? nisabOverride : null,
       },
       summary: {
-        categoriesUsed: [
-          t("history.quickCategories.cash"),
-          t("history.quickCategories.gold"),
-          t("history.quickCategories.debt"),
-        ],
+        categoriesUsed: ["cash", "gold", "quick_debt"],
         itemCount: 3,
       },
       payload: {
@@ -115,7 +112,13 @@ export default function QuickCalculationResultScreen() {
         <Text style={styles.heading}>{t("quickResult.title")}</Text>
 
         <View style={styles.resultCard}>
-          <View style={[styles.statusPill, result.hasZakatDue ? styles.statusPillAbove : styles.statusPillBelow]}>
+          <View
+            style={[
+              styles.statusPill,
+              isRTL && styles.rowReverse,
+              result.hasZakatDue ? styles.statusPillAbove : styles.statusPillBelow,
+            ]}
+          >
             <Ionicons name={result.hasZakatDue ? "checkmark-circle-outline" : "alert-circle-outline"} size={14} color="#fff" />
             <Text style={styles.statusText}>
               {result.hasZakatDue
@@ -124,12 +127,12 @@ export default function QuickCalculationResultScreen() {
             </Text>
           </View>
 
-          <View style={styles.row}>
+          <View style={[styles.row, isRTL && styles.rowReverse]}>
             <Text style={styles.label}>{t("quickResult.rows.netWealth")}</Text>
             <Text style={styles.value}>{formatMoney(result.totalWealth, currency)}</Text>
           </View>
 
-          <View style={styles.row}>
+          <View style={[styles.row, isRTL && styles.rowReverse]}>
             <Text style={styles.label}>{t("quickResult.rows.nisabThreshold")}</Text>
             <Text style={styles.value}>{formatMoney(result.nisab, currency)}</Text>
           </View>
@@ -160,7 +163,7 @@ export default function QuickCalculationResultScreen() {
           onPress={handleEditInputs}
         />
 
-        <Pressable onPress={() => router.push("/calculate/detailed")} style={styles.linkWrap}>
+        <Pressable onPress={() => router.push("/calculate/detailed/setup")} style={styles.linkWrap}>
           <Text style={styles.linkText}>{t("quickResult.actions.goToDetailed")}</Text>
         </Pressable>
 
@@ -223,6 +226,9 @@ const styles = StyleSheet.create({
   value: {
     ...appTypography.body,
     fontWeight: "700",
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
   },
   totalWrap: {
     alignItems: "center",

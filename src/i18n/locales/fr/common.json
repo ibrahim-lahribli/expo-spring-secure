@@ -46,7 +46,8 @@
     "detailedCalculator": "Calcul détaillé",
     "quickResult": "Résultat rapide",
     "learnZakat": "Comprendre la zakat",
-    "historyDetails": "Détails de l'historique"
+    "historyDetails": "Détails de l'historique",
+    "detailedSetup": "Préparation détaillée"
   },
   "validation": {
     "required": "Ce champ est requis",
@@ -146,6 +147,23 @@
     "categoriesUsed": "Catégories utilisées",
     "inputsSnapshot": "Instantané des entrées",
     "lineItemBreakdown": "Détail des lignes",
+    "zakatBeforeAdjustments": "Zakat avant ajustements",
+    "categoryZakatBeforeAdjustmentsValue": "Zakat de la catégorie avant ajustements : {value}",
+    "finalCalculation": {
+      "title": "Calcul final de la zakat",
+      "debtAdjustmentTitle": "Ajustement des dettes",
+      "collectibleReceivables": "Créances recouvrables",
+      "doubtfulReceivables": "Créances douteuses",
+      "doubtfulReceivablesExcluded": "Créances douteuses (exclues)",
+      "debtsDueNow": "Dettes actuellement exigibles",
+      "debtNetImpact": "Impact net sur la base",
+      "finalZakatableBase": "Base zakatable finale",
+      "finalZakatDueRate": "Zakat finale due (2,5%)",
+      "adjustedCashPoolDue": "Zakat due du pool de tresorerie ajuste (2,5%)",
+      "independentCashDue": "Montant en especes des categories non ajustables par dette",
+      "totalPayableDueNow": "Total payable maintenant",
+      "doubtfulExcludedNote": "Les creances douteuses sont exclues jusqu'a l'encaissement."
+    },
     "detailRows": {
       "cashBank": "Espèces et banque",
       "goldSilver": "Or et argent",
@@ -276,7 +294,12 @@
     "hero": {
       "overline": "CALCULATEUR DETAILLE DE ZAKAT",
       "selectCategory": "Choisir une categorie",
-      "categoriesAdded": "{{count}} categories ajoutees"
+      "categoriesAdded": "{count} categories ajoutees",
+      "hawlSetup": "Configuration du hawl",
+      "hawlSummaryModeOnly": "Mode de suivi : {mode}",
+      "hawlSummaryWithDate": "Mode de suivi : {mode} - Date de reference : {date}",
+      "hawlSummaryEstimatedToday": "Mode de suivi : {mode} - Commencer aujourd'hui",
+      "hawlSummaryNotSet": "Mode de suivi non defini"
     },
     "total": {
       "label": "Total"
@@ -284,6 +307,7 @@
     "instructions": "Touchez une categorie ci-dessous pour l'ajouter a votre calcul de zakat.",
     "addedPill": "Ajoute",
     "backToCategories": "Retour aux categories",
+    "backToSetup": "Retour a la configuration",
     "addCategory": "Ajouter cette categorie",
     "saveToHistory": "Enregistrer dans l'historique",
     "howCalculated": "Comment ce calcul est-il fait ?",
@@ -300,6 +324,7 @@
       "nisabValue": "Nisab : {value}",
       "netWealthValue": "Patrimoine net : {value}",
       "zakatDueValue": "Zakat due : {value}",
+      "zakatBeforeAdjustmentsValue": "Zakat avant ajustements : {value}",
       "typeValue": "Type : {value}",
       "ownedValue": "Possede : {value}",
       "dueAnimalsValue": "Animaux dus : {value}",
@@ -322,7 +347,27 @@
       "pricePerKgValue": "Prix/kg : {value}",
       "cashEquivalentIncludedValue": "Equivalent en especes inclus : {value}",
       "cashEquivalentValue": "Equivalent en especes : {value}",
-      "cashEquivalentNotSet": "Equivalent en especes : non defini"
+      "cashEquivalentNotSet": "Equivalent en especes : non defini",
+      "debtCollectibleValue": "Creances recouvrables : {value}",
+      "debtDoubtfulValue": "Creances douteuses : {value}",
+      "debtOwedNowValue": "Dettes actuellement exigibles : {value}",
+      "debtCollectibleAppliedValue": "Creances recouvrables (+) : {value}",
+      "debtOwedNowAppliedValue": "Dettes actuellement exigibles (-) : {value}",
+      "debtDoubtfulExcludedValue": "Creances douteuses (exclues) : {value}",
+      "debtDoubtfulExcludedNote": "Les creances douteuses sont exclues jusqu'a l'encaissement.",
+      "debtNetImpactValue": "Impact net sur la base : {value}",
+      "debtAdjustmentTitle": "Ajustement des dettes",
+      "debtAdjustmentSeeSection": "Les chiffres de dette sont affiches dans la section d'ajustement des dettes ci-dessous.",
+      "debtScopeNote": "Cet ajustement s'applique seulement aux categories monetairees comme salaire, commerce et activite.",
+      "debtImpactAppliedBadge": "Ajustement des dettes applique",
+      "debtImpactNotAppliedBadge": "Ajustement des dettes non applique",
+      "belowNisabAfterDebtTitle": "Sous le nisab apres ajustement des dettes",
+      "belowNisabAfterDebtBody": "Vos dettes ont fait passer la base zakatable ajustee sous le nisab. Aucune zakat n'est due pour ce pool.",
+      "finalZakatableBaseValue": "Base zakatable finale : {value}",
+      "finalZakatCalculationTitle": "Calcul final de la zakat",
+      "finalZakatDueRateValue": "Zakat due du pool de tresorerie ajuste (2,5%) : {value}",
+      "independentCashDueValue": "Montant en especes des categories non ajustables par dette : {value}",
+      "totalPayableDueNowValue": "Total payable maintenant : {value}"
     },
     "preview": {
       "title": "Apercu en direct",
@@ -332,7 +377,9 @@
       "harvestQuantity": "Quantite recoltee",
       "zakatDue": "Zakat due",
       "zakatDueCashEstimate": "Zakat due (estimation en especes)",
-      "zakatDueProduce": "Zakat due (en nature)"
+      "zakatDueProduce": "Zakat due (en nature)",
+      "debtNetImpact": "Impact net des dettes",
+      "finalZakatableBase": "Base zakatable finale"
     },
     "livestock": {
       "noDue": "Aucune zakat due",
@@ -355,7 +402,11 @@
       "modeTrade": "Biens commerciaux",
       "modeHarvest": "Recolte agricole",
       "wateringNatural": "Irrigation naturelle (10%)",
-      "wateringPaidIrrigation": "Irrigation payante (5%)"
+      "wateringPaidIrrigation": "Irrigation payante (5%)",
+      "debtCollectible": "Creances recouvrables",
+      "debtDoubtful": "Creances douteuses (exclues)",
+      "debtOwedNow": "Dettes exigibles",
+      "debtNetImpact": "Impact net"
     },
     "validation": {
       "monthlyIncomeRequired": "Veuillez saisir votre revenu mensuel.",
@@ -363,7 +414,8 @@
       "harvestQuantityRequired": "Veuillez saisir la quantite recoltee en kg.",
       "marketValueRequired": "Veuillez saisir la valeur de marche.",
       "ownedCountInteger": "Le nombre possede doit etre un entier >= 0.",
-      "cashEstimatePositive": "Saisissez une estimation en especes > 0."
+      "cashEstimatePositive": "Saisissez une estimation en especes > 0.",
+      "debtAnyRequired": "Saisissez au moins une valeur de dette."
     },
     "categories": {
       "salary": {
@@ -431,9 +483,14 @@
       },
       "debt": {
         "owedToYouTitle": "Argent qu'on vous doit",
-        "owedToYouBody": "Si recouvrable bientot, incluez-le. Si douteux, traiter la zakat a l'encaissement.",
+        "owedToYouBody": "Les creances recouvrables sont comptees dans ce cycle. Les creances douteuses sont differees jusqu'a l'encaissement.",
         "youOweTitle": "Argent que vous devez",
-        "youOweBody": "Deductez d'abord les dettes exigibles puis verifiez le nisab restant."
+        "youOweBody": "Deductez d'abord les dettes exigibles puis verifiez le nisab restant.",
+        "collectiblePlaceholder": "Creances recouvrables (cycle actuel)",
+        "doubtfulPlaceholder": "Creances douteuses (enregistrement seulement)",
+        "owedNowPlaceholder": "Dettes que vous devez actuellement",
+        "whatCountsLink": "Vous ne savez pas ce qui compte comme dette ?",
+        "whatCountsExamples": "Exemples typiques : factures fournisseurs impayees, prets personnels court terme, factures dues avant votre date de zakat."
       },
       "produce": {
         "harvestMode": "Recolte agricole",
@@ -446,7 +503,8 @@
         "tradeRule": "Traite comme biens commerciaux : 2,5% si la valeur de marche atteint le nisab.",
         "harvestRule": "Le nisab des cultures est 653 kg (5 awsuq). Si atteint : 10% naturel, 5% payant. Ajoutez le prix/kg pour une estimation en especes."
       }
-    }
+    },
+    "updateDebt": "Mettre a jour la dette"
   },
   "livestock": {
     "dueItem": {
@@ -461,6 +519,61 @@
         "tabi": "tabi",
         "musinnah": "musinnah"
       }
+    }
+  },
+  "detailedSetup": {
+    "title": "Préparation du calcul détaillé",
+    "subtitle": "Avant de choisir les catégories, consultez le fonctionnement du calcul détaillé et définissez le suivi du hawl pour cette session.",
+    "cards": {
+      "detailed": {
+        "title": "Comment fonctionne le calcul détaillé ?",
+        "body1": "Le calculateur détaillé vous permet de calculer la zakat sur plusieurs types de biens en même temps, comme l’épargne provenant du salaire, les activités commerciales, le bétail ou les produits agricoles.",
+        "body2": "L’application calcule chaque catégorie séparément, puis additionne uniquement les biens pour lesquels la zakat est due maintenant.",
+        "noteTitle": "Important :",
+        "noteBody": "Certaines catégories peuvent apparaître dans le résumé mais ne pas être incluses dans le total si leur zakat n’est pas encore due."
+      },
+      "debt": {
+        "title": "Comment les dettes influencent-elles la zakat ?",
+        "body1": "Les dettes peuvent modifier le montant des biens soumis à la zakat.",
+        "body2": "Dans le calcul détaillé, l’application prend en compte :",
+        "bullet1": "les créances que vous pouvez récupérer",
+        "bullet2": "les dettes que vous devez rembourser",
+        "noteTitle": "Remarque :",
+        "noteBody": "Cet ajustement s’applique uniquement aux biens monétaires soumis à la zakat, comme l’épargne ou les biens commerciaux. Certaines catégories comme le bétail ou les récoltes ne sont pas affectées par les dettes dans le calcul."
+      },
+      "hawl": {
+        "title": "Qu’est-ce que le Hawl (l’année de zakat) ?",
+        "body1": "Pour certains types de biens, la zakat devient obligatoire après qu’une année lunaire complète se soit écoulée alors que la richesse reste au-dessus du nisab. Cela s’appelle le hawl.",
+        "body2": "Dans cette étape, nous allons déterminer comment vous suivez votre année de zakat afin de savoir :",
+        "bullet1": "si la zakat est due maintenant",
+        "bullet2": "ou si elle sera due plus tard.",
+        "noteTitle": "Remarque :",
+        "noteBody": "Certaines catégories, comme les récoltes agricoles, ne nécessitent pas de hawl et la zakat est due au moment de la récolte."
+      }
+    },
+    "form": {
+      "question": "Comment suivez-vous votre année de zakat ?",
+      "referenceDateLabel": "Date de référence",
+      "referenceDatePlaceholder": "YYYY-MM-DD",
+      "options": {
+        "yearly": "J’ai une date annuelle de zakat",
+        "nisab": "Je connais la date où ma richesse a atteint le nisab",
+        "estimated": "Je ne suis pas sûr"
+      },
+      "yearly": {
+        "saveAsDefault": "Enregistrer par défaut"
+      },
+      "estimated": {
+        "question": "Choisissez une option :",
+        "startToday": "commencer à partir d’aujourd’hui",
+        "approximateDate": "date approximative"
+      }
+    },
+    "validation": {
+      "trackingModeRequired": "Veuillez choisir comment vous suivez votre année de zakat.",
+      "referenceDateRequired": "Veuillez renseigner une date de référence.",
+      "estimatedChoiceRequired": "Veuillez choisir comment commencer le suivi estimé du hawl.",
+      "invalidDate": "Veuillez saisir une date valide au format YYYY-MM-DD."
     }
   }
 }

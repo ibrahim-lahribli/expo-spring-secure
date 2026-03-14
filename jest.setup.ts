@@ -49,13 +49,16 @@ jest.mock("expo-localization", () => ({
 }));
 
 // expo-router mock
+const mockRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  back: jest.fn(),
+  navigate: jest.fn(),
+};
 jest.mock("expo-router", () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
-    navigate: jest.fn(),
-  }),
+  __routerMock: mockRouter,
+  useRouter: () => mockRouter,
+  useLocalSearchParams: jest.fn(() => ({})),
   useSegments: () => [],
   usePathname: () => "/",
   Link: ({ children }: any) => children,
@@ -67,6 +70,37 @@ jest.mock("expo-router", () => ({
     Screen: () => null,
   },
 }));
+
+// vector icons mock to avoid async font-loading warnings in tests
+jest.mock("@expo/vector-icons", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+  const MockIcon = ({ name, children, ...props }: any) =>
+    React.createElement(Text, props, children ?? name ?? "icon");
+  return new Proxy(
+    {},
+    {
+      get: () => MockIcon,
+    },
+  );
+});
+
+// datetime picker mock
+jest.mock(
+  "@react-native-community/datetimepicker",
+  () => {
+    const React = require("react");
+    const { View } = require("react-native");
+    const MockDateTimePicker = (props: any) =>
+      React.createElement(View, { ...props, testID: props.testID ?? "date-time-picker" });
+
+    return {
+      __esModule: true,
+      default: MockDateTimePicker,
+    };
+  },
+  { virtual: true },
+);
 
 // expo-updates mock
 jest.mock("expo-updates", () => ({

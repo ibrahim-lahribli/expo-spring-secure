@@ -25,6 +25,6 @@ const styles = StyleSheet.create({
     minWidth: minTouchHeight,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: appSpacing.sm,
+    marginEnd: appSpacing.sm,
   },
 });

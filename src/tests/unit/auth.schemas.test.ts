@@ -16,7 +16,7 @@ describe("loginSchema", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0].message).toBe("Invalid email address");
+      expect(result.error.issues[0].message).toBe("auth:validation.invalidEmail");
     }
   });
 
@@ -27,9 +27,7 @@ describe("loginSchema", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0].message).toBe(
-        "Password must be at least 6 characters",
-      );
+      expect(result.error.issues[0].message).toBe("auth:validation.passwordMinLength");
     }
   });
 
@@ -70,9 +68,7 @@ describe("signupSchema", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0].message).toBe(
-        "Name must be at least 2 characters",
-      );
+      expect(result.error.issues[0].message).toBe("auth:validation.nameMinLength");
     }
   });
 
@@ -88,7 +84,7 @@ describe("signupSchema", () => {
       const confirmPasswordError = result.error.issues.find(
         (e) => e.path[0] === "confirmPassword",
       );
-      expect(confirmPasswordError?.message).toBe("Passwords don't match");
+      expect(confirmPasswordError?.message).toBe("auth:validation.confirmPasswordMatch");
     }
   });
 
@@ -101,7 +97,7 @@ describe("signupSchema", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0].message).toBe("Invalid email address");
+      expect(result.error.issues[0].message).toBe("auth:validation.invalidEmail");
     }
   });
 
@@ -114,9 +110,7 @@ describe("signupSchema", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0].message).toBe(
-        "Password must be at least 6 characters",
-      );
+      expect(result.error.issues[0].message).toBe("auth:validation.passwordMinLength");
     }
   });
 });

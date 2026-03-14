@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Alert, I18nManager, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SignupFormData, signupSchema } from "../../lib/auth";
 import { useAuthStore } from "../../store/authStore";
 import { appColors } from "../../theme/designSystem";
@@ -16,6 +16,7 @@ export default function SignupScreen() {
   const { t } = useTranslation(["common", "auth"]);
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
+  const isRTL = I18nManager.isRTL;
   const isCompact = width < 380;
   const isWide = width >= 768;
 
@@ -31,17 +32,22 @@ export default function SignupScreen() {
     const { error } = await signUp(data.email, data.password, data.name);
 
     if (error) {
-      let errorMessage = t("auth:signupFailed");
+      let errorKey: string | null = "auth:signupFailed";
+      let errorRaw: string | null = null;
       if (error.message?.includes("User already registered")) {
-        errorMessage = t("auth:userAlreadyExists");
+        errorKey = "auth:userAlreadyExists";
       } else if (error.message?.includes("Password should be")) {
-        errorMessage = t("auth:passwordRequirements");
+        errorKey = "auth:passwordRequirements";
       } else if (error.message?.includes("Invalid email")) {
-        errorMessage = t("auth:invalidEmail");
+        errorKey = "auth:invalidEmail";
       } else if (error.message) {
-        errorMessage = error.message;
+        errorKey = null;
+        errorRaw = error.message;
       }
-      Alert.alert(t("error"), errorMessage);
+      Alert.alert(
+        t("error"),
+        errorKey ? t(errorKey as never) : errorRaw ?? t("auth:signupFailed"),
+      );
       return;
     }
 
@@ -68,11 +74,19 @@ export default function SignupScreen() {
             <Pressable
               onPress={() => router.back()}
               hitSlop={10}
-              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.backButton,
+                isRTL && styles.backButtonRtl,
+                pressed && styles.pressed,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={t("common:back")}
             >
-              <Ionicons name="arrow-back" size={20} color={appColors.primary} />
+              <Ionicons
+                name={isRTL ? "arrow-forward" : "arrow-back"}
+                size={20}
+                color={appColors.primary}
+              />
             </Pressable>
             <Text style={styles.topBarTitle}>{t("auth:createAccount")}</Text>
           </View>
@@ -103,7 +117,9 @@ export default function SignupScreen() {
                     style={[styles.input, isCompact ? styles.inputCompact : null, errors.name ? styles.errorInput : null]}
                     placeholderTextColor="#6E8A86"
                   />
-                  {errors.name?.message ? <Text style={styles.fieldError}>{errors.name.message}</Text> : null}
+                  {errors.name?.message ? (
+                    <Text style={styles.fieldError}>{t(String(errors.name.message) as never)}</Text>
+                  ) : null}
                 </View>
               )}
             />
@@ -126,7 +142,9 @@ export default function SignupScreen() {
                     style={[styles.input, isCompact ? styles.inputCompact : null, errors.email ? styles.errorInput : null]}
                     placeholderTextColor="#6E8A86"
                   />
-                  {errors.email?.message ? <Text style={styles.fieldError}>{errors.email.message}</Text> : null}
+                  {errors.email?.message ? (
+                    <Text style={styles.fieldError}>{t(String(errors.email.message) as never)}</Text>
+                  ) : null}
                 </View>
               )}
             />
@@ -140,6 +158,7 @@ export default function SignupScreen() {
                   <View
                     style={[
                       styles.passwordInputWrap,
+                      isRTL && styles.rowReverse,
                       isCompact ? styles.passwordInputWrapCompact : null,
                       errors.password ? styles.errorInput : null,
                     ]}
@@ -160,12 +179,14 @@ export default function SignupScreen() {
                     </Pressable>
                   </View>
                   {errors.password?.message ? (
-                    <View style={styles.helperRow}>
+                    <View style={[styles.helperRow, isRTL && styles.rowReverse]}>
                       <Ionicons name="alert-circle-outline" size={13} color={appColors.error} />
-                      <Text style={styles.fieldError}>{errors.password.message}</Text>
+                      <Text style={styles.fieldError}>
+                        {t(String(errors.password.message) as never)}
+                      </Text>
                     </View>
                   ) : (
-                    <View style={styles.helperRow}>
+                    <View style={[styles.helperRow, isRTL && styles.rowReverse]}>
                       <Ionicons name="information-circle-outline" size={13} color="#7E8B88" />
                       <Text style={styles.helperText}>{t("auth:signupScreen.passwordHint")}</Text>
                     </View>
@@ -183,6 +204,7 @@ export default function SignupScreen() {
                   <View
                     style={[
                       styles.passwordInputWrap,
+                      isRTL && styles.rowReverse,
                       isCompact ? styles.passwordInputWrapCompact : null,
                       errors.confirmPassword ? styles.errorInput : null,
                     ]}
@@ -207,9 +229,11 @@ export default function SignupScreen() {
                     </Pressable>
                   </View>
                   {errors.confirmPassword?.message ? (
-                    <View style={styles.helperRow}>
+                    <View style={[styles.helperRow, isRTL && styles.rowReverse]}>
                       <Ionicons name="alert-circle-outline" size={13} color={appColors.error} />
-                      <Text style={styles.fieldError}>{t("common:validation.passwordMatch")}</Text>
+                      <Text style={styles.fieldError}>
+                        {t(String(errors.confirmPassword.message) as never)}
+                      </Text>
                     </View>
                   ) : null}
                 </View>
@@ -305,6 +329,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  backButtonRtl: {
+    left: undefined,
+    right: 14,
+  },
   topBarTitle: {
     color: "#1B615C",
     fontSize: 18,
@@ -395,8 +423,8 @@ const styles = StyleSheet.create({
     borderColor: "#D6DDDB",
     borderRadius: 6,
     backgroundColor: "#E7ECEB",
-    paddingLeft: 12,
-    paddingRight: 6,
+    paddingStart: 12,
+    paddingEnd: 6,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -505,5 +533,8 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.75,
+  },
+  rowReverse: {
+    flexDirection: "row-reverse",
   },
 });

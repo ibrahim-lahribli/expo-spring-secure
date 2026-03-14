@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { I18nManager, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { getCurrencyInputPrefix } from "../../lib/currency";
 import { calculateNisab } from "../../lib/zakat-calculation/nisab";
 import { ZakatCalculationResult } from "../../lib/zakat-calculation/types";
@@ -33,7 +33,7 @@ export function QuickCalculatorForm() {
   const [cash, setCash] = useState("");
   const [goldValue, setGoldValue] = useState("");
   const [debt, setDebt] = useState("");
-  const [debtError, setDebtError] = useState<string | undefined>();
+  const [debtErrorKey, setDebtErrorKey] = useState<string | undefined>();
   const currency = useAppPreferencesStore((state) => state.currency);
   const consumeDraft = useQuickCalculationDraftStore((state) => state.consumeDraft);
   const nisabMethod = useNisabSettingsStore((state) => state.nisabMethod);
@@ -45,7 +45,7 @@ export function QuickCalculatorForm() {
     setCash("");
     setGoldValue("");
     setDebt("");
-    setDebtError(undefined);
+    setDebtErrorKey(undefined);
   }, []);
 
   useFocusEffect(
@@ -55,7 +55,7 @@ export function QuickCalculatorForm() {
         setCash(draft.cash);
         setGoldValue(draft.goldValue);
         setDebt(draft.debt);
-        setDebtError(undefined);
+        setDebtErrorKey(undefined);
         return;
       }
 
@@ -79,11 +79,11 @@ export function QuickCalculatorForm() {
   const handleCalculate = () => {
     const parsedDebt = Number(debt);
     if (debt.trim() && (!Number.isFinite(parsedDebt) || parsedDebt < 0)) {
-      setDebtError(t("quickCalculator.validation.positiveNumber"));
+      setDebtErrorKey("quickCalculator.validation.positiveNumber");
       return;
     }
 
-    setDebtError(undefined);
+    setDebtErrorKey(undefined);
     const result = calculateResult();
     router.push(
       {
@@ -126,7 +126,7 @@ export function QuickCalculatorForm() {
         description={t("quickCalculator.fields.debt.description")}
         value={debt}
         onChangeText={setDebt}
-        error={debtError}
+        errorKey={debtErrorKey}
         currencyPrefix={getCurrencyInputPrefix(currency)}
       />
 
@@ -140,23 +140,32 @@ function InputSection({
   description,
   value,
   onChangeText,
-  error,
+  errorKey,
   currencyPrefix,
 }: {
   title: string;
   description: string;
   value: string;
   onChangeText: (text: string) => void;
-  error?: string;
+  errorKey?: string;
   currencyPrefix: string;
 }) {
   const { t } = useTranslation("common");
+  const isRTL = I18nManager.isRTL;
   return (
     <View style={styles.inputSection}>
       <Text style={styles.inputTitle}>{title}</Text>
       <Text style={styles.inputDescription}>{description}</Text>
-      <View style={[styles.currencyWrap, error ? styles.currencyWrapError : undefined]}>
-        <Text style={[styles.currencyPrefix, error ? styles.currencyPrefixError : undefined]}>{currencyPrefix}</Text>
+      <View
+        style={[
+          styles.currencyWrap,
+          isRTL && styles.currencyWrapRtl,
+          errorKey ? styles.currencyWrapError : undefined,
+        ]}
+      >
+        <Text style={[styles.currencyPrefix, errorKey ? styles.currencyPrefixError : undefined]}>
+          {currencyPrefix}
+        </Text>
         <TextInput
           keyboardType="numeric"
           value={value}
@@ -166,7 +175,7 @@ function InputSection({
           style={styles.currencyInput}
         />
       </View>
-      {error ? <Text style={styles.errorText}>! {error}</Text> : null}
+      {errorKey ? <Text style={styles.errorText}>! {t(errorKey as never)}</Text> : null}
     </View>
   );
 }
@@ -202,6 +211,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: appSpacing.xs,
+  },
+  currencyWrapRtl: {
+    flexDirection: "row-reverse",
   },
   currencyWrapError: {
     borderColor: appColors.error,
