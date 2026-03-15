@@ -8,6 +8,7 @@ export type HawlTrackingMode =
 export type DetailedHawlSetupDraft = {
   trackingMode: HawlTrackingMode | null;
   referenceDate?: string;
+  calculationDate?: string;
   useToday?: boolean;
   saveAsDefault?: boolean;
 };

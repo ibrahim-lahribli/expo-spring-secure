@@ -45,11 +45,13 @@ export default function SettingsScreen() {
   const nisabPricesSource = useAppPreferencesStore((s) => s.nisabPricesSource);
   const currency = useAppPreferencesStore((s) => s.currency);
   const marketPricesLastUpdatedAt = useAppPreferencesStore((s) => s.marketPricesLastUpdatedAt);
+  const zakatReminderEnabled = useAppPreferencesStore((s) => s.zakatReminderEnabled);
 
   const setNisabMethodPreference = useAppPreferencesStore((s) => s.setNisabMethodPreference);
   const setNisabPricesSource = useAppPreferencesStore((s) => s.setNisabPricesSource);
   const setCurrency = useAppPreferencesStore((s) => s.setCurrency);
   const setMarketPricesLastUpdatedAt = useAppPreferencesStore((s) => s.setMarketPricesLastUpdatedAt);
+  const setZakatReminderEnabled = useAppPreferencesStore((s) => s.setZakatReminderEnabled);
 
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [priceSyncError, setPriceSyncError] = useState<string | null>(null);
@@ -270,6 +272,18 @@ export default function SettingsScreen() {
             { label: "MAD", value: "MAD" },
             { label: "USD", value: "USD" },
             { label: "EURO", value: "EUR" },
+          ]}
+        />
+      </AppCard>
+
+      <AppCard>
+        <SectionTitle title={t("settingsScreen.zakatReminder")} />
+        <SegmentedControl
+          value={zakatReminderEnabled ? "on" : "off"}
+          onChange={(value) => setZakatReminderEnabled(value === "on")}
+          options={[
+            { label: t("yes"), value: "on" },
+            { label: t("no"), value: "off" },
           ]}
         />
       </AppCard>

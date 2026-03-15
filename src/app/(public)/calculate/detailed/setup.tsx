@@ -18,6 +18,10 @@ import {
 } from "react-native";
 import { AppCard, AppScreen, PrimaryButton, SectionTitle } from "../../../../components/ui";
 import {
+  formatDateAsIso,
+  resolveCalculationDate,
+} from "../../../../lib/zakat-calculation/detailedCalculationContext";
+import {
   useDetailedHawlSetupDraftStore,
   type DetailedHawlSetupDraft,
   type HawlTrackingMode,
@@ -27,13 +31,6 @@ import { appColors, appRadius, appSpacing } from "../../../../theme/designSystem
 type IntroCardId = "detailed" | "debt" | "hawl";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-function formatDateAsIso(value: Date): string {
-  const year = value.getFullYear();
-  const month = `${value.getMonth() + 1}`.padStart(2, "0");
-  const day = `${value.getDate()}`.padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 function parseDateFromIso(value?: string): Date | null {
   if (!value || !DATE_PATTERN.test(value)) return null;
@@ -307,14 +304,21 @@ export default function DetailedSetupScreen() {
     }
 
     const normalizedReferenceDate = referenceDate.trim();
+    const resolvedReferenceDate =
+      trackingMode === "estimated"
+        ? useToday
+          ? undefined
+          : normalizedReferenceDate
+        : normalizedReferenceDate;
+    const calculationDate = resolveCalculationDate({
+      routeCalculationDate: undefined,
+      draftCalculationDate: undefined,
+      draftReferenceDate: resolvedReferenceDate,
+    });
     const nextDraft: DetailedHawlSetupDraft = {
       trackingMode,
-      referenceDate:
-        trackingMode === "estimated"
-          ? useToday
-            ? undefined
-            : normalizedReferenceDate
-          : normalizedReferenceDate,
+      referenceDate: resolvedReferenceDate,
+      calculationDate,
       useToday: trackingMode === "estimated" ? useToday : undefined,
       saveAsDefault:
         trackingMode === "yearly_zakat_date" ? Boolean(saveAsDefault) : undefined,
@@ -328,6 +332,7 @@ export default function DetailedSetupScreen() {
         params: {
           hawlTrackingMode: nextDraft.trackingMode ?? undefined,
           hawlReferenceDate: toSingleParam(nextDraft.referenceDate),
+          calculationDate: nextDraft.calculationDate,
           hawlUseToday:
             nextDraft.useToday === undefined
               ? undefined

@@ -1,6 +1,8 @@
 import type { HistoryEntry } from "./types";
 import { formatMoney } from "../../lib/currency";
+import { resolveEligibilityDueStatus } from "../../lib/zakat-calculation/hawl";
 import { buildTotalDisplay, resolveNonCashDueSummary } from "./totalDisplay";
+import { resolveDetailedReminderDisplayState } from "./reminders";
 
 function escapeHtml(value: string): string {
   return value
@@ -18,6 +20,14 @@ function formatDate(value: string): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatDateOnly(value: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   }).format(new Date(value));
 }
 
@@ -51,11 +61,31 @@ export type HistoryPdfLabels = {
     finalZakatDueRate: string;
     doubtfulExcludedNote: string;
   };
+  groupedRows: {
+    dueNowMoney: string;
+    dueNowSpecial: string;
+    notDueYet: string;
+    debtAdjustment: string;
+    dueStatus: string;
+    dueNow: string;
+    notDue: string;
+    unknown: string;
+    hawlDueDate: string;
+    eventDate: string;
+  };
   quickRows: {
     cashBank: string;
     goldSilver: string;
     debtsOwed: string;
     netWealth: string;
+  };
+  reminderRows?: {
+    calculationDate: string;
+    reminderScheduled: string;
+    nextReminderDate: string;
+    remindersDisabled: string;
+    reminderNotScheduled: string;
+    noUpcomingDueReminder: string;
   };
   resolveCategoryLabel?: (categoryIdOrLabel: string, fallbackLabel?: string) => string;
 };
@@ -73,6 +103,10 @@ export function buildHistoryPdfHtml(
   const categories = entry.summary.categoriesUsed
     .map((category) => `<li>${escapeHtml(labels.resolveCategoryLabel?.(category, category) ?? category)}</li>`)
     .join("");
+  const detailedCalculationDate =
+    entry.payload.kind === "detailed" ? entry.payload.calculationContext?.calculationDate : undefined;
+  const reminderMetaLine =
+    entry.payload.kind === "detailed" ? buildReminderMetaLine(entry, labels) : null;
 
   const body =
     entry.payload.kind === "quick"
@@ -82,17 +116,69 @@ export function buildHistoryPdfHtml(
         <tr><td>${escapeHtml(labels.quickRows.debtsOwed)}</td><td>${formatMoney(entry.payload.inputs.debt, entry.currency)}</td></tr>
         <tr><td>${escapeHtml(labels.quickRows.netWealth)}</td><td>${formatMoney(entry.payload.result.totalWealth, entry.currency)}</td></tr>
       `
-      : entry.payload.lineItems
-          .map(
-            (item) => `
+      : (() => {
+          const isMoneyCategory = (category: string) =>
+            ["salary", "agri_other", "trade_sector", "industrial_sector"].includes(category);
+          const classify = (item: (typeof entry.payload.lineItems)[number]) => {
+            if (item.category === "debt") return "debt";
+            const dueNow = item.meta?.dueNow ?? true;
+            const debtAdjustable = item.meta?.debtAdjustable ?? isMoneyCategory(item.category);
+            if (!dueNow) return "not_due";
+            if (debtAdjustable) return "due_money";
+            return "due_special";
+          };
+          const grouped = {
+            due_money: entry.payload.lineItems.filter((item) => classify(item) === "due_money"),
+            due_special: entry.payload.lineItems.filter((item) => classify(item) === "due_special"),
+            not_due: entry.payload.lineItems.filter((item) => classify(item) === "not_due"),
+            debt: entry.payload.lineItems.filter((item) => classify(item) === "debt"),
+          };
+          const renderItemRow = (item: (typeof entry.payload.lineItems)[number]) => {
+            const metaParts: string[] = [];
+            if (item.meta) {
+              const dueStatus = resolveEligibilityDueStatus(item.meta);
+              metaParts.push(
+                `${labels.groupedRows.dueStatus}: ${
+                  dueStatus === "due_now"
+                    ? labels.groupedRows.dueNow
+                    : dueStatus === "unknown"
+                      ? labels.groupedRows.unknown
+                      : labels.groupedRows.notDue
+                }`,
+              );
+              if (item.meta.hawlDueDate) {
+                metaParts.push(`${labels.groupedRows.hawlDueDate}: ${item.meta.hawlDueDate}`);
+              }
+              if (item.meta.eventDate) {
+                metaParts.push(`${labels.groupedRows.eventDate}: ${item.meta.eventDate}`);
+              }
+            }
+            return `
               <tr>
-                <td>${escapeHtml(labels.resolveCategoryLabel?.(item.category, item.label) ?? item.label ?? item.category)}</td>
+                <td>
+                  ${escapeHtml(labels.resolveCategoryLabel?.(item.category, item.label) ?? item.label ?? item.category)}
+                  ${metaParts.length > 0 ? `<div class="meta-inline">${escapeHtml(metaParts.join(" · "))}</div>` : ""}
+                </td>
                 <td>${formatMoney(item.totalWealth, entry.currency)}</td>
                 <td>${formatMoney(item.totalZakat, entry.currency)}</td>
               </tr>
-            `,
-          )
-          .join("");
+            `;
+          };
+          const renderGroup = (title: string, items: (typeof entry.payload.lineItems)[number][]) => {
+            if (items.length === 0) return "";
+            return `
+              <tr class="group-row"><td colspan="3"><strong>${escapeHtml(title)}</strong></td></tr>
+              ${items.map((item) => renderItemRow(item)).join("")}
+            `;
+          };
+
+          return [
+            renderGroup(labels.groupedRows.dueNowMoney, grouped.due_money),
+            renderGroup(labels.groupedRows.dueNowSpecial, grouped.due_special),
+            renderGroup(labels.groupedRows.notDueYet, grouped.not_due),
+            renderGroup(labels.groupedRows.debtAdjustment, grouped.debt),
+          ].join("");
+        })();
   const detailedFinalSection =
     entry.payload.kind === "detailed" && entry.payload.finalCalculation?.hasDebtLineItem
       ? `
@@ -134,12 +220,22 @@ export function buildHistoryPdfHtml(
           table { width: 100%; border-collapse: collapse; }
           th, td { border-bottom: 1px solid #d9e5e1; padding: 10px 0; text-align: left; }
           th:last-child, td:last-child { text-align: right; }
+          .group-row td { background: #f4f7f6; border-bottom-color: #d0dfda; padding: 8px 10px; }
+          .meta-inline { color: #57716b; font-size: 12px; margin-top: 2px; }
           .note { margin-top: 24px; color: #57716b; }
         </style>
       </head>
       <body>
         <h1>${escapeHtml(entry.flowType === "quick" ? labels.titleQuick : labels.titleDetailed)}</h1>
         <p class="meta">${escapeHtml(labels.savedPrefix)} ${escapeHtml(formatDate(entry.createdAt))}</p>
+        ${
+          detailedCalculationDate
+            ? `<p class="meta">${escapeHtml(
+                labels.reminderRows?.calculationDate ?? "Calculation date",
+              )}: ${escapeHtml(formatDateOnly(detailedCalculationDate))}</p>`
+            : ""
+        }
+        ${reminderMetaLine ? `<p class="meta">${escapeHtml(reminderMetaLine)}</p>` : ""}
         <div class="total">
           <div class="total-label">${escapeHtml(labels.totalLabel)}</div>
           <div class="total-value">${escapeHtml(totalDisplay.primaryDisplay)}</div>
@@ -171,4 +267,30 @@ export function buildHistoryPdfHtml(
       </body>
     </html>
   `;
+}
+
+function buildReminderMetaLine(entry: HistoryEntry, labels: HistoryPdfLabels): string | null {
+  if (entry.payload.kind !== "detailed") return null;
+  const reminderState = resolveDetailedReminderDisplayState(entry.payload);
+  const reminderLabels = {
+    reminderScheduled: labels.reminderRows?.reminderScheduled ?? "Reminder scheduled",
+    nextReminderDate: labels.reminderRows?.nextReminderDate ?? "Next reminder date",
+    remindersDisabled: labels.reminderRows?.remindersDisabled ?? "Reminders disabled",
+    reminderNotScheduled: labels.reminderRows?.reminderNotScheduled ?? "Reminder not scheduled",
+    noUpcomingDueReminder: labels.reminderRows?.noUpcomingDueReminder ?? "No upcoming due reminder",
+  };
+
+  if (reminderState.state === "scheduled") {
+    return `${reminderLabels.reminderScheduled} | ${reminderLabels.nextReminderDate}: ${reminderState.reminderDate}`;
+  }
+  if (reminderState.state === "disabled") {
+    return `${reminderLabels.remindersDisabled} | ${reminderLabels.nextReminderDate}: ${reminderState.reminderDate}`;
+  }
+  if (reminderState.state === "not_scheduled") {
+    if (reminderState.reminderDate) {
+      return `${reminderLabels.reminderNotScheduled} | ${reminderLabels.nextReminderDate}: ${reminderState.reminderDate}`;
+    }
+    return reminderLabels.reminderNotScheduled;
+  }
+  return reminderLabels.noUpcomingDueReminder;
 }

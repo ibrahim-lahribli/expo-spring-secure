@@ -57,6 +57,9 @@ function buildEntry(): HistoryEntry {
     payload: {
       kind: "detailed",
       combinedTotal: 125,
+      calculationContext: {
+        calculationDate: "2026-03-10",
+      },
       lineItems: [
         {
           id: "line-1",
@@ -100,5 +103,42 @@ describe("HistoryDetailsScreen", () => {
     });
     expect(queryByText("Saved English Label")).toBeNull();
   });
-});
 
+  it("shows scheduled reminder status in history detail", async () => {
+    const entry = buildEntry();
+    if (entry.payload.kind !== "detailed") {
+      throw new Error("Expected detailed entry");
+    }
+    entry.payload.reminders = [
+      {
+        id: "rem-1",
+        historyEntryId: entry.id,
+        lineItemId: "line-1",
+        type: "hawl_due",
+        reminderDate: "2026-12-21",
+        scheduledNotificationId: "notif-1",
+        enabled: true,
+        status: "scheduled",
+      },
+    ];
+    mockGetGuestHistoryEntryById.mockResolvedValue(entry);
+
+    const { getByText } = render(<HistoryDetailsScreen />);
+
+    await waitFor(() => {
+      expect(getByText("Reminder scheduled")).toBeTruthy();
+      expect(getByText("Next reminder date: 2026-12-21")).toBeTruthy();
+      expect(getByText("Calculation date")).toBeTruthy();
+    });
+  });
+
+  it("shows no-upcoming reminder state when no reminder is scheduled", async () => {
+    mockGetGuestHistoryEntryById.mockResolvedValue(buildEntry());
+
+    const { getByText } = render(<HistoryDetailsScreen />);
+
+    await waitFor(() => {
+      expect(getByText("No upcoming due reminder")).toBeTruthy();
+    });
+  });
+});

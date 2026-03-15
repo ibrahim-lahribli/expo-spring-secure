@@ -31,6 +31,18 @@ const labels = {
     finalZakatDueRate: "Final zakat due (2.5%)",
     doubtfulExcludedNote: "Doubtful receivables are excluded until they are collected.",
   },
+  groupedRows: {
+    dueNowMoney: "Due now - money categories",
+    dueNowSpecial: "Due now - special categories",
+    notDueYet: "Not due yet",
+    debtAdjustment: "Debt adjustment",
+    dueStatus: "Due status",
+    dueNow: "Due now",
+    notDue: "Not due yet",
+    unknown: "Hawl date missing / unknown",
+    hawlDueDate: "Hawl due date",
+    eventDate: "Event date",
+  },
   quickRows: {
     cashBank: "Cash & Bank",
     goldSilver: "Gold & Silver",
@@ -67,6 +79,9 @@ function buildBaseDetailedEntry(): HistoryEntry {
     },
     payload: {
       kind: "detailed",
+      calculationContext: {
+        calculationDate: "2026-03-07",
+      },
       combinedTotal: 0,
       lineItems: [
         {
@@ -102,6 +117,7 @@ describe("buildHistoryPdfHtml total display", () => {
 
     expect(html).toContain('<div class="total-value">MAD 0.00</div>');
     expect(html).toContain('<div class="total-suffix">+ Camels: 1 bint makhad | 300.00 kg</div>');
+    expect(html).toContain("Due now - special categories");
   });
 
   it("does not include suffix when structured non-cash summary is absent", () => {
@@ -152,6 +168,8 @@ describe("buildHistoryPdfHtml total display", () => {
     const html = buildHistoryPdfHtml(entry, labels).replace(/\u00a0/g, " ");
 
     expect(html).toContain("<th>Zakat Before Adjustments</th>");
+    expect(html).toContain("Due now - money categories");
+    expect(html).toContain("Debt Adjustment");
     expect(html).toContain("<h2>Final Zakat Calculation</h2>");
     expect(html).toContain("Debt Adjustment");
     expect(html).toContain("Final zakatable base");
@@ -203,5 +221,31 @@ describe("buildHistoryPdfHtml total display", () => {
     expect(html).toContain("<th>Zakat Due</th>");
     expect(html).not.toContain("<h2>Final Zakat Calculation</h2>");
     expect(html).not.toContain("Zakat Before Adjustments");
+  });
+
+  it("shows calculation date and reminder status metadata when scheduled reminder exists", () => {
+    const entry = buildBaseDetailedEntry();
+    if (entry.payload.kind !== "detailed") {
+      throw new Error("Expected detailed payload");
+    }
+    entry.payload.reminders = [
+      {
+        id: "rem-1",
+        historyEntryId: entry.id,
+        lineItemId: "l1",
+        type: "hawl_due",
+        reminderDate: "2026-12-21",
+        scheduledNotificationId: "notif-1",
+        enabled: true,
+        status: "scheduled",
+      },
+    ];
+
+    const html = buildHistoryPdfHtml(entry, labels);
+
+    expect(html).toContain("Calculation date");
+    expect(html).toContain("07 Mar 2026");
+    expect(html).toContain("Reminder scheduled");
+    expect(html).toContain("Next reminder date: 2026-12-21");
   });
 });

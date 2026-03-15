@@ -164,6 +164,18 @@
       "totalPayableDueNow": "إجمالي المستحق للدفع الآن",
       "doubtfulExcludedNote": "الديون غير المرجوة مستبعدة حتى يتم قبضها."
     },
+    "groupedRows": {
+      "dueNowMoney": "مستحق الآن - الفئات المالية",
+      "dueNowSpecial": "مستحق الآن - الفئات الخاصة",
+      "notDueYet": "غير مستحق بعد",
+      "debtAdjustment": "تعديل الديون",
+      "dueStatus": "حالة الاستحقاق",
+      "dueNow": "مستحق الآن",
+      "notDue": "غير مستحق بعد",
+      "unknown": "تاريخ الحول مفقود / غير معروف",
+      "hawlDueDate": "تاريخ استحقاق الحول",
+      "eventDate": "تاريخ الحدث"
+    },
     "detailRows": {
       "cashBank": "النقد والبنك",
       "goldSilver": "الذهب والفضة",
@@ -188,6 +200,19 @@
       "category": "Category",
       "value": "Value",
       "generatedNote": "Generated from local history on this device."
+    },
+    "reminders": {
+      "title": "التذكير",
+      "scheduled": "تمت جدولة التذكير",
+      "nextDate": "تاريخ التذكير القادم",
+      "disabled": "التذكيرات معطلة",
+      "notScheduled": "لم تتم جدولة التذكير",
+      "none": "لا يوجد تذكير استحقاق قادم",
+      "calculationDate": "تاريخ الحساب"
+    },
+    "reminderNotification": {
+      "title": "تذكير الزكاة",
+      "body": "تاريخ استحقاق الزكاة القادم هو {date}."
     }
   },
   "settingsScreen": {
@@ -324,6 +349,13 @@
       "nisabValue": "النصاب: {value}",
       "netWealthValue": "صافي المال: {value}",
       "zakatDueValue": "الزكاة الواجبة: {value}",
+      "dueNowStatus": "مستحق الآن",
+      "notDueYetStatus": "غير مستحق بعد",
+      "dueStatusUnknown": "تاريخ الحول مفقود / غير معروف",
+      "dueStatusValue": "حالة الاستحقاق: {value}",
+      "hawlStartDateValue": "تاريخ بداية الحول: {value}",
+      "hawlDueDateValue": "تاريخ استحقاق الحول: {value}",
+      "eventDateValue": "تاريخ الحدث: {value}",
       "zakatBeforeAdjustmentsValue": "الزكاة قبل التعديلات: {value}",
       "typeValue": "النوع: {value}",
       "ownedValue": "المملوك: {value}",
@@ -361,13 +393,18 @@
       "debtScopeNote": "هذا التعديل يطبق فقط على الفئات النقدية مثل الرواتب والتجارة والدخل المهني.",
       "debtImpactAppliedBadge": "تعديل الديون مطبق",
       "debtImpactNotAppliedBadge": "تعديل الديون غير مطبق",
+      "groupDueNowMoney": "مستحق الآن - الفئات المالية",
+      "groupDueNowSpecial": "مستحق الآن - الفئات الخاصة",
+      "groupNotDueYet": "غير مستحق بعد",
+      "groupDebtAdjustment": "تعديل الديون",
       "belowNisabAfterDebtTitle": "أقل من النصاب بعد تعديل الديون",
       "belowNisabAfterDebtBody": "خفضت ديونك الوعاء الزكوي المعدل إلى أقل من النصاب. لا زكاة واجبة على هذا الوعاء حاليا.",
       "finalZakatableBaseValue": "الوعاء الزكوي النهائي: {value}",
       "finalZakatCalculationTitle": "الحساب النهائي للزكاة",
       "finalZakatDueRateValue": "زكاة الوعاء النقدي المعدل (2.5%): {value}",
       "independentCashDueValue": "المبلغ النقدي المستحق للفئات غير القابلة لتعديل الديون: {value}",
-      "totalPayableDueNowValue": "إجمالي المستحق للدفع الآن: {value}"
+      "totalPayableDueNowValue": "إجمالي المستحق للدفع الآن: {value}",
+      "debtNoEligiblePoolNote": "لا يوجد وعاء مالي مستحق الآن يمكن تطبيق تعديل الديون عليه، لذلك لا يُنشئ هذا التعديل مبلغًا واجب الدفع بمفرده."
     },
     "preview": {
       "title": "معاينة فورية",
@@ -406,10 +443,16 @@
       "debtCollectible": "الديون المرجوة",
       "debtDoubtful": "الديون غير المرجوة (غير محتسبة)",
       "debtOwedNow": "الديون الحالة",
-      "debtNetImpact": "الأثر الصافي"
+      "debtNetImpact": "الأثر الصافي",
+      "dueStatus": "حالة الاستحقاق",
+      "hawlDueDate": "تاريخ استحقاق الحول",
+      "eventDate": "تاريخ الحدث"
     },
     "validation": {
       "monthlyIncomeRequired": "يرجى إدخال الدخل الشهري.",
+      "hawlDateRequired": "يرجى إدخال تاريخ بداية حول صحيح بصيغة YYYY-MM-DD.",
+      "eventDateRequired": "يرجى إدخال تاريخ حدث صحيح بصيغة YYYY-MM-DD.",
+      "eventDateInvalid": "يرجى إدخال تاريخ حدث صالح بصيغة YYYY-MM-DD.",
       "produceMarketValueRequired": "يرجى إدخال القيمة السوقية للمحصول.",
       "harvestQuantityRequired": "يرجى إدخال كمية المحصول بالكيلوغرام.",
       "marketValueRequired": "يرجى إدخال القيمة السوقية.",
@@ -448,6 +491,15 @@
       }
     },
     "form": {
+      "hawl": {
+        "sectionTitle": "توقيت الحول",
+        "useSetupDate": "استخدام تاريخ الإعداد ({date})",
+        "useCustomDate": "استخدام تاريخ مخصص",
+        "customDatePlaceholder": "تاريخ بداية الحول (YYYY-MM-DD)",
+        "useSessionDate": "استخدام تاريخ حول الجلسة ({date})",
+        "useCustomCategoryDate": "استخدام تاريخ مخصص لهذه الفئة",
+        "inheritedDatePreview": "تاريخ الجلسة الموروث: {date}"
+      },
       "salary": {
         "annualMode": "نمط سنوي",
         "monthlyMode": "نمط شهري",
@@ -460,7 +512,8 @@
         "ownedCountPlaceholder": "عدد الرؤوس المملوكة",
         "camel121Option2Hiqqah": "حقتان (2)",
         "camel121Option3BintLabun": "ثلاث بنات لبون",
-        "cashEstimatePlaceholder": "تقدير نقدي للواجب في الأنعام ({currency}) (اختياري)"
+        "cashEstimatePlaceholder": "تقدير نقدي للواجب في الأنعام ({currency}) (اختياري)",
+        "offspringHawlNote": "النتاج المولود خلال السنة يتبع حول أمهاته."
       },
       "agriOther": {
         "marketValuePlaceholder": "إجمالي القيمة السوقية/قيمة البيع",
@@ -495,13 +548,16 @@
       "produce": {
         "harvestMode": "محصول فلاحي",
         "tradeMode": "مخزون للتجارة",
+        "eventDateLabel": "تاريخ حدث المحصول",
+        "eventDatePlaceholder": "تاريخ الحدث (YYYY-MM-DD)",
         "marketValuePlaceholder": "القيمة السوقية",
         "quantityPlaceholder": "كمية المحصول (كغ)",
         "pricePerKgPlaceholder": "السعر لكل كغ (اختياري)",
         "naturalWatering": "سقي طبيعي (10%)",
         "paidIrrigation": "سقي بكلفة (5%)",
         "tradeRule": "إذا كان المحصول معدا للتجارة فالواجب 2.5% عند بلوغ القيمة النصاب.",
-        "harvestRule": "نصاب زكاة الزروع والثمار 653 كغ (خمسة أوسق). الواجب 10% مع السقي الطبيعي و5% مع السقي بكلفة. يمكن إدخال سعر الكيلو لإظهار التقدير النقدي."
+        "harvestRule": "نصاب زكاة الزروع والثمار 653 كغ (خمسة أوسق). الواجب 10% مع السقي الطبيعي و5% مع السقي بكلفة. يمكن إدخال سعر الكيلو لإظهار التقدير النقدي.",
+        "dueAtEventNote": "تصبح هذه الفئة مستحقة عند وقت الحصاد/الحدث."
       }
     },
     "updateDebt": "تحديث الديون"
@@ -577,4 +633,3 @@
     }
   }
 }
-

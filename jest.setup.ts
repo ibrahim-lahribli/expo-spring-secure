@@ -1,6 +1,15 @@
 // Extend Jest matchers with @testing-library/jest-native
 import "@testing-library/jest-native/extend-expect";
 
+if (typeof global.setImmediate === "undefined") {
+  global.setImmediate = ((callback: (...args: any[]) => void, ...args: any[]) =>
+    setTimeout(callback, 0, ...args)) as unknown as typeof setImmediate;
+}
+if (typeof global.clearImmediate === "undefined") {
+  global.clearImmediate = ((id: ReturnType<typeof setTimeout>) =>
+    clearTimeout(id)) as unknown as typeof clearImmediate;
+}
+
 // react-native-reanimated (required for expo-router animations)
 jest.mock("react-native-reanimated", () =>
   require("react-native-reanimated/mock"),

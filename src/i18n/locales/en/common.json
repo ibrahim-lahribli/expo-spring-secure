@@ -147,6 +147,15 @@
     "categoriesUsed": "Categories Used",
     "inputsSnapshot": "Inputs Snapshot",
     "lineItemBreakdown": "Line Item Breakdown",
+    "reminders": {
+      "title": "Reminder",
+      "scheduled": "Reminder scheduled",
+      "nextDate": "Next reminder date",
+      "disabled": "Reminders disabled",
+      "notScheduled": "Reminder not scheduled",
+      "none": "No upcoming due reminder",
+      "calculationDate": "Calculation date"
+    },
     "zakatBeforeAdjustments": "Zakat Before Adjustments",
     "categoryZakatBeforeAdjustmentsValue": "Category zakat before adjustments: {value}",
     "finalCalculation": {
@@ -163,6 +172,18 @@
       "independentCashDue": "Independent non-debt-adjustable cash due",
       "totalPayableDueNow": "Total payable due now",
       "doubtfulExcludedNote": "Doubtful receivables are excluded until they are collected."
+    },
+    "groupedRows": {
+      "dueNowMoney": "Due now - money categories",
+      "dueNowSpecial": "Due now - special categories",
+      "notDueYet": "Not due yet",
+      "debtAdjustment": "Debt adjustment",
+      "dueStatus": "Due status",
+      "dueNow": "Due now",
+      "notDue": "Not due yet",
+      "unknown": "Hawl date missing / unknown",
+      "hawlDueDate": "Hawl due date",
+      "eventDate": "Event date"
     },
     "detailRows": {
       "cashBank": "Cash & Bank",
@@ -188,6 +209,10 @@
       "category": "Category",
       "value": "Value",
       "generatedNote": "Generated from local history on this device."
+    },
+    "reminderNotification": {
+      "title": "Zakat reminder",
+      "body": "Your next zakat due date is {date}."
     }
   },
   "settingsScreen": {
@@ -380,6 +405,13 @@
       "nisabValue": "Nisab: {value}",
       "netWealthValue": "Net Wealth: {value}",
       "zakatDueValue": "Zakat Due: {value}",
+      "dueNowStatus": "Due now",
+      "notDueYetStatus": "Not due yet",
+      "dueStatusUnknown": "Hawl date missing / unknown",
+      "dueStatusValue": "Due status: {value}",
+      "hawlStartDateValue": "Hawl start date: {value}",
+      "hawlDueDateValue": "Hawl due date: {value}",
+      "eventDateValue": "Event date: {value}",
       "zakatBeforeAdjustmentsValue": "Zakat before adjustments: {value}",
       "typeValue": "Type: {value}",
       "ownedValue": "Owned: {value}",
@@ -417,13 +449,18 @@
       "debtScopeNote": "This adjustment applies only to cash-based categories such as salary, trade, and business income.",
       "debtImpactAppliedBadge": "Debt adjustment applied",
       "debtImpactNotAppliedBadge": "Debt adjustment not applied",
+      "groupDueNowMoney": "Due now - money categories",
+      "groupDueNowSpecial": "Due now - special categories",
+      "groupNotDueYet": "Not due yet",
+      "groupDebtAdjustment": "Debt adjustment",
       "belowNisabAfterDebtTitle": "Below nisab after debt adjustment",
       "belowNisabAfterDebtBody": "Your debts reduced the adjusted zakatable base below the nisab. No zakat is due for this pool at this time.",
       "finalZakatableBaseValue": "Final zakatable base: {value}",
       "finalZakatCalculationTitle": "Final Zakat Calculation",
       "finalZakatDueRateValue": "Adjusted cash-pool zakat due (2.5%): {value}",
       "independentCashDueValue": "Independent non-debt-adjustable cash due: {value}",
-      "totalPayableDueNowValue": "Total payable due now: {value}"
+      "totalPayableDueNowValue": "Total payable due now: {value}",
+      "debtNoEligiblePoolNote": "No eligible due-now money pool is present, so debt adjustment does not create a payable amount by itself."
     },
     "preview": {
       "title": "Live Preview",
@@ -451,6 +488,9 @@
       "type": "Type",
       "owned": "Owned",
       "due": "Due",
+      "dueStatus": "Due status",
+      "hawlDueDate": "Hawl due date",
+      "eventDate": "Event date",
       "cashEstimate": "Cash estimate",
       "watering": "Watering",
       "dueProduce": "Due produce",
@@ -466,6 +506,9 @@
     },
     "validation": {
       "monthlyIncomeRequired": "Please enter your monthly income.",
+      "hawlDateRequired": "Please provide a valid hawl start date in YYYY-MM-DD format.",
+      "eventDateRequired": "Please provide a valid event date in YYYY-MM-DD format.",
+      "eventDateInvalid": "Please enter a valid event date in YYYY-MM-DD format.",
       "produceMarketValueRequired": "Please enter the produce market value.",
       "harvestQuantityRequired": "Please enter harvested quantity in kg.",
       "marketValueRequired": "Please enter the market value.",
@@ -504,6 +547,15 @@
       }
     },
     "form": {
+      "hawl": {
+        "sectionTitle": "Hawl timing",
+        "useSetupDate": "Use setup date ({date})",
+        "useSessionDate": "Use session zakat-year date ({date})",
+        "useCustomDate": "Use custom date",
+        "useCustomCategoryDate": "Use custom date for this category",
+        "inheritedDatePreview": "Inherited session date: {date}",
+        "customDatePlaceholder": "Hawl start date (YYYY-MM-DD)"
+      },
       "salary": {
         "annualMode": "Annual mode",
         "monthlyMode": "Monthly mode",
@@ -516,7 +568,8 @@
         "ownedCountPlaceholder": "Owned count",
         "camel121Option2Hiqqah": "2 hiqqah",
         "camel121Option3BintLabun": "3 bint labun",
-        "cashEstimatePlaceholder": "Livestock cash estimate ({currency}) (optional)"
+        "cashEstimatePlaceholder": "Livestock cash estimate ({currency}) (optional)",
+        "offspringHawlNote": "Offspring born during the year follow the same hawl as their mothers."
       },
       "agriOther": {
         "marketValuePlaceholder": "Total market/sale value",
@@ -551,6 +604,9 @@
       "produce": {
         "harvestMode": "Farmer harvest",
         "tradeMode": "Trade stock",
+        "eventDateLabel": "Produce event date",
+        "eventDatePlaceholder": "Event date (YYYY-MM-DD)",
+        "dueAtEventNote": "This category becomes due at harvest/event time.",
         "marketValuePlaceholder": "Market value",
         "quantityPlaceholder": "Harvest quantity (kg)",
         "pricePerKgPlaceholder": "Price per kg (optional)",

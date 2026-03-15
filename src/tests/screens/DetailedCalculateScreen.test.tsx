@@ -1,8 +1,27 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import React from "react";
 import DetailedCalculateScreen from "../../app/(public)/calculate/detailed";
+import { formatDateAsIso } from "../../lib/zakat-calculation/detailedCalculationContext";
+import type { HistoryEntry } from "../../features/history/types";
 import { useAppPreferencesStore } from "../../store/appPreferencesStore";
+import { useDetailedHawlSetupDraftStore } from "../../store/detailedHawlSetupDraftStore";
 import { useNisabSettingsStore } from "../../store/nisabSettingsStore";
+
+const mockUpsertGuestHistoryEntry = jest.fn();
+const mockScheduleHawlDueReminderNotification = jest.fn();
+
+jest.mock("../../features/history/storage", () => ({
+  upsertGuestHistoryEntry: (...args: unknown[]) => mockUpsertGuestHistoryEntry(...args),
+}));
+
+jest.mock("../../features/reminders/scheduling", () => {
+  const actual = jest.requireActual("../../features/reminders/scheduling");
+  return {
+    ...actual,
+    scheduleHawlDueReminderNotification: (...args: unknown[]) =>
+      mockScheduleHawlDueReminderNotification(...args),
+  };
+});
 
 jest.mock("react-i18next", () => ({
   useTranslation: () => {
@@ -37,9 +56,21 @@ describe("DetailedCalculateScreen", () => {
     routerModule.__routerMock.replace.mockReset();
     routerModule.__routerMock.back.mockReset();
     routerModule.__routerMock.navigate.mockReset();
-    routerModule.useLocalSearchParams.mockReturnValue({});
+    routerModule.useLocalSearchParams.mockReturnValue({
+      hawlTrackingMode: "yearly_zakat_date",
+      hawlReferenceDate: "2025-01-01",
+      calculationDate: "2026-03-11",
+    });
+    useDetailedHawlSetupDraftStore.getState().clearDraft();
+    mockUpsertGuestHistoryEntry.mockReset();
+    mockUpsertGuestHistoryEntry.mockResolvedValue(undefined);
+    mockScheduleHawlDueReminderNotification.mockReset();
+    mockScheduleHawlDueReminderNotification.mockResolvedValue({
+      status: "scheduled",
+      scheduledNotificationId: "notif-1",
+    });
 
-    useAppPreferencesStore.setState({ currency: "MAD" });
+    useAppPreferencesStore.setState({ currency: "MAD", zakatReminderEnabled: true });
     useNisabSettingsStore.setState({
       nisabMethod: "silver",
       silverPricePerGram: 12,
@@ -85,6 +116,69 @@ describe("DetailedCalculateScreen", () => {
         `Tracking mode: I know when my wealth first reached nisab - Reference date: ${expectedDate}`,
       ),
     ).toBeTruthy();
+  });
+
+  it("persists route calculationDate into detailed hawl draft context", async () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      hawlTrackingMode: "estimated",
+      hawlUseToday: "1",
+      calculationDate: "2026-03-11",
+    });
+
+    render(<DetailedCalculateScreen />);
+
+    await waitFor(() => {
+      expect(useDetailedHawlSetupDraftStore.getState().draft?.calculationDate).toBe("2026-03-11");
+    });
+  });
+
+  it("falls back to today's date for calculation context when params omit it", async () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      hawlTrackingMode: "estimated",
+      hawlUseToday: "1",
+    });
+
+    render(<DetailedCalculateScreen />);
+
+    await waitFor(() => {
+      expect(useDetailedHawlSetupDraftStore.getState().draft?.calculationDate).toBe(
+        formatDateAsIso(new Date()),
+      );
+    });
+  });
+
+  it("stores calculation context date in detailed history payload", async () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      hawlTrackingMode: "estimated",
+      hawlUseToday: "1",
+      calculationDate: "2026-03-11",
+    });
+    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Salaries & Services"));
+    fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
+    fireEvent.press(getByText("Add This Category"));
+    fireEvent.press(getByText("Save to History"));
+
+    await waitFor(() => {
+      expect(mockUpsertGuestHistoryEntry).toHaveBeenCalledTimes(1);
+    });
+
+    const savedEntry = mockUpsertGuestHistoryEntry.mock.calls[0][0] as HistoryEntry;
+    if (savedEntry.payload.kind !== "detailed") {
+      throw new Error("Expected detailed history payload.");
+    }
+    expect(savedEntry.payload.calculationContext).toEqual({
+      calculationDate: "2026-03-11",
+    });
+    expect(savedEntry.payload.lineItems[0]?.meta).toMatchObject({
+      obligationMode: "hawl_required",
+      dueNow: false,
+      debtAdjustable: true,
+    });
   });
 
   it("renders category icons as Ionicons instead of broken emoji glyphs", () => {
@@ -133,6 +227,7 @@ describe("DetailedCalculateScreen", () => {
     });
 
     fireEvent.press(getByText("Grains & Fruits"));
+    fireEvent.changeText(getByPlaceholderText("Event date (YYYY-MM-DD)"), "2026-03-01");
     fireEvent.changeText(getByPlaceholderText("Harvest quantity (kg)"), "5000");
     fireEvent.press(getByText("Add This Category"));
 
@@ -290,6 +385,7 @@ describe("DetailedCalculateScreen", () => {
     const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Grains & Fruits"));
+    fireEvent.changeText(getByPlaceholderText("Event date (YYYY-MM-DD)"), "2026-03-01");
     fireEvent.press(getByText("Trade stock"));
     fireEvent.changeText(getByPlaceholderText("Market value"), "20000");
     fireEvent.press(getByText("Add This Category"));
@@ -303,7 +399,7 @@ describe("DetailedCalculateScreen", () => {
       currency: "MAD",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(1000);
+    }).format(0);
 
     await waitFor(() => {
       expect(getByText(`Final zakatable base: ${expectedBase}`)).toBeTruthy();
@@ -338,6 +434,7 @@ describe("DetailedCalculateScreen", () => {
     const { getByText, getByPlaceholderText, getAllByText, queryByText } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Grains & Fruits"));
+    fireEvent.changeText(getByPlaceholderText("Event date (YYYY-MM-DD)"), "2026-03-01");
     fireEvent.press(getByText("Trade stock"));
     fireEvent.changeText(getByPlaceholderText("Market value"), "10000");
     fireEvent.press(getByText("Add This Category"));
@@ -359,4 +456,319 @@ describe("DetailedCalculateScreen", () => {
       expect(queryByText("Below nisab after debt adjustment")).toBeNull();
     });
   });
+
+  it("applies debt only to due-now money categories when mixed due states exist (Case A)", async () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      calculationDate: "2026-03-11",
+    });
+
+    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Salaries & Services"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
+    fireEvent.press(getByText("Add This Category"));
+
+    fireEvent.press(getByText("Trade & Business"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2025-01-01");
+    fireEvent.changeText(getByPlaceholderText("Total value of trade/business assets"), "20000");
+    fireEvent.press(getByText("Add This Category"));
+
+    fireEvent.press(getByText("Debt"));
+    fireEvent.changeText(getByPlaceholderText("Debts currently due by you"), "1000");
+    fireEvent.press(getByText("Add This Category"));
+
+    const expectedBase = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "MAD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(19000);
+
+    await waitFor(() => {
+      expect(getByText(`Final zakatable base: ${expectedBase}`)).toBeTruthy();
+      expect(getByText("Not due yet")).toBeTruthy();
+    });
+  });
+
+  it("does not let debt create payable zakat when all money categories are not due yet (Case B)", async () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      calculationDate: "2026-03-11",
+    });
+
+    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Salaries & Services"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
+    fireEvent.press(getByText("Add This Category"));
+
+    fireEvent.press(getByText("Trade & Business"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    fireEvent.changeText(getByPlaceholderText("Total value of trade/business assets"), "20000");
+    fireEvent.press(getByText("Add This Category"));
+
+    fireEvent.press(getByText("Debt"));
+    fireEvent.changeText(getByPlaceholderText("Collectible receivables (current cycle)"), "10000");
+    fireEvent.press(getByText("Add This Category"));
+
+    const zeroDisplay = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "MAD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(0);
+
+    await waitFor(() => {
+      expect(getByText(`Final zakatable base: ${zeroDisplay}`)).toBeTruthy();
+      expect(getByText(`Total payable due now: ${zeroDisplay}`)).toBeTruthy();
+      expect(
+        getByText(
+          "No eligible due-now money pool is present, so debt adjustment does not create a payable amount by itself.",
+        ),
+      ).toBeTruthy();
+    });
+  });
+
+  it("marks produce with a future event date as not due yet and excludes it from payable total", async () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      calculationDate: "2026-03-11",
+    });
+    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Grains & Fruits"));
+    fireEvent.changeText(getByPlaceholderText("Event date (YYYY-MM-DD)"), "2026-04-01");
+    fireEvent.changeText(getByPlaceholderText("Harvest quantity (kg)"), "5000");
+    fireEvent.press(getByText("Add This Category"));
+
+    const zeroDisplay = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "MAD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(0);
+
+    await waitFor(() => {
+      expect(getByText("Not due yet")).toBeTruthy();
+      expect(getByText(`Total Zakat Due`)).toBeTruthy();
+      expect(getByText(zeroDisplay)).toBeTruthy();
+    });
+  });
+
+  it("requires produce event date before adding produce category", async () => {
+    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Grains & Fruits"));
+    fireEvent.changeText(getByPlaceholderText("Harvest quantity (kg)"), "5000");
+    fireEvent.press(getByText("Add This Category"));
+
+    await waitFor(() => {
+      expect(getByText("Please provide a valid event date in YYYY-MM-DD format.")).toBeTruthy();
+    });
+  });
+
+  it("keeps custom hawl date per category when leaving and reopening forms", () => {
+    const { getByText, getByPlaceholderText, getByDisplayValue } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Salaries & Services"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2025-02-01");
+    fireEvent.press(getByText("Back to categories"));
+
+    fireEvent.press(getByText("Trade & Business"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2025-03-01");
+    fireEvent.press(getByText("Back to categories"));
+
+    fireEvent.press(getByText("Salaries & Services"));
+    expect(getByDisplayValue("2025-02-01")).toBeTruthy();
+  });
+
+  it("uses estimated start-today calculation date as inherited session hawl date", () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      hawlTrackingMode: "estimated",
+      hawlUseToday: "1",
+      calculationDate: "2026-03-11",
+    });
+
+    const { getByText } = render(<DetailedCalculateScreen />);
+    fireEvent.press(getByText("Salaries & Services"));
+
+    expect(getByText(/Inherited session date:/)).toBeTruthy();
+  });
+
+  it("places livestock with incomplete hawl in Not due yet group", async () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      calculationDate: "2026-03-11",
+    });
+    const { getByText, getByPlaceholderText, queryByText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Livestock"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    fireEvent.changeText(getByPlaceholderText("Owned count"), "30");
+    fireEvent.press(getByText("Add This Category"));
+
+    await waitFor(() => {
+      expect(getByText("Not due yet")).toBeTruthy();
+      expect(queryByText("Due now - special categories")).toBeNull();
+    });
+  });
+
+  it("places livestock with complete hawl in Due now - special categories group", async () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      calculationDate: "2026-03-11",
+    });
+    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Livestock"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2025-01-01");
+    fireEvent.changeText(getByPlaceholderText("Owned count"), "30");
+    fireEvent.press(getByText("Add This Category"));
+
+    await waitFor(() => {
+      expect(getByText("Due now - special categories")).toBeTruthy();
+    });
+  });
+
+  it("schedules and persists a hawl reminder when preference is enabled and future due exists", async () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      calculationDate: "2026-03-11",
+    });
+    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Salaries & Services"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
+    fireEvent.press(getByText("Add This Category"));
+
+    fireEvent.press(getByText("Save to History"));
+
+    await waitFor(() => {
+      expect(mockUpsertGuestHistoryEntry).toHaveBeenCalledTimes(1);
+    });
+
+    const savedEntry = mockUpsertGuestHistoryEntry.mock.calls[0][0] as HistoryEntry;
+    if (savedEntry.payload.kind !== "detailed") {
+      throw new Error("Expected detailed history payload.");
+    }
+    expect(mockScheduleHawlDueReminderNotification).toHaveBeenCalledTimes(1);
+    expect(savedEntry.payload.reminders).toEqual([
+      expect.objectContaining({
+        historyEntryId: savedEntry.id,
+        lineItemId: savedEntry.payload.lineItems[0]?.id,
+        type: "hawl_due",
+        reminderDate: "2026-12-21",
+        scheduledNotificationId: "notif-1",
+        enabled: true,
+        status: "scheduled",
+      }),
+    ]);
+  });
+
+  it("stores disabled reminder state without scheduling when preference is off", async () => {
+    useAppPreferencesStore.setState({ zakatReminderEnabled: false });
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      calculationDate: "2026-03-11",
+    });
+    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Salaries & Services"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
+    fireEvent.press(getByText("Add This Category"));
+    fireEvent.press(getByText("Save to History"));
+
+    await waitFor(() => {
+      expect(mockUpsertGuestHistoryEntry).toHaveBeenCalledTimes(1);
+    });
+
+    const savedEntry = mockUpsertGuestHistoryEntry.mock.calls[0][0] as HistoryEntry;
+    if (savedEntry.payload.kind !== "detailed") {
+      throw new Error("Expected detailed history payload.");
+    }
+    expect(mockScheduleHawlDueReminderNotification).not.toHaveBeenCalled();
+    expect(savedEntry.payload.reminders).toEqual([
+      expect.objectContaining({
+        historyEntryId: savedEntry.id,
+        type: "hawl_due",
+        reminderDate: "2026-12-21",
+        enabled: false,
+        status: "disabled_by_preference",
+      }),
+    ]);
+  });
+
+  it("does not persist reminders when there is no future hawl due date", async () => {
+    const routerModule = require("expo-router") as { useLocalSearchParams: jest.Mock };
+    routerModule.useLocalSearchParams.mockReturnValue({
+      calculationDate: "2026-03-11",
+    });
+    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Salaries & Services"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2025-01-01");
+    fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
+    fireEvent.press(getByText("Add This Category"));
+    fireEvent.press(getByText("Save to History"));
+
+    await waitFor(() => {
+      expect(mockUpsertGuestHistoryEntry).toHaveBeenCalledTimes(1);
+    });
+
+    const savedEntry = mockUpsertGuestHistoryEntry.mock.calls[0][0] as HistoryEntry;
+    if (savedEntry.payload.kind !== "detailed") {
+      throw new Error("Expected detailed history payload.");
+    }
+    expect(mockScheduleHawlDueReminderNotification).not.toHaveBeenCalled();
+    expect(savedEntry.payload.reminders).toBeUndefined();
+  });
+
+  it("prevents duplicate save scheduling on repeated taps while save is in flight", async () => {
+    let releaseSave!: () => void;
+    mockUpsertGuestHistoryEntry.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseSave = () => resolve();
+        }),
+    );
+
+    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+    fireEvent.press(getByText("Salaries & Services"));
+    fireEvent.press(getByText("Use custom date for this category"));
+    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
+    fireEvent.press(getByText("Add This Category"));
+
+    const saveButton = getByText("Save to History");
+    fireEvent.press(saveButton);
+    fireEvent.press(saveButton);
+
+    await waitFor(() => {
+      expect(mockUpsertGuestHistoryEntry).toHaveBeenCalledTimes(1);
+      expect(mockScheduleHawlDueReminderNotification).toHaveBeenCalledTimes(1);
+    });
+
+    releaseSave();
+    await waitFor(() => {
+      expect(getByText("Save to History")).toBeTruthy();
+    });
+  });
 });
+

@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { HistoryEntry } from "./types";
+import { getScheduledNotificationIdsFromEntry } from "./reminders";
+import { cancelScheduledLocalNotification } from "../reminders/scheduling";
 
 const GUEST_HISTORY_KEY = "@zakat:guest-history:v1";
 
@@ -47,6 +49,8 @@ export async function upsertGuestHistoryEntry(entry: HistoryEntry): Promise<void
   const all = await getGuestHistoryEntries();
   const existingIndex = all.findIndex((item) => item.id === entry.id);
   if (existingIndex >= 0) {
+    const previousEntry = all[existingIndex];
+    await cancelStaleScheduledReminderNotifications(previousEntry, entry);
     all[existingIndex] = entry;
   } else {
     all.unshift(entry);
@@ -56,6 +60,10 @@ export async function upsertGuestHistoryEntry(entry: HistoryEntry): Promise<void
 
 export async function deleteGuestHistoryEntry(id: string): Promise<void> {
   const all = await getGuestHistoryEntries();
+  const entryToDelete = all.find((entry) => entry.id === id);
+  if (entryToDelete) {
+    await cancelScheduledReminderNotifications(entryToDelete);
+  }
   const filtered = all.filter((entry) => entry.id !== id);
   await saveGuestHistoryEntries(filtered);
 }
@@ -79,4 +87,28 @@ export async function duplicateGuestHistoryEntry(id: string): Promise<HistoryEnt
 export async function getGuestHistoryEntryById(id: string): Promise<HistoryEntry | null> {
   const all = await getGuestHistoryEntries();
   return all.find((entry) => entry.id === id) ?? null;
+}
+
+async function cancelStaleScheduledReminderNotifications(
+  previousEntry: HistoryEntry,
+  nextEntry: HistoryEntry,
+): Promise<void> {
+  const previousIds = new Set(getScheduledNotificationIdsFromEntry(previousEntry));
+  const nextIds = new Set(getScheduledNotificationIdsFromEntry(nextEntry));
+
+  const removedIds = [...previousIds].filter((id) => !nextIds.has(id));
+  await Promise.all(
+    removedIds.map((scheduledNotificationId) =>
+      cancelScheduledLocalNotification(scheduledNotificationId),
+    ),
+  );
+}
+
+async function cancelScheduledReminderNotifications(entry: HistoryEntry): Promise<void> {
+  const scheduledNotificationIds = getScheduledNotificationIdsFromEntry(entry);
+  await Promise.all(
+    scheduledNotificationIds.map((scheduledNotificationId) =>
+      cancelScheduledLocalNotification(scheduledNotificationId),
+    ),
+  );
 }

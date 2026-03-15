@@ -67,6 +67,7 @@ describe("DetailedSetupScreen", () => {
       expect.objectContaining({
         pathname: "/(public)/calculate/detailed",
         params: expect.objectContaining({
+          calculationDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
           hawlTrackingMode: "estimated",
           hawlUseToday: "1",
         }),

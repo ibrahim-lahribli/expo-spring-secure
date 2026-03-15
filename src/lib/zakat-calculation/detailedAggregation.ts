@@ -1,19 +1,20 @@
-export type DetailedLineItemMeta = {
-  dueNow: boolean;
-  debtAdjustable: boolean;
-};
+import type { ZakatCategory } from "./category-rules";
+import type { DetailedCalculationContext } from "./detailedCalculationContext";
+import {
+  evaluateEligibility,
+  type EvaluateEligibilityInput,
+  type LineItemMeta,
+} from "./hawl";
 
-export type DetailedAggregationCategory =
-  | "salary"
-  | "livestock"
-  | "produce"
-  | "agri_other"
-  | "trade_sector"
-  | "industrial_sector"
-  | "debt";
+export type DetailedLineItemMeta = LineItemMeta;
+export type DetailedAggregationCategory = ZakatCategory;
+export type DetailedEligibilityOverrides = Pick<
+  EvaluateEligibilityInput,
+  "hawlStartDate" | "eventDate"
+>;
 
 type LineItemForAggregation = {
-  meta: DetailedLineItemMeta;
+  meta: Pick<DetailedLineItemMeta, "dueNow" | "debtAdjustable">;
   result: {
     totalWealth: number;
   };
@@ -21,24 +22,34 @@ type LineItemForAggregation = {
 
 type LineItemForIndependentCashDue = {
   category: DetailedAggregationCategory;
-  meta: DetailedLineItemMeta;
+  meta: Pick<DetailedLineItemMeta, "dueNow" | "debtAdjustable">;
   result: {
+    totalWealth?: number;
     totalZakat: number;
   };
   dueItems?: unknown[];
   dueQuantityKg?: number;
 };
 
-export function resolveDetailedLineItemMeta(category: DetailedAggregationCategory): DetailedLineItemMeta {
-  if (
-    category === "salary" ||
-    category === "agri_other" ||
-    category === "trade_sector" ||
-    category === "industrial_sector"
-  ) {
-    return { dueNow: true, debtAdjustable: true };
-  }
-  return { dueNow: true, debtAdjustable: false };
+export type DetailedLineItemForGrouping = LineItemForIndependentCashDue;
+
+export type HawlAwareAggregationGroups = {
+  moneyDueNowItems: DetailedLineItemForGrouping[];
+  specialDueNowItems: DetailedLineItemForGrouping[];
+  notDueItems: DetailedLineItemForGrouping[];
+};
+
+export function resolveDetailedLineItemMeta(
+  category: DetailedAggregationCategory,
+  context: DetailedCalculationContext,
+  overrides?: DetailedEligibilityOverrides,
+): DetailedLineItemMeta {
+  return evaluateEligibility({
+    category,
+    calculationDate: context.calculationDate,
+    hawlStartDate: overrides?.hawlStartDate,
+    eventDate: overrides?.eventDate,
+  });
 }
 
 export function calculateDueNowMoneyBase(items: LineItemForAggregation[]): number {
@@ -48,6 +59,24 @@ export function calculateDueNowMoneyBase(items: LineItemForAggregation[]): numbe
     }
     return sum + toNonNegativeNumber(item.result.totalWealth);
   }, 0);
+}
+
+export function hasEligibleDueNowMoneyPool(items: LineItemForAggregation[]): boolean {
+  return calculateDueNowMoneyBase(items) > 0;
+}
+
+export function splitHawlAwareLineItems(
+  items: DetailedLineItemForGrouping[],
+): HawlAwareAggregationGroups {
+  return {
+    moneyDueNowItems: items.filter(
+      (item) => item.meta.dueNow && item.meta.debtAdjustable,
+    ),
+    specialDueNowItems: items.filter(
+      (item) => item.meta.dueNow && !item.meta.debtAdjustable && item.category !== "debt",
+    ),
+    notDueItems: items.filter((item) => item.meta.dueNow === false),
+  };
 }
 
 export function calculateIndependentCashDue(items: LineItemForIndependentCashDue[]): number {

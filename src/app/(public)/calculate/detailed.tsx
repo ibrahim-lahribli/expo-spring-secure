@@ -17,15 +17,31 @@ import {
 } from "react-native";
 import { appColors, appRadius, appSpacing } from "../../../theme/designSystem";
 import { upsertGuestHistoryEntry } from "../../../features/history/storage";
-import type { DetailedHistoryLineItem, HistoryEntry } from "../../../features/history/types";
+import type {
+  DetailedHistoryLineItem,
+  DetailedHistoryScheduledReminder,
+  HistoryEntry,
+} from "../../../features/history/types";
+import {
+  scheduleHawlDueReminderNotification,
+  selectEarliestFutureHawlReminderCandidate,
+} from "../../../features/reminders/scheduling";
 import { buildTotalDisplay, type NonCashDueSummary } from "../../../features/history/totalDisplay";
 import {
   calculateDueNowMoneyBase,
   calculateIndependentCashDue,
+  hasEligibleDueNowMoneyPool,
   resolveDetailedLineItemMeta,
+  splitHawlAwareLineItems,
   shouldShowBelowNisabAfterDebt,
+  type DetailedLineItemForGrouping,
   type DetailedLineItemMeta,
 } from "../../../lib/zakat-calculation/detailedAggregation";
+import {
+  isValidIsoDate,
+  resolveCalculationDate,
+  type DetailedCalculationContext,
+} from "../../../lib/zakat-calculation/detailedCalculationContext";
 import {
   applyDebtAdjustment,
   calcLivestockZakat,
@@ -35,6 +51,7 @@ import {
   calculateSalaryZakat,
   formatDueItems,
   getDueItemLabelKey,
+  resolveEligibilityDueStatus,
   type Camel121Choice,
   type DueItem,
   type LivestockType,
@@ -51,6 +68,7 @@ import {
 import { useNisabSettingsStore } from "../../../store/nisabSettingsStore";
 
 type CategoryId = "salary" | "livestock" | "produce" | "agri_other" | "trade_sector" | "industrial_sector" | "debt";
+type HawlCategoryId = Exclude<CategoryId, "produce" | "debt">;
 type CategoryIconName = React.ComponentProps<typeof Ionicons>["name"];
 type StepId = "pick" | "form";
 type SalaryCalculationMode = "annual" | "monthly";
@@ -156,6 +174,32 @@ const CATEGORY_ICONS: Record<CategoryId, CategoryIconName> = {
   industrial_sector: "business-outline",
   debt: "receipt-outline",
 };
+const HAWL_REQUIRED_CATEGORIES: CategoryId[] = [
+  "salary",
+  "livestock",
+  "agri_other",
+  "trade_sector",
+  "industrial_sector",
+];
+
+type HawlTimingDraft = {
+  useSessionDate: boolean;
+  customDate: string;
+};
+
+function buildDefaultHawlTimingDrafts(): Record<HawlCategoryId, HawlTimingDraft> {
+  return {
+    salary: { useSessionDate: true, customDate: "" },
+    livestock: { useSessionDate: true, customDate: "" },
+    agri_other: { useSessionDate: true, customDate: "" },
+    trade_sector: { useSessionDate: true, customDate: "" },
+    industrial_sector: { useSessionDate: true, customDate: "" },
+  };
+}
+
+function isHawlRequiredCategory(category: CategoryId): boolean {
+  return HAWL_REQUIRED_CATEGORIES.includes(category);
+}
 function buildLivestockSchema() {
   return z
     .object({
@@ -246,6 +290,11 @@ function parseBooleanFlag(value: string | undefined): boolean | undefined {
   if (value === "0") return false;
   return undefined;
 }
+function normalizeIsoDate(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  if (!normalized || !isValidIsoDate(normalized)) return undefined;
+  return normalized;
+}
 function toHawlTrackingMode(value: string | undefined): HawlTrackingMode | undefined {
   if (
     value === "yearly_zakat_date" ||
@@ -255,16 +304,6 @@ function toHawlTrackingMode(value: string | undefined): HawlTrackingMode | undef
     return value;
   }
   return undefined;
-}
-function isValidIsoDate(value?: string): value is string {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split("-").map(Number);
-  const parsed = new Date(year, month - 1, day);
-  return (
-    parsed.getFullYear() === year &&
-    parsed.getMonth() === month - 1 &&
-    parsed.getDate() === day
-  );
 }
 function formatIsoDateForDisplay(value: string, locale?: string): string {
   if (!isValidIsoDate(value)) return value;
@@ -332,6 +371,36 @@ function calculateTradeSectorZakat(input: {
   };
 }
 
+function buildHistoryMetaDetails(
+  meta: DetailedLineItemMeta,
+  labels: {
+    detailDueStatus: string;
+    dueStatusDueNow: string;
+    dueStatusNotDueYet: string;
+    dueStatusUnknown: string;
+    detailHawlDueDate: string;
+    detailEventDate: string;
+  },
+): string[] {
+  const dueStatus = resolveEligibilityDueStatus(meta);
+  const dueStatusLabel =
+    dueStatus === "due_now"
+      ? labels.dueStatusDueNow
+      : dueStatus === "unknown"
+        ? labels.dueStatusUnknown
+        : labels.dueStatusNotDueYet;
+  const details = [
+    `${labels.detailDueStatus}: ${dueStatusLabel}`,
+  ];
+  if (isValidIsoDate(meta.hawlDueDate)) {
+    details.push(`${labels.detailHawlDueDate}: ${meta.hawlDueDate}`);
+  }
+  if (isValidIsoDate(meta.eventDate)) {
+    details.push(`${labels.detailEventDate}: ${meta.eventDate}`);
+  }
+  return details;
+}
+
 function buildDetailedHistoryLineItem(
   item: LineItem,
   currency: SupportedCurrency,
@@ -353,6 +422,12 @@ function buildDetailedHistoryLineItem(
     detailDebtDoubtful: string;
     detailDebtOwedNow: string;
     detailDebtNetImpact: string;
+    detailDueStatus: string;
+    detailHawlDueDate: string;
+    detailEventDate: string;
+    dueStatusDueNow: string;
+    dueStatusNotDueYet: string;
+    dueStatusUnknown: string;
     modeTrade: string;
     modeHarvest: string;
     wateringNatural: string;
@@ -364,11 +439,13 @@ function buildDetailedHistoryLineItem(
     return {
       id: item.id,
       category: item.category,
+      meta: item.meta,
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
       details: [
         `${labels.detailMode}: ${item.values.calculationMode === "monthly" ? labels.modeMonthly : labels.modeAnnual}`,
         `${labels.detailNisab}: ${formatMoney(item.result.nisab, currency)}`,
+        ...buildHistoryMetaDetails(item.meta, labels),
       ],
     };
   }
@@ -377,6 +454,7 @@ function buildDetailedHistoryLineItem(
     return {
       id: item.id,
       category: item.category,
+      meta: item.meta,
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
       details: [
@@ -384,6 +462,7 @@ function buildDetailedHistoryLineItem(
         `${labels.detailOwned}: ${item.values.ownedCount}`,
         `${labels.detailDue}: ${labels.dueText(item.dueItems)}`,
         `${labels.detailCashEstimate}: ${formatMoney(item.values.cashEstimate ?? 0, currency)}`,
+        ...buildHistoryMetaDetails(item.meta, labels),
       ],
     };
   }
@@ -402,10 +481,12 @@ function buildDetailedHistoryLineItem(
       !item.values.isForTrade
         ? `${labels.detailCashEquivalent}: ${formatMoney(item.cashEquivalent ?? 0, currency)}`
         : null,
+      ...buildHistoryMetaDetails(item.meta, labels),
     ].filter((line): line is string => Boolean(line));
     return {
       id: item.id,
       category: item.category,
+      meta: item.meta,
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
       details,
@@ -423,6 +504,7 @@ function buildDetailedHistoryLineItem(
     return {
       id: item.id,
       category: item.category,
+      meta: item.meta,
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
       details: [
@@ -437,9 +519,13 @@ function buildDetailedHistoryLineItem(
   return {
     id: item.id,
     category: item.category,
+    meta: item.meta,
     totalZakat: item.result.totalZakat,
     totalWealth: item.result.totalWealth,
-    details: [`${labels.detailNisab}: ${formatMoney(item.result.nisab, currency)}`],
+    details: [
+      `${labels.detailNisab}: ${formatMoney(item.result.nisab, currency)}`,
+      ...buildHistoryMetaDetails(item.meta, labels),
+    ],
   };
 }
 
@@ -447,12 +533,14 @@ export default function DetailedCalculateScreen() {
   const router = useRouter();
   const {
     openCategory: openCategoryParam,
+    calculationDate: calculationDateParam,
     hawlTrackingMode: hawlTrackingModeParam,
     hawlReferenceDate: hawlReferenceDateParam,
     hawlUseToday: hawlUseTodayParam,
     hawlSaveAsDefault: hawlSaveAsDefaultParam,
   } = useLocalSearchParams<{
     openCategory?: string | string[];
+    calculationDate?: string | string[];
     hawlTrackingMode?: string | string[];
     hawlReferenceDate?: string | string[];
     hawlUseToday?: string | string[];
@@ -460,6 +548,7 @@ export default function DetailedCalculateScreen() {
   }>();
   const { t, i18n } = useTranslation("common");
   const currency = useAppPreferencesStore((s) => s.currency);
+  const zakatReminderEnabled = useAppPreferencesStore((s) => s.zakatReminderEnabled);
   const hawlDraft = useDetailedHawlSetupDraftStore((s) => s.draft);
   const setDetailedHawlDraft = useDetailedHawlSetupDraftStore((s) => s.setDraft);
   const livestockSchema = useMemo(() => buildLivestockSchema(), []);
@@ -478,18 +567,44 @@ export default function DetailedCalculateScreen() {
   );
   const [debtValues, setDebtValues] = useState<DebtValues>(defaultDebtValues);
   const [produceValues, setProduceValues] = useState<ProduceValues>(defaultProduceValues);
+  const [hawlTimingDrafts, setHawlTimingDrafts] = useState<Record<HawlCategoryId, HawlTimingDraft>>(
+    () => buildDefaultHawlTimingDrafts(),
+  );
+  const [produceEventDate, setProduceEventDate] = useState("");
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [validationErrorKey, setValidationErrorKey] = useState<string | null>(null);
   const [isHowCalculatedOpen, setIsHowCalculatedOpen] = useState(false);
   const [showHistorySavedToast, setShowHistorySavedToast] = useState(false);
+  const [isSavingHistory, setIsSavingHistory] = useState(false);
+  const isSavingHistoryRef = useRef(false);
   const handledOpenCategoryParam = useRef<string | null>(null);
+  const [calculationContext] = useState<DetailedCalculationContext>(() => ({
+    calculationDate: resolveCalculationDate({
+      routeCalculationDate: toSingleParam(calculationDateParam),
+      draftCalculationDate: hawlDraft?.calculationDate,
+      draftReferenceDate: hawlDraft?.referenceDate,
+    }),
+  }));
+  const resolveLineItemMeta = (
+    category: CategoryId,
+    options?: {
+      hawlStartDate?: string;
+      eventDate?: string;
+    },
+  ): DetailedLineItemMeta =>
+    resolveDetailedLineItemMeta(category, calculationContext, {
+      hawlStartDate: normalizeIsoDate(options?.hawlStartDate),
+      eventDate: normalizeIsoDate(options?.eventDate),
+    });
 
   const categoryLabel = (category: CategoryId) => t(`detailedCalculator.categories.${category}.title`);
   const categoryDescription = (category: CategoryId) =>
     t(`detailedCalculator.categories.${category}.description`);
   const debtImpactBadgeLabel = (category: CategoryId) => {
     if (category === "debt") return null;
-    const meta = resolveDetailedLineItemMeta(category);
+    const meta = resolveLineItemMeta(category, {
+      hawlStartDate: normalizeIsoDate(sessionHawlStartDate),
+    });
     return meta.debtAdjustable
       ? t("detailedCalculator.summary.debtImpactAppliedBadge")
       : t("detailedCalculator.summary.debtImpactNotAppliedBadge");
@@ -552,6 +667,82 @@ export default function DetailedCalculateScreen() {
     i18n?.resolvedLanguage,
     t,
   ]);
+  const sessionHawlStartDate = useMemo(() => {
+    if (isValidIsoDate(hawlReferenceDate)) {
+      return hawlReferenceDate;
+    }
+    if (hawlTrackingMode === "estimated" && hawlUseToday === true) {
+      return calculationContext.calculationDate;
+    }
+    return undefined;
+  }, [calculationContext.calculationDate, hawlReferenceDate, hawlTrackingMode, hawlUseToday]);
+  const hawlReferenceDateDisplay = useMemo(() => {
+    if (!sessionHawlStartDate) {
+      return t("detailedCalculator.notSet");
+    }
+    return formatIsoDateForDisplay(
+      sessionHawlStartDate,
+      i18n?.resolvedLanguage ?? i18n?.language,
+    );
+  }, [i18n?.language, i18n?.resolvedLanguage, sessionHawlStartDate, t]);
+  const activeHawlTimingDraft = useMemo(() => {
+    if (!isHawlRequiredCategory(activeCategory)) return null;
+    return hawlTimingDrafts[activeCategory as HawlCategoryId];
+  }, [activeCategory, hawlTimingDrafts]);
+  const resolvedCurrentHawlStartDate = useMemo(() => {
+    if (!isHawlRequiredCategory(activeCategory)) return undefined;
+    if (activeHawlTimingDraft?.useSessionDate ?? true) {
+      return normalizeIsoDate(sessionHawlStartDate);
+    }
+    return normalizeIsoDate(activeHawlTimingDraft?.customDate);
+  }, [activeCategory, activeHawlTimingDraft, sessionHawlStartDate]);
+  const resolvedCurrentProduceEventDate = useMemo(
+    () => normalizeIsoDate(produceEventDate),
+    [produceEventDate],
+  );
+  const activeTimingMeta = useMemo(
+    () =>
+      resolveLineItemMeta(activeCategory, {
+        hawlStartDate: resolvedCurrentHawlStartDate,
+        eventDate: activeCategory === "produce" ? resolvedCurrentProduceEventDate : undefined,
+      }),
+    [activeCategory, resolvedCurrentHawlStartDate, resolvedCurrentProduceEventDate],
+  );
+  const getDueStatusLabel = (meta: DetailedLineItemMeta) => {
+    const dueStatus = resolveEligibilityDueStatus(meta);
+    if (dueStatus === "due_now") {
+      return t("detailedCalculator.summary.dueNowStatus");
+    }
+    if (dueStatus === "unknown") {
+      return t("detailedCalculator.summary.dueStatusUnknown");
+    }
+    return t("detailedCalculator.summary.notDueYetStatus");
+  };
+  const getDueStatusTone = (meta: DetailedLineItemMeta): "due" | "unknown" | "not_due" => {
+    const dueStatus = resolveEligibilityDueStatus(meta);
+    if (dueStatus === "due_now") return "due";
+    if (dueStatus === "unknown") return "unknown";
+    return "not_due";
+  };
+  const getHawlStartContextLabel = (meta: DetailedLineItemMeta) =>
+    t("detailedCalculator.summary.hawlStartDateValue", {
+      value: isValidIsoDate(meta.hawlStartDate)
+        ? formatIsoDateForDisplay(meta.hawlStartDate, i18n?.resolvedLanguage ?? i18n?.language)
+        : t("detailedCalculator.notSet"),
+    });
+  const getDueDateContextLabel = (meta: DetailedLineItemMeta) => {
+    if (isValidIsoDate(meta.hawlDueDate)) {
+      return t("detailedCalculator.summary.hawlDueDateValue", {
+        value: formatIsoDateForDisplay(meta.hawlDueDate, i18n?.resolvedLanguage ?? i18n?.language),
+      });
+    }
+    if (isValidIsoDate(meta.eventDate)) {
+      return t("detailedCalculator.summary.eventDateValue", {
+        value: formatIsoDateForDisplay(meta.eventDate, i18n?.resolvedLanguage ?? i18n?.language),
+      });
+    }
+    return null;
+  };
 
   const nisabMethod = useNisabSettingsStore((s) => s.nisabMethod);
   const silverPricePerGram = useNisabSettingsStore((s) => s.silverPricePerGram);
@@ -724,22 +915,48 @@ export default function DetailedCalculateScreen() {
       }),
     [debtLineItem],
   );
-  const dueNowMoneyBase = useMemo(
-    () => calculateDueNowMoneyBase(lineItems),
+  const hawlAwareGroups = useMemo(
+    () => splitHawlAwareLineItems(lineItems as DetailedLineItemForGrouping[]),
     [lineItems],
   );
+  const dueNowMoneyLineItems = useMemo(
+    () => lineItems.filter((item) => item.meta.dueNow && item.meta.debtAdjustable),
+    [lineItems],
+  );
+  const dueNowSpecialLineItems = useMemo(
+    () =>
+      lineItems.filter(
+        (item) => item.meta.dueNow && !item.meta.debtAdjustable && item.category !== "debt",
+      ),
+    [lineItems],
+  );
+  const notDueLineItems = useMemo(
+    () => lineItems.filter((item) => item.meta.dueNow === false),
+    [lineItems],
+  );
+  const dueNowMoneyBase = useMemo(
+    () => calculateDueNowMoneyBase(dueNowMoneyLineItems),
+    [dueNowMoneyLineItems],
+  );
   const cashBaseBeforeDebt = dueNowMoneyBase;
+  const hasEligibleDueNowMoney = useMemo(
+    () => hasEligibleDueNowMoneyPool(dueNowMoneyLineItems),
+    [dueNowMoneyLineItems],
+  );
   const finalZakatableBase = useMemo(
-    () => applyDebtAdjustment(cashBaseBeforeDebt, debtAdjustment.netAdjustment),
-    [cashBaseBeforeDebt, debtAdjustment.netAdjustment],
+    () =>
+      hasEligibleDueNowMoney
+        ? applyDebtAdjustment(cashBaseBeforeDebt, debtAdjustment.netAdjustment)
+        : cashBaseBeforeDebt,
+    [cashBaseBeforeDebt, debtAdjustment.netAdjustment, hasEligibleDueNowMoney],
   );
   const finalCashZakat = useMemo(
     () => (finalZakatableBase >= monetaryNisab ? finalZakatableBase * 0.025 : 0),
     [finalZakatableBase, monetaryNisab],
   );
   const independentNonDebtAdjustableCashDue = useMemo(
-    () => calculateIndependentCashDue(lineItems),
-    [lineItems],
+    () => calculateIndependentCashDue(hawlAwareGroups.specialDueNowItems),
+    [hawlAwareGroups.specialDueNowItems],
   );
   const combinedTotal = useMemo(
     () => Math.max(0, finalCashZakat) + Math.max(0, independentNonDebtAdjustableCashDue),
@@ -759,19 +976,23 @@ export default function DetailedCalculateScreen() {
   const addedCategoryCount = useMemo(() => new Set(lineItems.map((item) => item.category)).size, [lineItems]);
   const livestockInKindBreakdown = useMemo(
     () =>
-      lineItems
+      dueNowSpecialLineItems
         .filter((item): item is LivestockLineItem => item.category === "livestock")
         .filter((item) => item.dueItems.length > 0)
         .map((item) => `${livestockTypeLabel(item.values.livestockType)}: ${dueText(item.dueItems)}`),
-    [lineItems, t],
+    [dueNowSpecialLineItems, t],
   );
   const produceDueKgTotal = useMemo(
     () =>
-      lineItems
+      dueNowSpecialLineItems
         .filter((item): item is ProduceLineItem => item.category === "produce")
         .filter((item) => !item.values.isForTrade)
         .reduce((sum, item) => sum + (item.dueQuantityKg ?? 0), 0),
-    [lineItems],
+    [dueNowSpecialLineItems],
+  );
+  const notDueTotalWealth = useMemo(
+    () => notDueLineItems.reduce((sum, item) => sum + Math.max(0, item.result.totalWealth), 0),
+    [notDueLineItems],
   );
   const nonCashDueSummary = useMemo<NonCashDueSummary>(
     () => ({
@@ -852,7 +1073,9 @@ export default function DetailedCalculateScreen() {
           debtsYouOweDueNow: toNonNegative(debtValues.debtsYouOweDueNow),
         },
       });
-      const previewFinalBase = applyDebtAdjustment(cashBaseBeforeDebt, adjustment.netAdjustment);
+      const previewFinalBase = hasEligibleDueNowMoney
+        ? applyDebtAdjustment(cashBaseBeforeDebt, adjustment.netAdjustment)
+        : cashBaseBeforeDebt;
       const previewFinalZakat = previewFinalBase >= monetaryNisab ? previewFinalBase * 0.025 : 0;
       return {
         netLabel: t("detailedCalculator.preview.debtNetImpact"),
@@ -917,6 +1140,7 @@ export default function DetailedCalculateScreen() {
     nisabOverride,
     debtValues,
     cashBaseBeforeDebt,
+    hasEligibleDueNowMoney,
     monetaryNisab,
     produceValues,
     salaryValues,
@@ -943,6 +1167,42 @@ export default function DetailedCalculateScreen() {
     setStep("form");
   };
 
+  const resolveSelectedHawlStartDate = (category: CategoryId): string | undefined => {
+    if (!isHawlRequiredCategory(category)) return undefined;
+    const timingDraft = hawlTimingDrafts[category as HawlCategoryId];
+    if (timingDraft?.useSessionDate ?? true) {
+      return normalizeIsoDate(sessionHawlStartDate);
+    }
+    return normalizeIsoDate(timingDraft?.customDate);
+  };
+
+  const validateTimingInputs = (category: CategoryId): boolean => {
+    if (isHawlRequiredCategory(category)) {
+      const timingDraft = hawlTimingDrafts[category as HawlCategoryId];
+      if (timingDraft?.useSessionDate ?? true) {
+        return true;
+      }
+      if (!normalizeIsoDate(timingDraft?.customDate)) {
+        setValidationErrorKey("detailedCalculator.validation.hawlDateRequired");
+        return false;
+      }
+      return true;
+    }
+
+    if (category === "produce") {
+      if (!produceEventDate.trim()) {
+        setValidationErrorKey("detailedCalculator.validation.eventDateRequired");
+        return false;
+      }
+      if (!normalizeIsoDate(produceEventDate)) {
+        setValidationErrorKey("detailedCalculator.validation.eventDateInvalid");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   useEffect(() => {
     const trackingModeParam = toSingleParam(hawlTrackingModeParam);
     if (!trackingModeParam) return;
@@ -955,17 +1215,25 @@ export default function DetailedCalculateScreen() {
     }
     const referenceDateParam = toSingleParam(hawlReferenceDateParam);
     const normalizedReferenceDate =
-      referenceDateParam && /^\d{4}-\d{2}-\d{2}$/.test(referenceDateParam)
+      isValidIsoDate(referenceDateParam)
         ? referenceDateParam
         : undefined;
+    const calculationDateValue = toSingleParam(calculationDateParam);
+    const normalizedCalculationDate = resolveCalculationDate({
+      routeCalculationDate: calculationDateValue,
+      draftCalculationDate: undefined,
+      draftReferenceDate: normalizedReferenceDate,
+    });
 
     setDetailedHawlDraft({
       trackingMode: trackingModeParam as HawlTrackingMode,
       referenceDate: normalizedReferenceDate,
+      calculationDate: normalizedCalculationDate,
       useToday: parseBooleanFlag(toSingleParam(hawlUseTodayParam)),
       saveAsDefault: parseBooleanFlag(toSingleParam(hawlSaveAsDefaultParam)),
     });
   }, [
+    calculationDateParam,
     hawlReferenceDateParam,
     hawlSaveAsDefaultParam,
     hawlTrackingModeParam,
@@ -986,44 +1254,110 @@ export default function DetailedCalculateScreen() {
   }, [openCategoryParam, openCategory]);
 
   const onSaveToHistory = async () => {
-    if (lineItems.length === 0) {
+    if (lineItems.length === 0 || isSavingHistoryRef.current) {
       return;
     }
+    isSavingHistoryRef.current = true;
+    setIsSavingHistory(true);
 
-    const now = new Date().toISOString();
-    const categoriesUsed = Array.from(new Set(lineItems.map((item) => item.category)));
-    const entry: HistoryEntry = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      flowType: "detailed",
-      createdAt: now,
-      updatedAt: now,
-      totalZakat: combinedTotal,
-      currency,
-      nisabSnapshot: {
-        method: nisabMethod,
-        silverPricePerGram,
-        goldPricePerGram,
-        override: nisabOverride > 0 ? nisabOverride : null,
-      },
-      summary: {
-        categoriesUsed,
-        itemCount: lineItems.length,
-        nonCashDue: nonCashDueSummary,
-      },
-      payload: {
-        kind: "detailed",
-        lineItems: lineItems.map((item) =>
-          buildDetailedHistoryLineItem(item, currency, {
-            livestockTypeLabel,
-            dueText,
-            modeMonthly: t("detailedCalculator.modes.monthly"),
-            modeAnnual: t("detailedCalculator.modes.annual"),
-            detailMode: t("detailedCalculator.history.mode"),
-            detailNisab: t("detailedCalculator.history.nisab"),
-            detailType: t("detailedCalculator.history.type"),
-            detailOwned: t("detailedCalculator.history.owned"),
-            detailDue: t("detailedCalculator.history.due"),
-            detailCashEstimate: t("detailedCalculator.history.cashEstimate"),
+    try {
+      const now = new Date().toISOString();
+      const historyEntryId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const categoriesUsed = Array.from(new Set(lineItems.map((item) => item.category)));
+      const reminderCandidate = selectEarliestFutureHawlReminderCandidate(
+        lineItems.map((item) => ({
+          id: item.id,
+          category: item.category,
+          meta: item.meta,
+        })),
+      );
+      let scheduledReminder: DetailedHistoryScheduledReminder | undefined;
+
+      if (reminderCandidate) {
+        const baseReminder: Omit<
+          DetailedHistoryScheduledReminder,
+          "status" | "enabled" | "scheduledNotificationId"
+        > = {
+          id: buildId(),
+          historyEntryId,
+          lineItemId: reminderCandidate.lineItemId,
+          type: "hawl_due",
+          reminderDate: reminderCandidate.reminderDate,
+        };
+        if (!zakatReminderEnabled) {
+          scheduledReminder = {
+            ...baseReminder,
+            enabled: false,
+            status: "disabled_by_preference",
+          };
+        } else {
+          const reminderDateDisplay = formatIsoDateForDisplay(
+            reminderCandidate.reminderDate,
+            i18n?.resolvedLanguage ?? i18n?.language,
+          );
+          const schedulingResult = await scheduleHawlDueReminderNotification({
+            reminderDate: reminderCandidate.reminderDate,
+            title: t("history.reminderNotification.title"),
+            body: t("history.reminderNotification.body", { date: reminderDateDisplay }),
+            data: {
+              historyEntryId,
+              lineItemId: reminderCandidate.lineItemId,
+              reminderDate: reminderCandidate.reminderDate,
+              type: "hawl_due",
+            },
+          });
+          scheduledReminder =
+            schedulingResult.status === "scheduled"
+              ? {
+                  ...baseReminder,
+                  enabled: true,
+                  status: "scheduled",
+                  scheduledNotificationId: schedulingResult.scheduledNotificationId,
+                }
+              : {
+                  ...baseReminder,
+                  enabled: true,
+                  status: schedulingResult.status,
+                };
+        }
+      }
+
+      const entry: HistoryEntry = {
+        id: historyEntryId,
+        flowType: "detailed",
+        createdAt: now,
+        updatedAt: now,
+        totalZakat: combinedTotal,
+        currency,
+        nisabSnapshot: {
+          method: nisabMethod,
+          silverPricePerGram,
+          goldPricePerGram,
+          override: nisabOverride > 0 ? nisabOverride : null,
+        },
+        summary: {
+          categoriesUsed,
+          itemCount: lineItems.length,
+          nonCashDue: nonCashDueSummary,
+        },
+        payload: {
+          kind: "detailed",
+          calculationContext: {
+            calculationDate: calculationContext.calculationDate,
+          },
+          reminders: scheduledReminder ? [scheduledReminder] : undefined,
+          lineItems: lineItems.map((item) =>
+            buildDetailedHistoryLineItem(item, currency, {
+              livestockTypeLabel,
+              dueText,
+              modeMonthly: t("detailedCalculator.modes.monthly"),
+              modeAnnual: t("detailedCalculator.modes.annual"),
+              detailMode: t("detailedCalculator.history.mode"),
+              detailNisab: t("detailedCalculator.history.nisab"),
+              detailType: t("detailedCalculator.history.type"),
+              detailOwned: t("detailedCalculator.history.owned"),
+              detailDue: t("detailedCalculator.history.due"),
+              detailCashEstimate: t("detailedCalculator.history.cashEstimate"),
               detailWatering: t("detailedCalculator.history.watering"),
               detailDueProduce: t("detailedCalculator.history.dueProduce"),
               detailCashEquivalent: t("detailedCalculator.history.cashEquivalent"),
@@ -1031,36 +1365,55 @@ export default function DetailedCalculateScreen() {
               detailDebtDoubtful: t("detailedCalculator.history.debtDoubtful"),
               detailDebtOwedNow: t("detailedCalculator.history.debtOwedNow"),
               detailDebtNetImpact: t("detailedCalculator.history.debtNetImpact"),
+              detailDueStatus: t("detailedCalculator.history.dueStatus"),
+              detailHawlDueDate: t("detailedCalculator.history.hawlDueDate"),
+              detailEventDate: t("detailedCalculator.history.eventDate"),
+              dueStatusDueNow: t("detailedCalculator.summary.dueNowStatus"),
+              dueStatusNotDueYet: t("detailedCalculator.summary.notDueYetStatus"),
+              dueStatusUnknown: t("detailedCalculator.summary.dueStatusUnknown"),
               modeTrade: t("detailedCalculator.history.modeTrade"),
               modeHarvest: t("detailedCalculator.history.modeHarvest"),
               wateringNatural: t("detailedCalculator.history.wateringNatural"),
-            wateringPaidIrrigation: t("detailedCalculator.history.wateringPaidIrrigation"),
-            kgUnit: t("history.kgUnit"),
-          }),
-        ),
-        combinedTotal,
-        finalCalculation: hasDebtLineItem
-          ? {
-              cashBaseBeforeDebt,
-              debtAdjustment: {
-                collectibleReceivablesCurrent: debtAdjustment.collectibleReceivablesCurrent,
-                doubtfulReceivables: debtAdjustment.doubtfulReceivables,
-                debtsYouOweDueNow: debtAdjustment.debtsYouOweDueNow,
-                netAdjustment: debtAdjustment.netAdjustment,
-              },
-              finalZakatableBase,
-              finalZakatRate: 0.025,
-              adjustedCashPoolZakatDue: finalCashZakat,
-              independentNonDebtAdjustableCashDue: independentNonDebtAdjustableCashDue,
-              finalZakatDue: combinedTotal,
-              hasDebtLineItem: true,
-            }
-          : undefined,
-      },
-    };
+              wateringPaidIrrigation: t("detailedCalculator.history.wateringPaidIrrigation"),
+              kgUnit: t("history.kgUnit"),
+            }),
+          ),
+          combinedTotal,
+          finalCalculation: hasDebtLineItem
+            ? {
+                cashBaseBeforeDebt,
+                debtAdjustment: {
+                  collectibleReceivablesCurrent: debtAdjustment.collectibleReceivablesCurrent,
+                  doubtfulReceivables: debtAdjustment.doubtfulReceivables,
+                  debtsYouOweDueNow: debtAdjustment.debtsYouOweDueNow,
+                  netAdjustment: debtAdjustment.netAdjustment,
+                },
+                finalZakatableBase,
+                finalZakatRate: 0.025,
+                adjustedCashPoolZakatDue: finalCashZakat,
+                independentNonDebtAdjustableCashDue: independentNonDebtAdjustableCashDue,
+                finalZakatDue: combinedTotal,
+                hasDebtLineItem: true,
+                groupedTotals: {
+                  dueNowMoneyItemCount: dueNowMoneyLineItems.length,
+                  dueNowSpecialItemCount: dueNowSpecialLineItems.length,
+                  notDueItemCount: notDueLineItems.length,
+                  dueNowMoneyBaseBeforeDebt: cashBaseBeforeDebt,
+                  dueNowSpecialCashDue: independentNonDebtAdjustableCashDue,
+                  notDueTotalWealth,
+                  hasEligibleDueNowMoneyPool: hasEligibleDueNowMoney,
+                },
+              }
+            : undefined,
+        },
+      };
 
-    await upsertGuestHistoryEntry(entry);
-    setShowHistorySavedToast(true);
+      await upsertGuestHistoryEntry(entry);
+      setShowHistorySavedToast(true);
+    } finally {
+      isSavingHistoryRef.current = false;
+      setIsSavingHistory(false);
+    }
   };
 
   const onCalculateSalary = () => {
@@ -1086,7 +1439,9 @@ export default function DetailedCalculateScreen() {
         category: "salary",
         values: { ...salaryValues },
         result,
-        meta: resolveDetailedLineItemMeta("salary"),
+        meta: resolveLineItemMeta("salary", {
+          hawlStartDate: resolveSelectedHawlStartDate("salary"),
+        }),
       },
     ]);
     setStep("pick");
@@ -1114,7 +1469,9 @@ export default function DetailedCalculateScreen() {
         cashEstimate,
       },
       result,
-      meta: resolveDetailedLineItemMeta("livestock"),
+      meta: resolveLineItemMeta("livestock", {
+        hawlStartDate: resolveSelectedHawlStartDate("livestock"),
+      }),
       dueItems: due.dueItems,
       dueText: dueText(due.dueItems),
     };
@@ -1153,7 +1510,9 @@ export default function DetailedCalculateScreen() {
           category: "produce",
           values: { ...produceValues },
           result: produceResult,
-          meta: resolveDetailedLineItemMeta("produce"),
+          meta: resolveLineItemMeta("produce", {
+            eventDate: normalizeIsoDate(produceEventDate),
+          }),
           dueQuantityKg: undefined,
           cashEquivalent: produceResult.totalZakat,
         },
@@ -1172,7 +1531,9 @@ export default function DetailedCalculateScreen() {
         category: "produce",
         values: { ...produceValues },
         result: { ...produceResult, totalZakat: cashEquivalent ?? 0 },
-        meta: resolveDetailedLineItemMeta("produce"),
+        meta: resolveLineItemMeta("produce", {
+          eventDate: normalizeIsoDate(produceEventDate),
+        }),
         dueQuantityKg: dueKg,
         cashEquivalent,
       },
@@ -1199,7 +1560,9 @@ export default function DetailedCalculateScreen() {
         category: "agri_other",
         values: { ...agriOtherValues },
         result,
-        meta: resolveDetailedLineItemMeta("agri_other"),
+        meta: resolveLineItemMeta("agri_other", {
+          hawlStartDate: resolveSelectedHawlStartDate("agri_other"),
+        }),
       },
     ]);
     setStep("pick");
@@ -1224,7 +1587,9 @@ export default function DetailedCalculateScreen() {
         category: "trade_sector",
         values: { ...tradeSectorValues },
         result,
-        meta: resolveDetailedLineItemMeta("trade_sector"),
+        meta: resolveLineItemMeta("trade_sector", {
+          hawlStartDate: resolveSelectedHawlStartDate("trade_sector"),
+        }),
       },
     ]);
     setStep("pick");
@@ -1249,7 +1614,9 @@ export default function DetailedCalculateScreen() {
         category: "industrial_sector",
         values: { ...industrialSectorValues },
         result,
-        meta: resolveDetailedLineItemMeta("industrial_sector"),
+        meta: resolveLineItemMeta("industrial_sector", {
+          hawlStartDate: resolveSelectedHawlStartDate("industrial_sector"),
+        }),
       },
     ]);
     setStep("pick");
@@ -1284,7 +1651,7 @@ export default function DetailedCalculateScreen() {
             category: "debt",
             values: { ...debtValues },
             result,
-            meta: resolveDetailedLineItemMeta("debt"),
+            meta: resolveLineItemMeta("debt"),
           },
         ];
       }
@@ -1303,6 +1670,9 @@ export default function DetailedCalculateScreen() {
 
   const onCalculate = () => {
     setValidationErrorKey(null);
+    if (!validateTimingInputs(activeCategory)) {
+      return;
+    }
     if (activeCategory === "salary") onCalculateSalary();
     else if (activeCategory === "livestock") onCalculateLivestock();
     else if (activeCategory === "agri_other") onCalculateAgriOther();
@@ -1316,6 +1686,152 @@ export default function DetailedCalculateScreen() {
   })} - ${t("detailedCalculator.total.label")}: ${totalDisplay.primaryDisplay}${
     totalDisplay.suffixDisplay ? ` + ${totalDisplay.suffixDisplay}` : ""
   }`;
+  const renderSummaryLineItem = (item: LineItem) => (
+    <View key={item.id} style={styles.summaryItem}>
+      <View style={[styles.summaryItemHeader, isRTL && styles.rowReverse]}>
+        <View style={[styles.summaryItemTitleWrap, isRTL && styles.rowReverse]}>
+          <Text style={styles.bold}>{categoryLabel(item.category)}</Text>
+          {item.category !== "debt" ? (
+            <View
+              style={[
+                styles.debtImpactBadge,
+                item.meta.debtAdjustable
+                  ? styles.debtImpactBadgeApplied
+                  : styles.debtImpactBadgeNotApplied,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.debtImpactBadgeText,
+                  item.meta.debtAdjustable
+                    ? styles.debtImpactBadgeTextApplied
+                    : styles.debtImpactBadgeTextNotApplied,
+                ]}
+              >
+                {item.meta.debtAdjustable
+                  ? t("detailedCalculator.summary.debtImpactAppliedBadge")
+                  : t("detailedCalculator.summary.debtImpactNotAppliedBadge")}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <Pressable onPress={() => setLineItems((p) => p.filter((x) => x.id !== item.id))}>
+          <Text style={styles.link}>{t("delete")}</Text>
+        </Pressable>
+      </View>
+      {item.category !== "debt" ? (
+        <>
+          <Text style={styles.caption}>
+            {t("detailedCalculator.summary.dueStatusValue", {
+              value: getDueStatusLabel(item.meta),
+            })}
+          </Text>
+          {getDueDateContextLabel(item.meta) ? (
+            <Text style={styles.caption}>{getDueDateContextLabel(item.meta)}</Text>
+          ) : null}
+        </>
+      ) : null}
+      {item.category === "salary" ? (
+        <>
+          <Text>{t("detailedCalculator.summary.modeValue", { value: item.values.calculationMode === "monthly" ? t("detailedCalculator.modes.monthly") : t("detailedCalculator.modes.annual") })}</Text>
+          <Text>{t("detailedCalculator.summary.nisabValue", { value: formatMoney(item.result.nisab, currency) })}</Text>
+          <Text>{t("detailedCalculator.summary.netWealthValue", { value: formatMoney(item.result.totalWealth, currency) })}</Text>
+          <Text>
+            {t(
+              hasDebtLineItem && item.meta.debtAdjustable
+                ? "detailedCalculator.summary.zakatBeforeAdjustmentsValue"
+                : "detailedCalculator.summary.zakatDueValue",
+              { value: formatMoney(item.result.totalZakat, currency) },
+            )}
+          </Text>
+        </>
+      ) : item.category === "livestock" ? (
+        <>
+          <Text>{t("detailedCalculator.summary.typeValue", { value: livestockTypeLabel(item.values.livestockType) })}</Text>
+          <Text>{t("detailedCalculator.summary.ownedValue", { value: item.values.ownedCount })}</Text>
+          <Text>{t("detailedCalculator.summary.dueAnimalsValue", { value: dueText(item.dueItems) })}</Text>
+          <Text>{t("detailedCalculator.summary.cashIncludedValue", { value: formatMoney(item.values.cashEstimate ?? 0, currency) })}</Text>
+        </>
+      ) : item.category === "agri_other" ? (
+        <>
+          <Text>{t("detailedCalculator.summary.marketValueValue", { value: formatMoney(Number(item.values.marketValue || 0), currency) })}</Text>
+          <Text>{t("detailedCalculator.summary.operatingCostsValue", { value: formatMoney(Number(item.values.operatingCosts || 0), currency) })}</Text>
+          <Text>{t("detailedCalculator.summary.netValueValue", { value: formatMoney(item.result.totalWealth, currency) })}</Text>
+          <Text>{t("detailedCalculator.summary.ruleAgriOther")}</Text>
+          <Text>{t("detailedCalculator.summary.nisabValue", { value: formatMoney(item.result.nisab, currency) })}</Text>
+          <Text>
+            {t(
+              hasDebtLineItem && item.meta.debtAdjustable
+                ? "detailedCalculator.summary.zakatBeforeAdjustmentsValue"
+                : "detailedCalculator.summary.zakatDueValue",
+              { value: formatMoney(item.result.totalZakat, currency) },
+            )}
+          </Text>
+        </>
+      ) : item.category === "trade_sector" ? (
+        <>
+          <Text>{t("detailedCalculator.summary.tradeAssetsValue", { value: formatMoney(Number(item.values.marketValue || 0), currency) })}</Text>
+          <Text>{t("detailedCalculator.summary.dueOperatingCostsValue", { value: formatMoney(Number(item.values.operatingCosts || 0), currency) })}</Text>
+          <Text>{t("detailedCalculator.summary.netZakatableAmountValue", { value: formatMoney(item.result.totalWealth, currency) })}</Text>
+          <Text>{t("detailedCalculator.summary.ruleTradeSector")}</Text>
+          <Text>{t("detailedCalculator.summary.nisabValue", { value: formatMoney(item.result.nisab, currency) })}</Text>
+          <Text>
+            {t(
+              hasDebtLineItem && item.meta.debtAdjustable
+                ? "detailedCalculator.summary.zakatBeforeAdjustmentsValue"
+                : "detailedCalculator.summary.zakatDueValue",
+              { value: formatMoney(item.result.totalZakat, currency) },
+            )}
+          </Text>
+        </>
+      ) : item.category === "industrial_sector" ? (
+        <>
+          <Text>{t("detailedCalculator.summary.industrialAssetsValue", { value: formatMoney(Number(item.values.marketValue || 0), currency) })}</Text>
+          <Text>{t("detailedCalculator.summary.productionCostsValue", { value: formatMoney(Number(item.values.operatingCosts || 0), currency) })}</Text>
+          <Text>{t("detailedCalculator.summary.netZakatableAmountValue", { value: formatMoney(item.result.totalWealth, currency) })}</Text>
+          <Text>{t("detailedCalculator.summary.ruleIndustrial")}</Text>
+          <Text>{t("detailedCalculator.summary.nisabValue", { value: formatMoney(item.result.nisab, currency) })}</Text>
+          <Text>
+            {t(
+              hasDebtLineItem && item.meta.debtAdjustable
+                ? "detailedCalculator.summary.zakatBeforeAdjustmentsValue"
+                : "detailedCalculator.summary.zakatDueValue",
+              { value: formatMoney(item.result.totalZakat, currency) },
+            )}
+          </Text>
+        </>
+      ) : item.category === "debt" ? (
+        <>
+          <Text style={styles.caption}>{t("detailedCalculator.summary.debtAdjustmentSeeSection")}</Text>
+        </>
+      ) : (
+        <>
+          <Text>{t("detailedCalculator.summary.modeValue", { value: item.values.isForTrade ? t("detailedCalculator.form.produce.tradeMode") : t("detailedCalculator.form.produce.harvestMode") })}</Text>
+          {item.values.isForTrade ? (
+            <>
+              <Text>{t("detailedCalculator.summary.marketValueValue", { value: formatMoney(Number(item.values.marketValue || 0), currency) })}</Text>
+              <Text>{t("detailedCalculator.summary.ruleProduceTrade")}</Text>
+              <Text>{t("detailedCalculator.summary.nisabValue", { value: formatMoney(item.result.nisab, currency) })}</Text>
+              <Text>
+                {t("detailedCalculator.summary.zakatDueValue", {
+                  value: formatMoney(item.result.totalZakat, currency),
+                })}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text>{t("detailedCalculator.summary.harvestQuantityValue", { value: `${Number(item.values.quantityKg || 0).toFixed(2)} ${t("history.kgUnit")}` })}</Text>
+              <Text>{t("detailedCalculator.summary.ruleWateringValue", { value: item.values.wateringMethod === "natural" ? t("detailedCalculator.form.produce.naturalWatering") : t("detailedCalculator.form.produce.paidIrrigation") })}</Text>
+              <Text>{t("detailedCalculator.summary.nisabValue", { value: `${item.result.nisab.toFixed(2)} ${t("history.kgUnit")}` })}</Text>
+              <Text>{t("detailedCalculator.summary.zakatDueProduceValue", { value: `${(item.dueQuantityKg ?? 0).toFixed(2)} ${t("history.kgUnit")}` })}</Text>
+              <Text>{t("detailedCalculator.summary.pricePerKgValue", { value: parseOptionalPositive(item.values.pricePerKg) ? formatMoney(parseOptionalPositive(item.values.pricePerKg)!, currency) : t("detailedCalculator.notSet") })}</Text>
+              <Text>{t("detailedCalculator.summary.cashEquivalentIncludedValue", { value: formatMoney(item.cashEquivalent ?? 0, currency) })}</Text>
+            </>
+          )}
+        </>
+      )}
+    </View>
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -1351,7 +1867,9 @@ export default function DetailedCalculateScreen() {
           {CATEGORY_ORDER.map((category) => {
             const added = lineItems.some((item) => item.category === category);
             const debtImpactBadge = debtImpactBadgeLabel(category);
-            const debtImpactMeta = resolveDetailedLineItemMeta(category);
+            const debtImpactMeta = resolveLineItemMeta(category, {
+              hawlStartDate: normalizeIsoDate(sessionHawlStartDate),
+            });
             return (
               <Pressable
                 key={category}
@@ -1420,6 +1938,162 @@ export default function DetailedCalculateScreen() {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>{categoryLabel(activeCategory)}</Text>
             <Text style={styles.caption}>{categoryDescription(activeCategory)}</Text>
+            {isHawlRequiredCategory(activeCategory) ? (
+              <View style={styles.infoBox}>
+                <Text style={styles.bold}>{t("detailedCalculator.form.hawl.sectionTitle")}</Text>
+                <View style={[styles.rowWrap, isRTL && styles.rowWrapRtl]}>
+                  <Pressable
+                    style={[styles.chip, (activeHawlTimingDraft?.useSessionDate ?? true) && styles.chipActive]}
+                    onPress={() => {
+                      const hawlCategory = activeCategory as HawlCategoryId;
+                      setHawlTimingDrafts((prev) => ({
+                        ...prev,
+                        [hawlCategory]: {
+                          ...prev[hawlCategory],
+                          useSessionDate: true,
+                        },
+                      }));
+                      setValidationErrorKey(null);
+                    }}
+                  >
+                    <Text>
+                      {t("detailedCalculator.form.hawl.useSessionDate", {
+                        date: hawlReferenceDateDisplay,
+                      })}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.chip, !(activeHawlTimingDraft?.useSessionDate ?? true) && styles.chipActive]}
+                    onPress={() => {
+                      const hawlCategory = activeCategory as HawlCategoryId;
+                      setHawlTimingDrafts((prev) => ({
+                        ...prev,
+                        [hawlCategory]: {
+                          ...prev[hawlCategory],
+                          useSessionDate: false,
+                        },
+                      }));
+                      setValidationErrorKey(null);
+                    }}
+                  >
+                    <Text>{t("detailedCalculator.form.hawl.useCustomCategoryDate")}</Text>
+                  </Pressable>
+                </View>
+                {activeHawlTimingDraft?.useSessionDate ? (
+                  <Text style={styles.caption}>
+                    {t("detailedCalculator.form.hawl.inheritedDatePreview", {
+                      date: hawlReferenceDateDisplay,
+                    })}
+                  </Text>
+                ) : null}
+                {!(activeHawlTimingDraft?.useSessionDate ?? true) ? (
+                  <TextInput
+                    style={styles.input}
+                    value={activeHawlTimingDraft?.customDate ?? ""}
+                    onChangeText={(value) => {
+                      const hawlCategory = activeCategory as HawlCategoryId;
+                      setHawlTimingDrafts((prev) => ({
+                        ...prev,
+                        [hawlCategory]: {
+                          ...prev[hawlCategory],
+                          customDate: value,
+                        },
+                      }));
+                      setValidationErrorKey(null);
+                    }}
+                    placeholder={t("detailedCalculator.form.hawl.customDatePlaceholder")}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                ) : null}
+                <Text style={styles.caption}>
+                  {getHawlStartContextLabel(activeTimingMeta)}
+                </Text>
+                <Text style={styles.caption}>
+                  {t("detailedCalculator.summary.hawlDueDateValue", {
+                    value: isValidIsoDate(activeTimingMeta.hawlDueDate)
+                      ? formatIsoDateForDisplay(
+                          activeTimingMeta.hawlDueDate,
+                          i18n?.resolvedLanguage ?? i18n?.language,
+                        )
+                      : t("detailedCalculator.notSet"),
+                  })}
+                </Text>
+                <View
+                  style={[
+                    styles.dueStatusBadge,
+                    getDueStatusTone(activeTimingMeta) === "due"
+                      ? styles.dueStatusBadgeDue
+                      : getDueStatusTone(activeTimingMeta) === "unknown"
+                        ? styles.dueStatusBadgeUnknown
+                        : styles.dueStatusBadgeNotDue,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dueStatusBadgeText,
+                      getDueStatusTone(activeTimingMeta) === "due"
+                        ? styles.dueStatusBadgeTextDue
+                        : getDueStatusTone(activeTimingMeta) === "unknown"
+                          ? styles.dueStatusBadgeTextUnknown
+                          : styles.dueStatusBadgeTextNotDue,
+                    ]}
+                  >
+                    {getDueStatusLabel(activeTimingMeta)}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+            {activeCategory === "produce" ? (
+              <View style={styles.infoBox}>
+                <Text style={styles.bold}>{t("detailedCalculator.form.produce.eventDateLabel")}</Text>
+                <TextInput
+                  style={styles.input}
+                  value={produceEventDate}
+                  onChangeText={(value) => {
+                    setProduceEventDate(value);
+                    setValidationErrorKey(null);
+                  }}
+                  placeholder={t("detailedCalculator.form.produce.eventDatePlaceholder")}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Text style={styles.caption}>{t("detailedCalculator.form.produce.dueAtEventNote")}</Text>
+                <Text style={styles.caption}>
+                  {t("detailedCalculator.summary.eventDateValue", {
+                    value: resolvedCurrentProduceEventDate
+                      ? formatIsoDateForDisplay(
+                          resolvedCurrentProduceEventDate,
+                          i18n?.resolvedLanguage ?? i18n?.language,
+                        )
+                      : t("detailedCalculator.notSet"),
+                  })}
+                </Text>
+                <View
+                  style={[
+                    styles.dueStatusBadge,
+                    getDueStatusTone(activeTimingMeta) === "due"
+                      ? styles.dueStatusBadgeDue
+                      : getDueStatusTone(activeTimingMeta) === "unknown"
+                        ? styles.dueStatusBadgeUnknown
+                        : styles.dueStatusBadgeNotDue,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dueStatusBadgeText,
+                      getDueStatusTone(activeTimingMeta) === "due"
+                        ? styles.dueStatusBadgeTextDue
+                        : getDueStatusTone(activeTimingMeta) === "unknown"
+                          ? styles.dueStatusBadgeTextUnknown
+                          : styles.dueStatusBadgeTextNotDue,
+                    ]}
+                  >
+                    {getDueStatusLabel(activeTimingMeta)}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
             {activeCategory === "salary" ? (
           <>
             <View style={[styles.rowWrap, isRTL && styles.rowWrapRtl]}>
@@ -1472,6 +2146,9 @@ export default function DetailedCalculateScreen() {
 
             <Text style={styles.caption}>
               {t("detailedCalculator.summary.dueAnimalsValue", { value: dueText(livestockPreview.due.dueItems) })}
+            </Text>
+            <Text style={styles.caption}>
+              {t("detailedCalculator.form.livestock.offspringHawlNote")}
             </Text>
             <Controller control={control} name="cashEstimate" render={({ field: { value, onChange } }) => (
               <TextInput
@@ -1722,140 +2399,40 @@ export default function DetailedCalculateScreen() {
           <Text style={styles.summaryHeader}>
             {t("detailedCalculator.summary.title")}
           </Text>
-          {lineItems.map((item) => (
-            <View key={item.id} style={styles.summaryItem}>
-              <View style={[styles.summaryItemHeader, isRTL && styles.rowReverse]}>
-                <View style={[styles.summaryItemTitleWrap, isRTL && styles.rowReverse]}>
-                  <Text style={styles.bold}>{categoryLabel(item.category)}</Text>
-                  {item.category !== "debt" ? (
-                    <View
-                      style={[
-                        styles.debtImpactBadge,
-                        item.meta.debtAdjustable
-                          ? styles.debtImpactBadgeApplied
-                          : styles.debtImpactBadgeNotApplied,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.debtImpactBadgeText,
-                          item.meta.debtAdjustable
-                            ? styles.debtImpactBadgeTextApplied
-                            : styles.debtImpactBadgeTextNotApplied,
-                        ]}
-                      >
-                        {item.meta.debtAdjustable
-                          ? t("detailedCalculator.summary.debtImpactAppliedBadge")
-                          : t("detailedCalculator.summary.debtImpactNotAppliedBadge")}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Pressable onPress={() => setLineItems((p) => p.filter((x) => x.id !== item.id))}>
-                  <Text style={styles.link}>{t("delete")}</Text>
-                </Pressable>
+          {dueNowMoneyLineItems.length > 0 ? (
+            <>
+              <View style={styles.summaryGroupHeader}>
+                <Text style={styles.summaryGroupTitle}>{t("detailedCalculator.summary.groupDueNowMoney")}</Text>
               </View>
-              {item.category === "salary" ? (
-                <>
-                  <Text>{t("detailedCalculator.summary.modeValue", { value: item.values.calculationMode === "monthly" ? t("detailedCalculator.modes.monthly") : t("detailedCalculator.modes.annual") })}</Text>
-                  <Text>{t("detailedCalculator.summary.nisabValue", { value: formatMoney(item.result.nisab, currency) })}</Text>
-                  <Text>{t("detailedCalculator.summary.netWealthValue", { value: formatMoney(item.result.totalWealth, currency) })}</Text>
-                  <Text>
-                    {t(
-                      hasDebtLineItem
-                        ? "detailedCalculator.summary.zakatBeforeAdjustmentsValue"
-                        : "detailedCalculator.summary.zakatDueValue",
-                      { value: formatMoney(item.result.totalZakat, currency) },
-                    )}
-                  </Text>
-                </>
-              ) : item.category === "livestock" ? (
-                <>
-                  <Text>{t("detailedCalculator.summary.typeValue", { value: livestockTypeLabel(item.values.livestockType) })}</Text>
-                  <Text>{t("detailedCalculator.summary.ownedValue", { value: item.values.ownedCount })}</Text>
-                  <Text>{t("detailedCalculator.summary.dueAnimalsValue", { value: dueText(item.dueItems) })}</Text>
-                  <Text>{t("detailedCalculator.summary.cashIncludedValue", { value: formatMoney(item.values.cashEstimate ?? 0, currency) })}</Text>
-                </>
-              ) : item.category === "agri_other" ? (
-                <>
-                  <Text>{t("detailedCalculator.summary.marketValueValue", { value: formatMoney(Number(item.values.marketValue || 0), currency) })}</Text>
-                  <Text>{t("detailedCalculator.summary.operatingCostsValue", { value: formatMoney(Number(item.values.operatingCosts || 0), currency) })}</Text>
-                  <Text>{t("detailedCalculator.summary.netValueValue", { value: formatMoney(item.result.totalWealth, currency) })}</Text>
-                  <Text>{t("detailedCalculator.summary.ruleAgriOther")}</Text>
-                  <Text>{t("detailedCalculator.summary.nisabValue", { value: formatMoney(item.result.nisab, currency) })}</Text>
-                  <Text>
-                    {t(
-                      hasDebtLineItem
-                        ? "detailedCalculator.summary.zakatBeforeAdjustmentsValue"
-                        : "detailedCalculator.summary.zakatDueValue",
-                      { value: formatMoney(item.result.totalZakat, currency) },
-                    )}
-                  </Text>
-                </>
-              ) : item.category === "trade_sector" ? (
-                <>
-                  <Text>{t("detailedCalculator.summary.tradeAssetsValue", { value: formatMoney(Number(item.values.marketValue || 0), currency) })}</Text>
-                  <Text>{t("detailedCalculator.summary.dueOperatingCostsValue", { value: formatMoney(Number(item.values.operatingCosts || 0), currency) })}</Text>
-                  <Text>{t("detailedCalculator.summary.netZakatableAmountValue", { value: formatMoney(item.result.totalWealth, currency) })}</Text>
-                  <Text>{t("detailedCalculator.summary.ruleTradeSector")}</Text>
-                  <Text>{t("detailedCalculator.summary.nisabValue", { value: formatMoney(item.result.nisab, currency) })}</Text>
-                  <Text>
-                    {t(
-                      hasDebtLineItem
-                        ? "detailedCalculator.summary.zakatBeforeAdjustmentsValue"
-                        : "detailedCalculator.summary.zakatDueValue",
-                      { value: formatMoney(item.result.totalZakat, currency) },
-                    )}
-                  </Text>
-                </>
-              ) : item.category === "industrial_sector" ? (
-                <>
-                  <Text>{t("detailedCalculator.summary.industrialAssetsValue", { value: formatMoney(Number(item.values.marketValue || 0), currency) })}</Text>
-                  <Text>{t("detailedCalculator.summary.productionCostsValue", { value: formatMoney(Number(item.values.operatingCosts || 0), currency) })}</Text>
-                  <Text>{t("detailedCalculator.summary.netZakatableAmountValue", { value: formatMoney(item.result.totalWealth, currency) })}</Text>
-                  <Text>{t("detailedCalculator.summary.ruleIndustrial")}</Text>
-                  <Text>{t("detailedCalculator.summary.nisabValue", { value: formatMoney(item.result.nisab, currency) })}</Text>
-                  <Text>
-                    {t(
-                      hasDebtLineItem
-                        ? "detailedCalculator.summary.zakatBeforeAdjustmentsValue"
-                        : "detailedCalculator.summary.zakatDueValue",
-                      { value: formatMoney(item.result.totalZakat, currency) },
-                    )}
-                  </Text>
-                </>
-              ) : item.category === "debt" ? (
-                <>
-                  <Text style={styles.caption}>{t("detailedCalculator.summary.debtAdjustmentSeeSection")}</Text>
-                </>
-              ) : (
-                <>
-                  <Text>{t("detailedCalculator.summary.modeValue", { value: item.values.isForTrade ? t("detailedCalculator.form.produce.tradeMode") : t("detailedCalculator.form.produce.harvestMode") })}</Text>
-                  {item.values.isForTrade ? (
-                    <>
-                      <Text>{t("detailedCalculator.summary.marketValueValue", { value: formatMoney(Number(item.values.marketValue || 0), currency) })}</Text>
-                      <Text>{t("detailedCalculator.summary.ruleProduceTrade")}</Text>
-                      <Text>{t("detailedCalculator.summary.nisabValue", { value: formatMoney(item.result.nisab, currency) })}</Text>
-                      <Text>
-                        {t("detailedCalculator.summary.zakatDueValue", {
-                          value: formatMoney(item.result.totalZakat, currency),
-                        })}
-                      </Text>
-                    </>
-                  ) : (
-                    <>
-                      <Text>{t("detailedCalculator.summary.harvestQuantityValue", { value: `${Number(item.values.quantityKg || 0).toFixed(2)} ${t("history.kgUnit")}` })}</Text>
-                      <Text>{t("detailedCalculator.summary.ruleWateringValue", { value: item.values.wateringMethod === "natural" ? t("detailedCalculator.form.produce.naturalWatering") : t("detailedCalculator.form.produce.paidIrrigation") })}</Text>
-                      <Text>{t("detailedCalculator.summary.nisabValue", { value: `${item.result.nisab.toFixed(2)} ${t("history.kgUnit")}` })}</Text>
-                      <Text>{t("detailedCalculator.summary.zakatDueProduceValue", { value: `${(item.dueQuantityKg ?? 0).toFixed(2)} ${t("history.kgUnit")}` })}</Text>
-                      <Text>{t("detailedCalculator.summary.pricePerKgValue", { value: parseOptionalPositive(item.values.pricePerKg) ? formatMoney(parseOptionalPositive(item.values.pricePerKg)!, currency) : t("detailedCalculator.notSet") })}</Text>
-                      <Text>{t("detailedCalculator.summary.cashEquivalentIncludedValue", { value: formatMoney(item.cashEquivalent ?? 0, currency) })}</Text>
-                    </>
-                  )}
-                </>
-              )}
-            </View>
-          ))}
+              {dueNowMoneyLineItems.map((item) => renderSummaryLineItem(item))}
+            </>
+          ) : null}
+          {dueNowSpecialLineItems.length > 0 ? (
+            <>
+              <View style={styles.summaryGroupHeader}>
+                <Text style={styles.summaryGroupTitle}>{t("detailedCalculator.summary.groupDueNowSpecial")}</Text>
+              </View>
+              {dueNowSpecialLineItems.map((item) => renderSummaryLineItem(item))}
+            </>
+          ) : null}
+          {notDueLineItems.length > 0 ? (
+            <>
+              <View style={styles.summaryGroupHeader}>
+                <Text style={styles.summaryGroupTitle}>{t("detailedCalculator.summary.groupNotDueYet")}</Text>
+              </View>
+              {notDueLineItems.map((item) => renderSummaryLineItem(item))}
+            </>
+          ) : null}
+          {hasDebtLineItem ? (
+            <>
+              <View style={styles.summaryGroupHeader}>
+                <Text style={styles.summaryGroupTitle}>{t("detailedCalculator.summary.groupDebtAdjustment")}</Text>
+              </View>
+              {lineItems
+                .filter((item) => item.category === "debt")
+                .map((item) => renderSummaryLineItem(item))}
+            </>
+          ) : null}
           {hasDebtLineItem ? (
             <View style={styles.summaryItem}>
               <Text style={styles.bold}>{t("detailedCalculator.summary.debtAdjustmentTitle")}</Text>
@@ -1901,6 +2478,11 @@ export default function DetailedCalculateScreen() {
                 })}
               </Text>
               <Text style={styles.caption}>{t("detailedCalculator.summary.debtScopeNote")}</Text>
+              {!hasEligibleDueNowMoney ? (
+                <Text style={styles.caption}>
+                  {t("detailedCalculator.summary.debtNoEligiblePoolNote")}
+                </Text>
+              ) : null}
               {isBelowNisabAfterDebt ? (
                 <View style={styles.belowNisabBox}>
                   <Text style={styles.belowNisabTitle}>
@@ -1920,11 +2502,15 @@ export default function DetailedCalculateScreen() {
               {totalDisplay.suffixDisplay ? <Text style={styles.totalSuffix}>+ {totalDisplay.suffixDisplay}</Text> : null}
             </View>
           </View>
-          <TouchableOpacity style={styles.saveHistoryButton} onPress={onSaveToHistory}>
+          <Pressable
+            style={[styles.saveHistoryButton, isSavingHistory && styles.saveHistoryButtonDisabled]}
+            onPress={onSaveToHistory}
+            disabled={isSavingHistory}
+          >
               <Text style={styles.buttonText}>
-              {t("detailedCalculator.saveToHistory")}
+              {isSavingHistory ? t("loading") : t("detailedCalculator.saveToHistory")}
               </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       ) : null}
 
@@ -1979,6 +2565,14 @@ const styles = StyleSheet.create({
   debtImpactBadgeText: { fontSize: 11, fontWeight: "700" },
   debtImpactBadgeTextApplied: { color: "#1F6A5E" },
   debtImpactBadgeTextNotApplied: { color: appColors.textSecondary },
+  dueStatusBadge: { borderRadius: appRadius.pill, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", marginTop: appSpacing.xs },
+  dueStatusBadgeDue: { backgroundColor: "#E6F5EA" },
+  dueStatusBadgeNotDue: { backgroundColor: "#F4F5F6" },
+  dueStatusBadgeUnknown: { backgroundColor: "#FEF6E8" },
+  dueStatusBadgeText: { fontSize: 11, fontWeight: "700" },
+  dueStatusBadgeTextDue: { color: "#1F6A5E" },
+  dueStatusBadgeTextNotDue: { color: appColors.textSecondary },
+  dueStatusBadgeTextUnknown: { color: "#9A6A00" },
   chevron: { color: appColors.primary, marginStart: appSpacing.sm },
   infoBox: { borderWidth: 1, borderColor: appColors.border, borderRadius: appRadius.sm, padding: appSpacing.sm, backgroundColor: "#F8FAF8", marginBottom: appSpacing.xs },
   previewBox: { backgroundColor: appColors.primary, borderRadius: appRadius.sm, padding: appSpacing.sm, marginTop: appSpacing.xs, marginBottom: appSpacing.xs },
@@ -1988,6 +2582,8 @@ const styles = StyleSheet.create({
   accordionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 1, borderColor: appColors.border, paddingTop: appSpacing.sm, marginTop: appSpacing.xs },
   summaryCard: { backgroundColor: appColors.surface, borderRadius: appRadius.md, borderWidth: 1, borderColor: appColors.primary, marginHorizontal: appSpacing.lg, marginBottom: appSpacing.sm, overflow: "hidden" },
   summaryHeader: { backgroundColor: appColors.primary, color: "#fff", fontSize: 18, fontWeight: "800", paddingHorizontal: appSpacing.md, paddingVertical: appSpacing.sm },
+  summaryGroupHeader: { backgroundColor: "#F4F7F6", paddingHorizontal: appSpacing.sm, paddingVertical: appSpacing.xs, borderBottomWidth: 1, borderBottomColor: appColors.border },
+  summaryGroupTitle: { color: appColors.textSecondary, fontSize: 12, fontWeight: "800", letterSpacing: 0.5, textTransform: "uppercase" },
   summaryItem: { borderBottomWidth: 1, borderBottomColor: appColors.border, padding: appSpacing.sm },
   belowNisabBox: { borderWidth: 1, borderColor: "#E8CACA", borderRadius: appRadius.sm, backgroundColor: "#FCF4F4", padding: appSpacing.sm, marginTop: appSpacing.xs },
   belowNisabTitle: { color: appColors.error, fontWeight: "800", marginBottom: appSpacing.xs },
@@ -1998,6 +2594,7 @@ const styles = StyleSheet.create({
   rowReverse: { flexDirection: "row-reverse" },
   bold: { fontWeight: "700" },
   saveHistoryButton: { marginTop: appSpacing.xs, backgroundColor: appColors.success, borderRadius: appRadius.sm, alignItems: "center", paddingVertical: appSpacing.sm, minHeight: 48, justifyContent: "center" },
+  saveHistoryButtonDisabled: { opacity: 0.7 },
   toast: { position: "absolute", bottom: 18, left: 16, right: 16, backgroundColor: appColors.textPrimary, borderRadius: appRadius.sm, paddingVertical: appSpacing.xs, alignItems: "center" },
   toastText: { color: "#fff", fontWeight: "600" },
 });

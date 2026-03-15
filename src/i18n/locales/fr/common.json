@@ -164,6 +164,18 @@
       "totalPayableDueNow": "Total payable maintenant",
       "doubtfulExcludedNote": "Les creances douteuses sont exclues jusqu'a l'encaissement."
     },
+    "groupedRows": {
+      "dueNowMoney": "Exigible maintenant - categories monetaires",
+      "dueNowSpecial": "Exigible maintenant - categories speciales",
+      "notDueYet": "Pas encore exigible",
+      "debtAdjustment": "Ajustement des dettes",
+      "dueStatus": "Statut d'exigibilite",
+      "dueNow": "Exigible maintenant",
+      "notDue": "Pas encore exigible",
+      "unknown": "Date du hawl manquante / inconnue",
+      "hawlDueDate": "Date d'echeance du hawl",
+      "eventDate": "Date d'evenement"
+    },
     "detailRows": {
       "cashBank": "Espèces et banque",
       "goldSilver": "Or et argent",
@@ -188,6 +200,19 @@
       "category": "Cat?gorie",
       "value": "Valeur",
       "generatedNote": "G?n?r? depuis l'historique local sur cet appareil."
+    },
+    "reminders": {
+      "title": "Rappel",
+      "scheduled": "Rappel programme",
+      "nextDate": "Prochaine date de rappel",
+      "disabled": "Rappels desactives",
+      "notScheduled": "Rappel non programme",
+      "none": "Aucun rappel d'echeance a venir",
+      "calculationDate": "Date de calcul"
+    },
+    "reminderNotification": {
+      "title": "Rappel de zakat",
+      "body": "Votre prochaine date d'echeance de zakat est le {date}."
     }
   },
   "settingsScreen": {
@@ -324,6 +349,13 @@
       "nisabValue": "Nisab : {value}",
       "netWealthValue": "Patrimoine net : {value}",
       "zakatDueValue": "Zakat due : {value}",
+      "dueNowStatus": "Exigible maintenant",
+      "notDueYetStatus": "Pas encore exigible",
+      "dueStatusUnknown": "Date du hawl manquante / inconnue",
+      "dueStatusValue": "Statut : {value}",
+      "hawlStartDateValue": "Date de debut du hawl : {value}",
+      "hawlDueDateValue": "Date d'echeance du hawl : {value}",
+      "eventDateValue": "Date d'evenement : {value}",
       "zakatBeforeAdjustmentsValue": "Zakat avant ajustements : {value}",
       "typeValue": "Type : {value}",
       "ownedValue": "Possede : {value}",
@@ -361,13 +393,18 @@
       "debtScopeNote": "Cet ajustement s'applique seulement aux categories monetairees comme salaire, commerce et activite.",
       "debtImpactAppliedBadge": "Ajustement des dettes applique",
       "debtImpactNotAppliedBadge": "Ajustement des dettes non applique",
+      "groupDueNowMoney": "Exigible maintenant - categories monetaires",
+      "groupDueNowSpecial": "Exigible maintenant - categories speciales",
+      "groupNotDueYet": "Pas encore exigible",
+      "groupDebtAdjustment": "Ajustement des dettes",
       "belowNisabAfterDebtTitle": "Sous le nisab apres ajustement des dettes",
       "belowNisabAfterDebtBody": "Vos dettes ont fait passer la base zakatable ajustee sous le nisab. Aucune zakat n'est due pour ce pool.",
       "finalZakatableBaseValue": "Base zakatable finale : {value}",
       "finalZakatCalculationTitle": "Calcul final de la zakat",
       "finalZakatDueRateValue": "Zakat due du pool de tresorerie ajuste (2,5%) : {value}",
       "independentCashDueValue": "Montant en especes des categories non ajustables par dette : {value}",
-      "totalPayableDueNowValue": "Total payable maintenant : {value}"
+      "totalPayableDueNowValue": "Total payable maintenant : {value}",
+      "debtNoEligiblePoolNote": "Aucun pool monetaire exigible n'est present, l'ajustement de dette ne cree donc pas de montant payable a lui seul."
     },
     "preview": {
       "title": "Apercu en direct",
@@ -395,6 +432,9 @@
       "type": "Type",
       "owned": "Possede",
       "due": "Du",
+      "dueStatus": "Statut d'exigibilite",
+      "hawlDueDate": "Date d'echeance du hawl",
+      "eventDate": "Date d'evenement",
       "cashEstimate": "Estimation en especes",
       "watering": "Irrigation",
       "dueProduce": "Produit du",
@@ -410,6 +450,9 @@
     },
     "validation": {
       "monthlyIncomeRequired": "Veuillez saisir votre revenu mensuel.",
+      "hawlDateRequired": "Veuillez saisir une date de debut du hawl valide au format YYYY-MM-DD.",
+      "eventDateRequired": "Veuillez saisir une date d'evenement valide au format YYYY-MM-DD.",
+      "eventDateInvalid": "Veuillez saisir une date d'evenement valide au format YYYY-MM-DD.",
       "produceMarketValueRequired": "Veuillez saisir la valeur de marche du produit.",
       "harvestQuantityRequired": "Veuillez saisir la quantite recoltee en kg.",
       "marketValueRequired": "Veuillez saisir la valeur de marche.",
@@ -448,6 +491,15 @@
       }
     },
     "form": {
+      "hawl": {
+        "sectionTitle": "Calendrier du hawl",
+        "useSetupDate": "Utiliser la date de configuration ({date})",
+        "useSessionDate": "Utiliser la date de session de l'annee de zakat ({date})",
+        "useCustomDate": "Utiliser une date personnalisee",
+        "useCustomCategoryDate": "Utiliser une date personnalisee pour cette categorie",
+        "inheritedDatePreview": "Date de session heritee : {date}",
+        "customDatePlaceholder": "Date de debut du hawl (YYYY-MM-DD)"
+      },
       "salary": {
         "annualMode": "Mode annuel",
         "monthlyMode": "Mode mensuel",
@@ -460,7 +512,8 @@
         "ownedCountPlaceholder": "Nombre possede",
         "camel121Option2Hiqqah": "2 hiqqah",
         "camel121Option3BintLabun": "3 bint labun",
-        "cashEstimatePlaceholder": "Estimation en especes pour le betail ({currency}) (optionnel)"
+        "cashEstimatePlaceholder": "Estimation en especes pour le betail ({currency}) (optionnel)",
+        "offspringHawlNote": "Les naissances pendant l'annee suivent le meme hawl que les meres."
       },
       "agriOther": {
         "marketValuePlaceholder": "Valeur totale de marche/vente",
@@ -495,6 +548,9 @@
       "produce": {
         "harvestMode": "Recolte agricole",
         "tradeMode": "Stock commercial",
+        "eventDateLabel": "Date d'evenement",
+        "eventDatePlaceholder": "Date d'evenement (YYYY-MM-DD)",
+        "dueAtEventNote": "Cette categorie devient exigible au moment de la recolte/de l'evenement.",
         "marketValuePlaceholder": "Valeur de marche",
         "quantityPlaceholder": "Quantite recoltee (kg)",
         "pricePerKgPlaceholder": "Prix par kg (optionnel)",

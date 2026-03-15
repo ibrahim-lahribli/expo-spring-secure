@@ -11,9 +11,11 @@ import {
 import { buildHistoryPdfHtml } from "../../../features/history/pdf";
 import { resolveHistoryCategoryLabel } from "../../../features/history/categoryLabels";
 import { buildTotalDisplay, resolveNonCashDueSummary } from "../../../features/history/totalDisplay";
+import { resolveDetailedReminderDisplayState } from "../../../features/history/reminders";
 import { getGuestHistoryEntryById } from "../../../features/history/storage";
 import type { HistoryEntry } from "../../../features/history/types";
 import { formatMoney } from "../../../lib/currency";
+import { resolveEligibilityDueStatus } from "../../../lib/zakat-calculation";
 import { appColors, appRadius, appSpacing, appTypography } from "../../../theme/designSystem";
 
 function formatDate(value: string) {
@@ -79,6 +81,46 @@ export default function HistoryDetailsScreen() {
     });
   }, [entry, t]);
   const detailedPayload = entry?.payload.kind === "detailed" ? entry.payload : null;
+  const detailedReminderState = useMemo(() => {
+    if (!detailedPayload) return null;
+    return resolveDetailedReminderDisplayState(detailedPayload);
+  }, [detailedPayload]);
+  const detailedLineItemGroups = useMemo(() => {
+    if (!detailedPayload) return [];
+    const isMoneyCategory = (category: string) =>
+      ["salary", "agri_other", "trade_sector", "industrial_sector"].includes(category);
+    const classify = (item: (typeof detailedPayload.lineItems)[number]) => {
+      if (item.category === "debt") return "debt";
+      const dueNow = item.meta?.dueNow ?? true;
+      const debtAdjustable = item.meta?.debtAdjustable ?? isMoneyCategory(item.category);
+      if (!dueNow) return "not_due";
+      if (debtAdjustable) return "due_money";
+      return "due_special";
+    };
+
+    return [
+      {
+        key: "due_money",
+        title: t("history.groupedRows.dueNowMoney"),
+        items: detailedPayload.lineItems.filter((item) => classify(item) === "due_money"),
+      },
+      {
+        key: "due_special",
+        title: t("history.groupedRows.dueNowSpecial"),
+        items: detailedPayload.lineItems.filter((item) => classify(item) === "due_special"),
+      },
+      {
+        key: "not_due",
+        title: t("history.groupedRows.notDueYet"),
+        items: detailedPayload.lineItems.filter((item) => classify(item) === "not_due"),
+      },
+      {
+        key: "debt",
+        title: t("history.groupedRows.debtAdjustment"),
+        items: detailedPayload.lineItems.filter((item) => classify(item) === "debt"),
+      },
+    ].filter((group) => group.items.length > 0);
+  }, [detailedPayload, t]);
   const resolveCategoryLabel = useMemo(
     () => (categoryIdOrLabel: string, fallbackLabel?: string) =>
       resolveHistoryCategoryLabel(categoryIdOrLabel, (key) => t(key as never), fallbackLabel),
@@ -124,11 +166,31 @@ export default function HistoryDetailsScreen() {
         finalZakatDueRate: t("history.finalCalculation.finalZakatDueRate"),
         doubtfulExcludedNote: t("history.finalCalculation.doubtfulExcludedNote"),
       },
+      groupedRows: {
+        dueNowMoney: t("history.groupedRows.dueNowMoney"),
+        dueNowSpecial: t("history.groupedRows.dueNowSpecial"),
+        notDueYet: t("history.groupedRows.notDueYet"),
+        debtAdjustment: t("history.groupedRows.debtAdjustment"),
+        dueStatus: t("history.groupedRows.dueStatus"),
+        dueNow: t("history.groupedRows.dueNow"),
+        notDue: t("history.groupedRows.notDue"),
+        unknown: t("history.groupedRows.unknown"),
+        hawlDueDate: t("history.groupedRows.hawlDueDate"),
+        eventDate: t("history.groupedRows.eventDate"),
+      },
       quickRows: {
         cashBank: t("history.detailRows.cashBank"),
         goldSilver: t("history.detailRows.goldSilver"),
         debtsOwed: t("history.detailRows.debtsOwed"),
         netWealth: t("history.detailRows.netWealth"),
+      },
+      reminderRows: {
+        calculationDate: t("history.reminders.calculationDate"),
+        reminderScheduled: t("history.reminders.scheduled"),
+        nextReminderDate: t("history.reminders.nextDate"),
+        remindersDisabled: t("history.reminders.disabled"),
+        reminderNotScheduled: t("history.reminders.notScheduled"),
+        noUpcomingDueReminder: t("history.reminders.none"),
       },
       resolveCategoryLabel,
     });
@@ -260,39 +322,105 @@ export default function HistoryDetailsScreen() {
             </View>
           );
         })}
+        {detailedPayload?.calculationContext?.calculationDate ? (
+          <View style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
+            <Text style={styles.snapshotRowLabel}>{t("history.reminders.calculationDate")}</Text>
+            <Text style={styles.snapshotRowValue}>{detailedPayload.calculationContext.calculationDate}</Text>
+          </View>
+        ) : null}
       </AppCard>
 
       {detailedPayload ? (
         <AppCard style={styles.breakdownCard}>
           <Text style={styles.sectionTitle}>{t("history.lineItemBreakdown")}</Text>
-          {detailedPayload.lineItems.map((item) => (
-            <View key={item.id} style={styles.lineItem}>
-              <View style={[styles.lineItemHeader, isRTL && styles.rowReverse]}>
-                <Text style={styles.lineItemTitle}>
-                  {resolveCategoryLabel(item.category, item.label)}
-                </Text>
-                <Text style={styles.lineItemAmount}>{formatMoney(item.totalZakat, entry.currency)}</Text>
-              </View>
-              {detailedPayload.finalCalculation?.hasDebtLineItem &&
-              ["salary", "agri_other", "trade_sector", "industrial_sector"].includes(item.category) ? (
-                <Text style={styles.lineItemMeta}>
-                  {t("history.categoryZakatBeforeAdjustmentsValue", {
-                    value: formatMoney(item.totalZakat, entry.currency),
-                  })}
-                </Text>
-              ) : null}
-              <Text style={styles.lineItemMeta}>
-                {t("history.netWealthValue", {
-                  value: formatMoney(item.totalWealth, entry.currency),
-                })}
-              </Text>
-              {item.details.map((detail) => (
-                <Text key={`${item.id}-${detail}`} style={styles.lineItemMeta}>
-                  {detail}
-                </Text>
+          {detailedLineItemGroups.map((group) => (
+            <View key={group.key} style={styles.groupSection}>
+              <Text style={styles.groupTitle}>{group.title}</Text>
+              {group.items.map((item) => (
+                <View key={item.id} style={styles.lineItem}>
+                  <View style={[styles.lineItemHeader, isRTL && styles.rowReverse]}>
+                    <Text style={styles.lineItemTitle}>
+                      {resolveCategoryLabel(item.category, item.label)}
+                    </Text>
+                    <Text style={styles.lineItemAmount}>{formatMoney(item.totalZakat, entry.currency)}</Text>
+                  </View>
+                  {detailedPayload.finalCalculation?.hasDebtLineItem &&
+                  ["salary", "agri_other", "trade_sector", "industrial_sector"].includes(item.category) ? (
+                    <Text style={styles.lineItemMeta}>
+                      {t("history.categoryZakatBeforeAdjustmentsValue", {
+                        value: formatMoney(item.totalZakat, entry.currency),
+                      })}
+                    </Text>
+                  ) : null}
+                  {item.meta ? (
+                    <Text style={styles.lineItemMeta}>
+                      {t("history.groupedRows.dueStatus")}: {
+                        resolveEligibilityDueStatus(item.meta) === "due_now"
+                          ? t("history.groupedRows.dueNow")
+                          : resolveEligibilityDueStatus(item.meta) === "unknown"
+                            ? t("history.groupedRows.unknown")
+                            : t("history.groupedRows.notDue")
+                      }
+                    </Text>
+                  ) : null}
+                  {item.meta?.hawlDueDate ? (
+                    <Text style={styles.lineItemMeta}>
+                      {t("history.groupedRows.hawlDueDate")}: {item.meta.hawlDueDate}
+                    </Text>
+                  ) : null}
+                  {item.meta?.eventDate ? (
+                    <Text style={styles.lineItemMeta}>
+                      {t("history.groupedRows.eventDate")}: {item.meta.eventDate}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.lineItemMeta}>
+                    {t("history.netWealthValue", {
+                      value: formatMoney(item.totalWealth, entry.currency),
+                    })}
+                  </Text>
+                  {item.details.map((detail) => (
+                    <Text key={`${item.id}-${detail}`} style={styles.lineItemMeta}>
+                      {detail}
+                    </Text>
+                  ))}
+                </View>
               ))}
             </View>
           ))}
+        </AppCard>
+      ) : null}
+      {detailedPayload ? (
+        <AppCard style={styles.breakdownCard}>
+          <Text style={styles.sectionTitle}>{t("history.reminders.title")}</Text>
+          {detailedReminderState?.state === "scheduled" ? (
+            <>
+              <Text style={styles.lineItemMeta}>{t("history.reminders.scheduled")}</Text>
+              <Text style={styles.lineItemMeta}>
+                {t("history.reminders.nextDate")}: {detailedReminderState.reminderDate}
+              </Text>
+            </>
+          ) : null}
+          {detailedReminderState?.state === "disabled" ? (
+            <>
+              <Text style={styles.lineItemMeta}>{t("history.reminders.disabled")}</Text>
+              <Text style={styles.lineItemMeta}>
+                {t("history.reminders.nextDate")}: {detailedReminderState.reminderDate}
+              </Text>
+            </>
+          ) : null}
+          {detailedReminderState?.state === "not_scheduled" ? (
+            <>
+              <Text style={styles.lineItemMeta}>{t("history.reminders.notScheduled")}</Text>
+              {detailedReminderState.reminderDate ? (
+                <Text style={styles.lineItemMeta}>
+                  {t("history.reminders.nextDate")}: {detailedReminderState.reminderDate}
+                </Text>
+              ) : null}
+            </>
+          ) : null}
+          {detailedReminderState?.state === "none" ? (
+            <Text style={styles.lineItemMeta}>{t("history.reminders.none")}</Text>
+          ) : null}
         </AppCard>
       ) : null}
       {detailedPayload?.finalCalculation?.hasDebtLineItem ? (
@@ -463,6 +591,16 @@ const styles = StyleSheet.create({
   },
   breakdownCard: {
     gap: appSpacing.sm,
+  },
+  groupSection: {
+    gap: appSpacing.xs,
+  },
+  groupTitle: {
+    ...appTypography.caption,
+    fontWeight: "800",
+    color: appColors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   lineItem: {
     borderWidth: 1,
