@@ -1,8 +1,13 @@
 import { formatMoney } from "../../lib/currency";
 import type { SupportedCurrency } from "../../store/appPreferencesStore";
+import { formatDueItems } from "../../lib/zakat-calculation";
+import type {
+  DetailedHistoryNonCashLivestockEntry,
+  DetailedHistoryNonCashLivestockStructured,
+} from "./types";
 
 export type NonCashDueSummary = {
-  livestock: string[];
+  livestock: DetailedHistoryNonCashLivestockEntry[];
   produceKg: number;
 };
 
@@ -14,9 +19,20 @@ export type TotalDisplay = {
 
 function normalizeNonCashDue(summary: NonCashDueSummary): NonCashDueSummary {
   return {
-    livestock: summary.livestock.filter((item) => item.trim().length > 0),
+    livestock: summary.livestock.filter((item) => {
+      if (typeof item === "string") {
+        return item.trim().length > 0;
+      }
+      return Array.isArray(item.dueItems) && item.dueItems.length > 0;
+    }),
     produceKg: Number.isFinite(summary.produceKg) && summary.produceKg > 0 ? summary.produceKg : 0,
   };
+}
+
+function isStructuredLivestockEntry(
+  entry: DetailedHistoryNonCashLivestockEntry,
+): entry is DetailedHistoryNonCashLivestockStructured {
+  return typeof entry === "object" && entry !== null && "livestockType" in entry;
 }
 
 export function resolveNonCashDueSummary(summary: NonCashDueSummary | null | undefined): NonCashDueSummary | null {
@@ -30,14 +46,30 @@ export function resolveNonCashDueSummary(summary: NonCashDueSummary | null | und
 
 export function formatNonCashDue(
   summary: NonCashDueSummary | null,
-  labels?: { kgUnit?: string },
+  labels?: {
+    kgUnit?: string;
+    resolveLivestockTypeLabel?: (type: DetailedHistoryNonCashLivestockStructured["livestockType"]) => string;
+    formatDueItems?: (items: DetailedHistoryNonCashLivestockStructured["dueItems"]) => string;
+  },
 ): string | null {
   if (!summary) return null;
   const normalized = normalizeNonCashDue(summary);
   const parts: string[] = [];
 
   if (normalized.livestock.length > 0) {
-    parts.push(normalized.livestock.join(" | "));
+    const livestockParts = normalized.livestock
+      .map((entry) => {
+        if (!isStructuredLivestockEntry(entry)) {
+          return entry;
+        }
+        const typeLabel = labels?.resolveLivestockTypeLabel?.(entry.livestockType) ?? entry.livestockType;
+        const dueText = labels?.formatDueItems?.(entry.dueItems) ?? formatDueItems(entry.dueItems);
+        return `${typeLabel}: ${dueText}`;
+      })
+      .filter((part) => part.trim().length > 0);
+    if (livestockParts.length > 0) {
+      parts.push(livestockParts.join(" | "));
+    }
   }
   if (normalized.produceKg > 0) {
     parts.push(`${normalized.produceKg.toFixed(2)} ${labels?.kgUnit ?? "kg"}`);

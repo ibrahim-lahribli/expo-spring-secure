@@ -9,27 +9,19 @@ import {
   deleteGuestHistoryEntry,
   getGuestHistoryEntries,
 } from "../../../features/history/storage";
+import { formatHistoryDateTime } from "../../../features/history/dateFormatting";
 import { buildTotalDisplay, resolveNonCashDueSummary } from "../../../features/history/totalDisplay";
 import type { HistoryEntry, HistoryFlowType } from "../../../features/history/types";
+import { formatDueItems, getDueItemLabelKey } from "../../../lib/zakat-calculation";
 import { appColors, appRadius, appSpacing, appTypography } from "../../../theme/designSystem";
 
 type FilterMode = "all" | HistoryFlowType;
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
 export default function HistoryScreen() {
   const router = useRouter();
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const isRTL = I18nManager.isRTL;
+  const currentLocale = i18n?.resolvedLanguage ?? i18n?.language;
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [entryIdPendingDelete, setEntryIdPendingDelete] = useState<string | null>(null);
@@ -93,14 +85,20 @@ export default function HistoryScreen() {
           cashTotal: entry.totalZakat,
           currency: entry.currency,
           nonCashDue: resolveNonCashDueSummary(entry.summary.nonCashDue),
-          labels: { kgUnit: t("history.kgUnit", { defaultValue: "kg" }) },
+          labels: {
+            kgUnit: t("history.kgUnit"),
+            resolveLivestockTypeLabel: (type) => t(`detailedCalculator.livestock.types.${type}`),
+            formatDueItems: (items) => formatDueItems(items, (item) => t(getDueItemLabelKey(item))),
+          },
         });
         return (
           <View key={entry.id} style={styles.entryCard}>
             <View style={[styles.entryMetaRow, isRTL && styles.rowReverse]}>
               <View style={[styles.dateRow, isRTL && styles.rowReverse]}>
                 <Ionicons name="calendar-outline" size={12} color={appColors.textSecondary} />
-                <Text style={styles.metaText}>{formatDate(entry.createdAt)}</Text>
+                <Text style={styles.metaText}>
+                  {formatHistoryDateTime(entry.createdAt, currentLocale)}
+                </Text>
               </View>
             </View>
 

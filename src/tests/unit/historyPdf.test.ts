@@ -1,7 +1,9 @@
 import { buildHistoryPdfHtml } from "../../features/history/pdf";
+import { formatHistoryIsoDate } from "../../features/history/dateFormatting";
 import type { HistoryEntry } from "../../features/history/types";
 
 const labels = {
+  documentTitle: "History Details",
   kgUnit: "kg",
   titleQuick: "Quick Calculation",
   titleDetailed: "Detailed Calculation",
@@ -40,6 +42,7 @@ const labels = {
     dueNow: "Due now",
     notDue: "Not due yet",
     unknown: "Hawl date missing / unknown",
+    unknownEvent: "Event date missing / unknown",
     hawlDueDate: "Hawl due date",
     eventDate: "Event date",
   },
@@ -48,6 +51,14 @@ const labels = {
     goldSilver: "Gold & Silver",
     debtsOwed: "Debts Owed",
     netWealth: "Net Wealth",
+  },
+  reminderRows: {
+    calculationDate: "Calculation date",
+    reminderScheduled: "Reminder scheduled",
+    nextReminderDate: "Next reminder date",
+    remindersDisabled: "Reminders disabled",
+    reminderNotScheduled: "Reminder not scheduled",
+    noUpcomingDueReminder: "No upcoming due reminder",
   },
   resolveCategoryLabel: (categoryIdOrLabel: string, fallbackLabel?: string) => {
     const map: Record<string, string> = {
@@ -223,6 +234,33 @@ describe("buildHistoryPdfHtml total display", () => {
     expect(html).not.toContain("Zakat Before Adjustments");
   });
 
+  it("uses event-based unknown due-status text when event date is missing", () => {
+    const entry = buildBaseDetailedEntry();
+    if (entry.payload.kind !== "detailed") {
+      throw new Error("Expected detailed payload");
+    }
+    entry.payload.lineItems = [
+      {
+        id: "missing-event-1",
+        category: "produce",
+        label: "Produce",
+        totalZakat: 0,
+        totalWealth: 3000,
+        details: ["Mode: harvest"],
+        meta: {
+          obligationMode: "event_based",
+          dueNow: false,
+          debtAdjustable: false,
+        },
+      },
+    ];
+
+    const html = buildHistoryPdfHtml(entry, labels);
+
+    expect(html).toContain("Due status: Event date missing / unknown");
+    expect(html).not.toContain("Due status: Hawl date missing / unknown");
+  });
+
   it("shows calculation date and reminder status metadata when scheduled reminder exists", () => {
     const entry = buildBaseDetailedEntry();
     if (entry.payload.kind !== "detailed") {
@@ -242,10 +280,197 @@ describe("buildHistoryPdfHtml total display", () => {
     ];
 
     const html = buildHistoryPdfHtml(entry, labels);
+    const expectedReminderDate = formatHistoryIsoDate("2026-12-21", labels.locale);
 
     expect(html).toContain("Calculation date");
     expect(html).toContain("07 Mar 2026");
     expect(html).toContain("Reminder scheduled");
-    expect(html).toContain("Next reminder date: 2026-12-21");
+    expect(html).toContain(`Next reminder date: ${expectedReminderDate}`);
+  });
+
+  it("uses the localized document title for exported html", () => {
+    const entry = buildBaseDetailedEntry();
+
+    const html = buildHistoryPdfHtml(entry, {
+      ...labels,
+      documentTitle: "Détails de l'historique",
+    });
+
+    expect(html).toContain("<title>Détails de l&#39;historique</title>");
+  });
+
+  it("renders french accented labels without corruption", () => {
+    const entry = buildBaseDetailedEntry();
+    const frenchLabels = {
+      ...labels,
+      savedPrefix: "Enregistré",
+      categoryHeader: "Catégorie",
+      generatedNote: "Généré depuis l'historique local sur cet appareil.",
+      resolveCategoryLabel: (categoryIdOrLabel: string, fallbackLabel?: string) => {
+        const frMap: Record<string, string> = {
+          livestock: "Bétail",
+          produce: "Céréales et Fruits",
+        };
+        return frMap[categoryIdOrLabel] ?? fallbackLabel ?? categoryIdOrLabel;
+      },
+    };
+
+    const html = buildHistoryPdfHtml(entry, frenchLabels);
+
+    expect(html).toContain('<html lang="auto" dir="auto">');
+    expect(html).toContain('<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />');
+    expect(html).toContain("Noto Sans Arabic");
+    expect(html).toContain("Enregistré");
+    expect(html).toContain("<th>Catégorie</th>");
+    expect(html).toContain("Céréales et Fruits");
+    expect(html).toContain("Généré depuis l&#39;historique local sur cet appareil.");
+  });
+
+  it("renders arabic localized pdf labels and reminder metadata", () => {
+    const entry = buildBaseDetailedEntry();
+    if (entry.payload.kind !== "detailed") {
+      throw new Error("Expected detailed payload");
+    }
+    entry.payload.reminders = [
+      {
+        id: "rem-ar-1",
+        historyEntryId: entry.id,
+        lineItemId: "l1",
+        type: "hawl_due",
+        reminderDate: "2026-12-21",
+        scheduledNotificationId: "notif-ar-1",
+        enabled: true,
+        status: "scheduled",
+      },
+    ];
+
+    const arabicLabels = {
+      ...labels,
+      savedPrefix: "تم الحفظ",
+      categoryHeader: "الفئة",
+      fieldHeader: "الحقل",
+      valueHeader: "القيمة",
+      generatedNote: "تم إنشاء هذا الملف من السجل المحلي على هذا الجهاز.",
+      reminderRows: {
+        calculationDate: "تاريخ الحساب",
+        reminderScheduled: "تمت جدولة التذكير",
+        nextReminderDate: "تاريخ التذكير القادم",
+        remindersDisabled: "التذكيرات معطلة",
+        reminderNotScheduled: "لم تتم جدولة التذكير",
+        noUpcomingDueReminder: "لا يوجد تذكير استحقاق قادم",
+      },
+      resolveCategoryLabel: (categoryIdOrLabel: string, fallbackLabel?: string) => {
+        const arMap: Record<string, string> = {
+          livestock: "الأنعام",
+          produce: "الحبوب والثمار",
+        };
+        return arMap[categoryIdOrLabel] ?? fallbackLabel ?? categoryIdOrLabel;
+      },
+    };
+
+    const html = buildHistoryPdfHtml(entry, arabicLabels);
+    const expectedReminderDate = formatHistoryIsoDate("2026-12-21", arabicLabels.locale);
+
+    expect(html).toContain("تم الحفظ");
+    expect(html).toContain("<th>الفئة</th>");
+    expect(html).toContain("الأنعام");
+    expect(html).toContain("تمت جدولة التذكير");
+    expect(html).toContain(`تاريخ التذكير القادم: ${expectedReminderDate}`);
+    expect(html).toContain("تم إنشاء هذا الملف من السجل المحلي على هذا الجهاز.");
+  });
+
+  it("renders mixed-language grouped sections with reminder metadata", () => {
+    const entry = buildBaseDetailedEntry();
+    if (entry.payload.kind !== "detailed") {
+      throw new Error("Expected detailed payload");
+    }
+    entry.payload.lineItems = [
+      {
+        id: "mix-1",
+        category: "salary",
+        label: "Salaire",
+        totalZakat: 100,
+        totalWealth: 4000,
+        details: ["Montant net: 4000"],
+        meta: {
+          obligationMode: "hawl_required",
+          dueNow: true,
+          debtAdjustable: true,
+          hawlStartDate: "2025-10-12",
+          hawlDueDate: "2026-10-01",
+          hawlCompleted: true,
+        },
+      },
+      {
+        id: "mix-2",
+        category: "livestock",
+        label: "Livestock",
+        totalZakat: 0,
+        totalWealth: 0,
+        details: ["Type: sheep"],
+        meta: { obligationMode: "hawl_required", dueNow: true, debtAdjustable: false },
+      },
+      {
+        id: "mix-3",
+        category: "produce",
+        label: "Produce",
+        totalZakat: 0,
+        totalWealth: 3000,
+        details: ["Mode: harvest"],
+        meta: {
+          obligationMode: "event_based",
+          dueNow: false,
+          debtAdjustable: false,
+          eventDate: "2026-08-01",
+        },
+      },
+      {
+        id: "mix-4",
+        category: "debt",
+        label: "Dette",
+        totalZakat: 0,
+        totalWealth: 0,
+        details: ["Net: 0"],
+      },
+    ];
+    entry.payload.reminders = [
+      {
+        id: "mix-rem-1",
+        historyEntryId: entry.id,
+        lineItemId: "mix-1",
+        type: "hawl_due",
+        reminderDate: "2026-12-21",
+        scheduledNotificationId: "mix-notif-1",
+        enabled: true,
+        status: "scheduled",
+      },
+    ];
+
+    const mixedLabels = {
+      ...labels,
+      groupedRows: {
+        ...labels.groupedRows,
+        dueNowMoney: "Due maintenant - money",
+        dueNowSpecial: "الآن - فئات خاصة",
+        notDueYet: "Pas encore exigible",
+      },
+      reminderRows: {
+        calculationDate: "Date de calcul",
+        reminderScheduled: "Rappel programmé",
+        nextReminderDate: "موعد التذكير القادم",
+        remindersDisabled: "Rappels désactivés",
+        reminderNotScheduled: "Rappel non programmé",
+        noUpcomingDueReminder: "Aucun rappel",
+      },
+    };
+
+    const html = buildHistoryPdfHtml(entry, mixedLabels);
+    const expectedReminderDate = formatHistoryIsoDate("2026-12-21", mixedLabels.locale);
+
+    expect(html).toContain("Due maintenant - money");
+    expect(html).toContain("الآن - فئات خاصة");
+    expect(html).toContain("Pas encore exigible");
+    expect(html).toContain("Debt adjustment");
+    expect(html).toContain(`Rappel programmé | موعد التذكير القادم: ${expectedReminderDate}`);
   });
 });

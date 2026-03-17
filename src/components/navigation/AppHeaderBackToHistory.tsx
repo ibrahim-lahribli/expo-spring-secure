@@ -7,22 +7,27 @@ import { appColors, appSpacing } from "../../theme/designSystem";
 
 export function AppHeaderBackToHistory() {
   const router = useRouter();
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const isRTL = I18nManager.isRTL;
+  const isArabicLocale = (i18n.resolvedLanguage ?? i18n.language ?? "en").startsWith("ar");
+  const showLabel = !(isRTL || isArabicLocale);
 
   return (
     <Pressable
       onPress={() => router.replace("/(public)/history")}
-      style={[styles.button, isRTL && styles.rowReverse]}
+      style={[styles.button, isRTL && styles.buttonRtl]}
+      hitSlop={8}
     >
       <Ionicons
         name={isRTL ? "arrow-forward" : "arrow-back"}
         size={18}
         color={appColors.textPrimary}
       />
-      <View>
-        <Text style={styles.label}>{t("navigation.history")}</Text>
-      </View>
+      {showLabel ? (
+        <View>
+          <Text style={styles.label}>{t("navigation.history")}</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -31,6 +36,10 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: "row",
     alignItems: "center",
+    minHeight: 36,
+    minWidth: 36,
+    paddingHorizontal: appSpacing.xs,
+    borderRadius: 18,
     gap: appSpacing.xs,
   },
   label: {
@@ -38,7 +47,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
-  rowReverse: {
-    flexDirection: "row-reverse",
+  buttonRtl: {
+    justifyContent: "center",
+    paddingHorizontal: appSpacing.xxs,
   },
 });

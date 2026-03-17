@@ -1,4 +1,7 @@
-import { resolveHistoryCategoryLabel } from "../../features/history/categoryLabels";
+import {
+  normalizeHistoryCategoryId,
+  resolveHistoryCategoryLabel,
+} from "../../features/history/categoryLabels";
 
 describe("resolveHistoryCategoryLabel", () => {
   it("resolves known category ids through translation keys and falls back for legacy labels", () => {
@@ -9,5 +12,14 @@ describe("resolveHistoryCategoryLabel", () => {
     expect(resolveHistoryCategoryLabel("quick_debt", t)).toBe("tr:history.quickCategories.debt");
     expect(resolveHistoryCategoryLabel("legacy English Label", t)).toBe("legacy English Label");
     expect(resolveHistoryCategoryLabel("unknown_id", t, "Fallback Label")).toBe("Fallback Label");
+  });
+});
+
+describe("normalizeHistoryCategoryId", () => {
+  it("maps legacy localized labels to canonical category ids", () => {
+    expect(normalizeHistoryCategoryId("Salaires et Services")).toBe("salary");
+    expect(normalizeHistoryCategoryId("الأجور والخدمات")).toBe("salary");
+    expect(normalizeHistoryCategoryId("Cereales et Fruits")).toBe("produce");
+    expect(normalizeHistoryCategoryId("Commerce et Affaires")).toBe("trade_sector");
   });
 });

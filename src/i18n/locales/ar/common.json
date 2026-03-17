@@ -173,6 +173,7 @@
       "dueNow": "مستحق الآن",
       "notDue": "غير مستحق بعد",
       "unknown": "تاريخ الحول مفقود / غير معروف",
+      "unknownEvent": "تاريخ الحدث مفقود / غير معروف",
       "hawlDueDate": "تاريخ استحقاق الحول",
       "eventDate": "تاريخ الحدث"
     },
@@ -194,12 +195,12 @@
     "exportFailedTitle": "فشل التصدير",
     "exportFailedBody": "تعذر إنشاء ملف PDF الآن.",
     "kgUnit": "kg",
-    "savedPrefix": "Saved",
+    "savedPrefix": "تم الحفظ",
     "pdf": {
-      "field": "Field",
-      "category": "Category",
-      "value": "Value",
-      "generatedNote": "Generated from local history on this device."
+      "field": "الحقل",
+      "category": "الفئة",
+      "value": "القيمة",
+      "generatedNote": "تم إنشاء هذا الملف من السجل المحلي على هذا الجهاز."
     },
     "reminders": {
       "title": "التذكير",
@@ -352,6 +353,7 @@
       "dueNowStatus": "مستحق الآن",
       "notDueYetStatus": "غير مستحق بعد",
       "dueStatusUnknown": "تاريخ الحول مفقود / غير معروف",
+      "dueStatusUnknownEvent": "تاريخ الحدث مفقود / غير معروف",
       "dueStatusValue": "حالة الاستحقاق: {value}",
       "hawlStartDateValue": "تاريخ بداية الحول: {value}",
       "hawlDueDateValue": "تاريخ استحقاق الحول: {value}",
@@ -611,6 +613,7 @@
       "question": "كيف تتابع سنة الزكاة الخاصة بك؟",
       "referenceDateLabel": "التاريخ المرجعي",
       "referenceDatePlaceholder": "YYYY-MM-DD",
+      "webDateHint": "ملاحظة للويب: أدخل التاريخ بصيغة YYYY-MM-DD (مثال: 2026-03-17) إذا لم يتوفر منتقي التاريخ.",
       "options": {
         "yearly": "لدي تاريخ زكاة سنوي",
         "nisab": "أعرف متى بلغ مالي النصاب لأول مرة",

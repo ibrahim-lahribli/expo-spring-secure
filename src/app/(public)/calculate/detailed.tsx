@@ -18,6 +18,7 @@ import {
 import { appColors, appRadius, appSpacing } from "../../../theme/designSystem";
 import { upsertGuestHistoryEntry } from "../../../features/history/storage";
 import type {
+  DetailedHistoryDetailRow,
   DetailedHistoryLineItem,
   DetailedHistoryScheduledReminder,
   HistoryEntry,
@@ -60,12 +61,13 @@ import {
 } from "../../../lib/zakat-calculation";
 import { formatMoney } from "../../../lib/currency";
 import { calculateNisab } from "../../../lib/zakat-calculation/nisab";
-import { useAppPreferencesStore, type SupportedCurrency } from "../../../store/appPreferencesStore";
+import { useAppPreferencesStore } from "../../../store/appPreferencesStore";
 import {
   useDetailedHawlSetupDraftStore,
   type HawlTrackingMode,
 } from "../../../store/detailedHawlSetupDraftStore";
 import { useNisabSettingsStore } from "../../../store/nisabSettingsStore";
+import { AppDatePickerField } from "../../../components/ui/AppDatePickerField";
 
 type CategoryId = "salary" | "livestock" | "produce" | "agri_other" | "trade_sector" | "industrial_sector" | "debt";
 type HawlCategoryId = Exclude<CategoryId, "produce" | "debt">;
@@ -371,125 +373,89 @@ function calculateTradeSectorZakat(input: {
   };
 }
 
-function buildHistoryMetaDetails(
-  meta: DetailedLineItemMeta,
-  labels: {
-    detailDueStatus: string;
-    dueStatusDueNow: string;
-    dueStatusNotDueYet: string;
-    dueStatusUnknown: string;
-    detailHawlDueDate: string;
-    detailEventDate: string;
-  },
-): string[] {
-  const dueStatus = resolveEligibilityDueStatus(meta);
-  const dueStatusLabel =
-    dueStatus === "due_now"
-      ? labels.dueStatusDueNow
-      : dueStatus === "unknown"
-        ? labels.dueStatusUnknown
-        : labels.dueStatusNotDueYet;
-  const details = [
-    `${labels.detailDueStatus}: ${dueStatusLabel}`,
-  ];
-  if (isValidIsoDate(meta.hawlDueDate)) {
-    details.push(`${labels.detailHawlDueDate}: ${meta.hawlDueDate}`);
-  }
-  if (isValidIsoDate(meta.eventDate)) {
-    details.push(`${labels.detailEventDate}: ${meta.eventDate}`);
-  }
-  return details;
-}
-
 function buildDetailedHistoryLineItem(
   item: LineItem,
-  currency: SupportedCurrency,
-  labels: {
-    livestockTypeLabel: (type: LivestockType) => string;
-    dueText: (items: DueItem[]) => string;
-    modeMonthly: string;
-    modeAnnual: string;
-    detailMode: string;
-    detailNisab: string;
-    detailType: string;
-    detailOwned: string;
-    detailDue: string;
-    detailCashEstimate: string;
-    detailWatering: string;
-    detailDueProduce: string;
-    detailCashEquivalent: string;
-    detailDebtCollectible: string;
-    detailDebtDoubtful: string;
-    detailDebtOwedNow: string;
-    detailDebtNetImpact: string;
-    detailDueStatus: string;
-    detailHawlDueDate: string;
-    detailEventDate: string;
-    dueStatusDueNow: string;
-    dueStatusNotDueYet: string;
-    dueStatusUnknown: string;
-    modeTrade: string;
-    modeHarvest: string;
-    wateringNatural: string;
-    wateringPaidIrrigation: string;
-    kgUnit: string;
-  },
 ): DetailedHistoryLineItem {
   if (item.category === "salary") {
+    const detailRows: DetailedHistoryDetailRow[] = [
+      {
+        kind: "mode",
+        mode: item.values.calculationMode,
+      },
+      {
+        kind: "nisab",
+        amount: item.result.nisab,
+      },
+    ];
     return {
       id: item.id,
       category: item.category,
       meta: item.meta,
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
-      details: [
-        `${labels.detailMode}: ${item.values.calculationMode === "monthly" ? labels.modeMonthly : labels.modeAnnual}`,
-        `${labels.detailNisab}: ${formatMoney(item.result.nisab, currency)}`,
-        ...buildHistoryMetaDetails(item.meta, labels),
-      ],
+      detailRows,
     };
   }
 
   if (item.category === "livestock") {
+    const detailRows: DetailedHistoryDetailRow[] = [
+      {
+        kind: "type",
+        livestockType: item.values.livestockType,
+      },
+      {
+        kind: "owned",
+        count: item.values.ownedCount,
+      },
+      {
+        kind: "due",
+        dueItems: item.dueItems,
+      },
+      {
+        kind: "cash_estimate",
+        amount: item.values.cashEstimate ?? 0,
+      },
+    ];
     return {
       id: item.id,
       category: item.category,
       meta: item.meta,
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
-      details: [
-        `${labels.detailType}: ${labels.livestockTypeLabel(item.values.livestockType)}`,
-        `${labels.detailOwned}: ${item.values.ownedCount}`,
-        `${labels.detailDue}: ${labels.dueText(item.dueItems)}`,
-        `${labels.detailCashEstimate}: ${formatMoney(item.values.cashEstimate ?? 0, currency)}`,
-        ...buildHistoryMetaDetails(item.meta, labels),
-      ],
+      detailRows,
     };
   }
 
   if (item.category === "produce") {
-    const details = [
-      `${labels.detailMode}: ${item.values.isForTrade ? labels.modeTrade : labels.modeHarvest}`,
-      `${labels.detailWatering}: ${
-        item.values.wateringMethod === "natural"
-          ? labels.wateringNatural
-          : labels.wateringPaidIrrigation
-      }`,
-      !item.values.isForTrade
-        ? `${labels.detailDueProduce}: ${(item.dueQuantityKg ?? 0).toFixed(2)} ${labels.kgUnit}`
-        : null,
-      !item.values.isForTrade
-        ? `${labels.detailCashEquivalent}: ${formatMoney(item.cashEquivalent ?? 0, currency)}`
-        : null,
-      ...buildHistoryMetaDetails(item.meta, labels),
-    ].filter((line): line is string => Boolean(line));
+    const detailRows: DetailedHistoryDetailRow[] = [
+      {
+        kind: "mode",
+        mode: item.values.isForTrade ? "trade" : "harvest",
+      },
+      ...(!item.values.isForTrade
+        ? [
+            {
+              kind: "watering",
+              method: item.values.wateringMethod,
+            } as const,
+            {
+              kind: "due_produce",
+              quantityKg: item.dueQuantityKg ?? 0,
+            } as const,
+            {
+              kind: "cash_equivalent",
+              amount: item.cashEquivalent ?? 0,
+            } as const,
+          ]
+        : []),
+    ];
     return {
       id: item.id,
       category: item.category,
       meta: item.meta,
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
-      details,
+      detailRows,
     };
   }
 
@@ -507,11 +473,23 @@ function buildDetailedHistoryLineItem(
       meta: item.meta,
       totalZakat: item.result.totalZakat,
       totalWealth: item.result.totalWealth,
-      details: [
-        `${labels.detailDebtCollectible}: ${formatMoney(adjustment.collectibleReceivablesCurrent, currency)}`,
-        `${labels.detailDebtDoubtful}: ${formatMoney(adjustment.doubtfulReceivables, currency)}`,
-        `${labels.detailDebtOwedNow}: ${formatMoney(-Math.abs(adjustment.debtsYouOweDueNow), currency)}`,
-        `${labels.detailDebtNetImpact}: ${formatMoney(adjustment.netAdjustment, currency)}`,
+      detailRows: [
+        {
+          kind: "debt_collectible",
+          amount: adjustment.collectibleReceivablesCurrent,
+        },
+        {
+          kind: "debt_doubtful",
+          amount: adjustment.doubtfulReceivables,
+        },
+        {
+          kind: "debt_owed_now",
+          amount: adjustment.debtsYouOweDueNow,
+        },
+        {
+          kind: "debt_net_impact",
+          amount: adjustment.netAdjustment,
+        },
       ],
     };
   }
@@ -522,9 +500,11 @@ function buildDetailedHistoryLineItem(
     meta: item.meta,
     totalZakat: item.result.totalZakat,
     totalWealth: item.result.totalWealth,
-    details: [
-      `${labels.detailNisab}: ${formatMoney(item.result.nisab, currency)}`,
-      ...buildHistoryMetaDetails(item.meta, labels),
+    detailRows: [
+      {
+        kind: "nisab",
+        amount: item.result.nisab,
+      },
     ],
   };
 }
@@ -547,6 +527,13 @@ export default function DetailedCalculateScreen() {
     hawlSaveAsDefault?: string | string[];
   }>();
   const { t, i18n } = useTranslation("common");
+  const datePickerLocale = useMemo(() => {
+    const languageTag = (i18n?.resolvedLanguage ?? i18n?.language ?? "en").toLowerCase();
+    if (languageTag.startsWith("ar")) return "ar";
+    if (languageTag.startsWith("fr")) return "fr";
+    return "en";
+  }, [i18n?.language, i18n?.resolvedLanguage]);
+  const isArabic = (i18n?.resolvedLanguage ?? i18n?.language ?? "en").startsWith("ar");
   const currency = useAppPreferencesStore((s) => s.currency);
   const zakatReminderEnabled = useAppPreferencesStore((s) => s.zakatReminderEnabled);
   const hawlDraft = useDetailedHawlSetupDraftStore((s) => s.draft);
@@ -714,6 +701,9 @@ export default function DetailedCalculateScreen() {
       return t("detailedCalculator.summary.dueNowStatus");
     }
     if (dueStatus === "unknown") {
+      if (meta.obligationMode === "event_based") {
+        return t("detailedCalculator.summary.dueStatusUnknownEvent");
+      }
       return t("detailedCalculator.summary.dueStatusUnknown");
     }
     return t("detailedCalculator.summary.notDueYetStatus");
@@ -974,13 +964,16 @@ export default function DetailedCalculateScreen() {
     [cashBaseBeforeDebt, debtAdjustment.netAdjustment, finalZakatableBase, hasDebtLineItem, monetaryNisab],
   );
   const addedCategoryCount = useMemo(() => new Set(lineItems.map((item) => item.category)).size, [lineItems]);
-  const livestockInKindBreakdown = useMemo(
+  const livestockInKindSummary = useMemo(
     () =>
       dueNowSpecialLineItems
         .filter((item): item is LivestockLineItem => item.category === "livestock")
         .filter((item) => item.dueItems.length > 0)
-        .map((item) => `${livestockTypeLabel(item.values.livestockType)}: ${dueText(item.dueItems)}`),
-    [dueNowSpecialLineItems, t],
+        .map((item) => ({
+          livestockType: item.values.livestockType,
+          dueItems: item.dueItems,
+        })),
+    [dueNowSpecialLineItems],
   );
   const produceDueKgTotal = useMemo(
     () =>
@@ -996,10 +989,10 @@ export default function DetailedCalculateScreen() {
   );
   const nonCashDueSummary = useMemo<NonCashDueSummary>(
     () => ({
-      livestock: livestockInKindBreakdown,
+      livestock: livestockInKindSummary,
       produceKg: produceDueKgTotal,
     }),
-    [livestockInKindBreakdown, produceDueKgTotal],
+    [livestockInKindSummary, produceDueKgTotal],
   );
   const totalDisplay = useMemo(
     () =>
@@ -1007,7 +1000,11 @@ export default function DetailedCalculateScreen() {
         cashTotal: combinedTotal,
         currency,
         nonCashDue: nonCashDueSummary,
-        labels: { kgUnit: t("history.kgUnit") },
+        labels: {
+          kgUnit: t("history.kgUnit"),
+          resolveLivestockTypeLabel: (type) => t(`detailedCalculator.livestock.types.${type}`),
+          formatDueItems: (items) => formatDueItems(items, (item) => t(getDueItemLabelKey(item))),
+        },
       }),
     [combinedTotal, currency, nonCashDueSummary, t],
   );
@@ -1346,38 +1343,7 @@ export default function DetailedCalculateScreen() {
             calculationDate: calculationContext.calculationDate,
           },
           reminders: scheduledReminder ? [scheduledReminder] : undefined,
-          lineItems: lineItems.map((item) =>
-            buildDetailedHistoryLineItem(item, currency, {
-              livestockTypeLabel,
-              dueText,
-              modeMonthly: t("detailedCalculator.modes.monthly"),
-              modeAnnual: t("detailedCalculator.modes.annual"),
-              detailMode: t("detailedCalculator.history.mode"),
-              detailNisab: t("detailedCalculator.history.nisab"),
-              detailType: t("detailedCalculator.history.type"),
-              detailOwned: t("detailedCalculator.history.owned"),
-              detailDue: t("detailedCalculator.history.due"),
-              detailCashEstimate: t("detailedCalculator.history.cashEstimate"),
-              detailWatering: t("detailedCalculator.history.watering"),
-              detailDueProduce: t("detailedCalculator.history.dueProduce"),
-              detailCashEquivalent: t("detailedCalculator.history.cashEquivalent"),
-              detailDebtCollectible: t("detailedCalculator.history.debtCollectible"),
-              detailDebtDoubtful: t("detailedCalculator.history.debtDoubtful"),
-              detailDebtOwedNow: t("detailedCalculator.history.debtOwedNow"),
-              detailDebtNetImpact: t("detailedCalculator.history.debtNetImpact"),
-              detailDueStatus: t("detailedCalculator.history.dueStatus"),
-              detailHawlDueDate: t("detailedCalculator.history.hawlDueDate"),
-              detailEventDate: t("detailedCalculator.history.eventDate"),
-              dueStatusDueNow: t("detailedCalculator.summary.dueNowStatus"),
-              dueStatusNotDueYet: t("detailedCalculator.summary.notDueYetStatus"),
-              dueStatusUnknown: t("detailedCalculator.summary.dueStatusUnknown"),
-              modeTrade: t("detailedCalculator.history.modeTrade"),
-              modeHarvest: t("detailedCalculator.history.modeHarvest"),
-              wateringNatural: t("detailedCalculator.history.wateringNatural"),
-              wateringPaidIrrigation: t("detailedCalculator.history.wateringPaidIrrigation"),
-              kgUnit: t("history.kgUnit"),
-            }),
-          ),
+          lineItems: lineItems.map((item) => buildDetailedHistoryLineItem(item)),
           combinedTotal,
           finalCalculation: hasDebtLineItem
             ? {
@@ -1987,10 +1953,12 @@ export default function DetailedCalculateScreen() {
                   </Text>
                 ) : null}
                 {!(activeHawlTimingDraft?.useSessionDate ?? true) ? (
-                  <TextInput
-                    style={styles.input}
-                    value={activeHawlTimingDraft?.customDate ?? ""}
-                    onChangeText={(value) => {
+                  <AppDatePickerField
+                    testID="hawl-custom-date-input"
+                    label={t("detailedCalculator.form.hawl.useCustomCategoryDate")}
+                    placeholder={t("detailedCalculator.form.hawl.customDatePlaceholder")}
+                    valueIso={activeHawlTimingDraft?.customDate ?? ""}
+                    onChangeIso={(value) => {
                       const hawlCategory = activeCategory as HawlCategoryId;
                       setHawlTimingDrafts((prev) => ({
                         ...prev,
@@ -2001,9 +1969,8 @@ export default function DetailedCalculateScreen() {
                       }));
                       setValidationErrorKey(null);
                     }}
-                    placeholder={t("detailedCalculator.form.hawl.customDatePlaceholder")}
-                    autoCapitalize="none"
-                    autoCorrect={false}
+                    locale={datePickerLocale}
+                    isArabic={isArabic}
                   />
                 ) : null}
                 <Text style={styles.caption}>
@@ -2047,16 +2014,17 @@ export default function DetailedCalculateScreen() {
             {activeCategory === "produce" ? (
               <View style={styles.infoBox}>
                 <Text style={styles.bold}>{t("detailedCalculator.form.produce.eventDateLabel")}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={produceEventDate}
-                  onChangeText={(value) => {
+                <AppDatePickerField
+                  testID="produce-event-date-input"
+                  label={t("detailedCalculator.form.produce.eventDateLabel")}
+                  placeholder={t("detailedCalculator.form.produce.eventDatePlaceholder")}
+                  valueIso={produceEventDate}
+                  onChangeIso={(value) => {
                     setProduceEventDate(value);
                     setValidationErrorKey(null);
                   }}
-                  placeholder={t("detailedCalculator.form.produce.eventDatePlaceholder")}
-                  autoCapitalize="none"
-                  autoCorrect={false}
+                  locale={datePickerLocale}
+                  isArabic={isArabic}
                 />
                 <Text style={styles.caption}>{t("detailedCalculator.form.produce.dueAtEventNote")}</Text>
                 <Text style={styles.caption}>

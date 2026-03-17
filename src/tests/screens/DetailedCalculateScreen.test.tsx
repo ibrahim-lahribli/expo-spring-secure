@@ -46,6 +46,18 @@ jest.mock("react-i18next", () => ({
   },
 }));
 
+function pickIsoDate(
+  getByTestId: (testID: string) => any,
+  triggerTestId: string,
+  isoDate: string,
+) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  fireEvent.press(getByTestId(triggerTestId));
+  fireEvent(getByTestId(`${triggerTestId}-modal`), "onConfirm", {
+    date: new Date(year, month - 1, day),
+  });
+}
+
 describe("DetailedCalculateScreen", () => {
   beforeEach(() => {
     const routerModule = require("expo-router") as {
@@ -179,6 +191,11 @@ describe("DetailedCalculateScreen", () => {
       dueNow: false,
       debtAdjustable: true,
     });
+    expect(savedEntry.payload.lineItems[0]?.detailRows).toEqual([
+      { kind: "mode", mode: "annual" },
+      { kind: "nisab", amount: 7140 },
+    ]);
+    expect(savedEntry.payload.lineItems[0]?.details).toBeUndefined();
   });
 
   it("renders category icons as Ionicons instead of broken emoji glyphs", () => {
@@ -212,7 +229,7 @@ describe("DetailedCalculateScreen", () => {
   });
 
   it("shows mixed total inline display for in-kind livestock and produce kg dues", async () => {
-    const { getByText, getByPlaceholderText, getAllByText, queryByText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getAllByText, queryByText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Salaries & Services"));
     fireEvent.changeText(getByPlaceholderText("Monthly services income"), "4000");
@@ -227,7 +244,7 @@ describe("DetailedCalculateScreen", () => {
     });
 
     fireEvent.press(getByText("Grains & Fruits"));
-    fireEvent.changeText(getByPlaceholderText("Event date (YYYY-MM-DD)"), "2026-03-01");
+    pickIsoDate(getByTestId, "produce-event-date-input", "2026-03-01");
     fireEvent.changeText(getByPlaceholderText("Harvest quantity (kg)"), "5000");
     fireEvent.press(getByText("Add This Category"));
 
@@ -382,10 +399,10 @@ describe("DetailedCalculateScreen", () => {
   });
 
   it("does not include produce (trade mode) in debt-adjustable due-now money pool", async () => {
-    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Grains & Fruits"));
-    fireEvent.changeText(getByPlaceholderText("Event date (YYYY-MM-DD)"), "2026-03-01");
+    pickIsoDate(getByTestId, "produce-event-date-input", "2026-03-01");
     fireEvent.press(getByText("Trade stock"));
     fireEvent.changeText(getByPlaceholderText("Market value"), "20000");
     fireEvent.press(getByText("Add This Category"));
@@ -431,10 +448,10 @@ describe("DetailedCalculateScreen", () => {
   });
 
   it("adds independent non-debt-adjustable cash due to total without debt-adjusting it", async () => {
-    const { getByText, getByPlaceholderText, getAllByText, queryByText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getAllByText, queryByText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Grains & Fruits"));
-    fireEvent.changeText(getByPlaceholderText("Event date (YYYY-MM-DD)"), "2026-03-01");
+    pickIsoDate(getByTestId, "produce-event-date-input", "2026-03-01");
     fireEvent.press(getByText("Trade stock"));
     fireEvent.changeText(getByPlaceholderText("Market value"), "10000");
     fireEvent.press(getByText("Add This Category"));
@@ -463,17 +480,17 @@ describe("DetailedCalculateScreen", () => {
       calculationDate: "2026-03-11",
     });
 
-    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Salaries & Services"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2026-01-01");
     fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
     fireEvent.press(getByText("Add This Category"));
 
     fireEvent.press(getByText("Trade & Business"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2025-01-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2025-01-01");
     fireEvent.changeText(getByPlaceholderText("Total value of trade/business assets"), "20000");
     fireEvent.press(getByText("Add This Category"));
 
@@ -500,17 +517,17 @@ describe("DetailedCalculateScreen", () => {
       calculationDate: "2026-03-11",
     });
 
-    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Salaries & Services"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2026-01-01");
     fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
     fireEvent.press(getByText("Add This Category"));
 
     fireEvent.press(getByText("Trade & Business"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2026-01-01");
     fireEvent.changeText(getByPlaceholderText("Total value of trade/business assets"), "20000");
     fireEvent.press(getByText("Add This Category"));
 
@@ -541,10 +558,10 @@ describe("DetailedCalculateScreen", () => {
     routerModule.useLocalSearchParams.mockReturnValue({
       calculationDate: "2026-03-11",
     });
-    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Grains & Fruits"));
-    fireEvent.changeText(getByPlaceholderText("Event date (YYYY-MM-DD)"), "2026-04-01");
+    pickIsoDate(getByTestId, "produce-event-date-input", "2026-04-01");
     fireEvent.changeText(getByPlaceholderText("Harvest quantity (kg)"), "5000");
     fireEvent.press(getByText("Add This Category"));
 
@@ -574,21 +591,31 @@ describe("DetailedCalculateScreen", () => {
     });
   });
 
+  it("uses event-based unknown wording for produce when event date is missing", () => {
+    const { getByText, queryByText } = render(<DetailedCalculateScreen />);
+
+    fireEvent.press(getByText("Grains & Fruits"));
+
+    expect(getByText("Event date missing / unknown")).toBeTruthy();
+    expect(queryByText("Hawl date missing / unknown")).toBeNull();
+  });
+
   it("keeps custom hawl date per category when leaving and reopening forms", () => {
-    const { getByText, getByPlaceholderText, getByDisplayValue } = render(<DetailedCalculateScreen />);
+    const { getByText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Salaries & Services"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2025-02-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2025-02-01");
     fireEvent.press(getByText("Back to categories"));
 
     fireEvent.press(getByText("Trade & Business"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2025-03-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2025-03-01");
     fireEvent.press(getByText("Back to categories"));
 
     fireEvent.press(getByText("Salaries & Services"));
-    expect(getByDisplayValue("2025-02-01")).toBeTruthy();
+    const selectedDate = getByTestId("hawl-custom-date-input-modal").props.date as Date;
+    expect(formatDateAsIso(selectedDate)).toBe("2025-02-01");
   });
 
   it("uses estimated start-today calculation date as inherited session hawl date", () => {
@@ -610,11 +637,11 @@ describe("DetailedCalculateScreen", () => {
     routerModule.useLocalSearchParams.mockReturnValue({
       calculationDate: "2026-03-11",
     });
-    const { getByText, getByPlaceholderText, queryByText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, queryByText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Livestock"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2026-01-01");
     fireEvent.changeText(getByPlaceholderText("Owned count"), "30");
     fireEvent.press(getByText("Add This Category"));
 
@@ -629,11 +656,11 @@ describe("DetailedCalculateScreen", () => {
     routerModule.useLocalSearchParams.mockReturnValue({
       calculationDate: "2026-03-11",
     });
-    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Livestock"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2025-01-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2025-01-01");
     fireEvent.changeText(getByPlaceholderText("Owned count"), "30");
     fireEvent.press(getByText("Add This Category"));
 
@@ -647,11 +674,11 @@ describe("DetailedCalculateScreen", () => {
     routerModule.useLocalSearchParams.mockReturnValue({
       calculationDate: "2026-03-11",
     });
-    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Salaries & Services"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2026-01-01");
     fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
     fireEvent.press(getByText("Add This Category"));
 
@@ -685,11 +712,11 @@ describe("DetailedCalculateScreen", () => {
     routerModule.useLocalSearchParams.mockReturnValue({
       calculationDate: "2026-03-11",
     });
-    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Salaries & Services"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2026-01-01");
     fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
     fireEvent.press(getByText("Add This Category"));
     fireEvent.press(getByText("Save to History"));
@@ -719,11 +746,11 @@ describe("DetailedCalculateScreen", () => {
     routerModule.useLocalSearchParams.mockReturnValue({
       calculationDate: "2026-03-11",
     });
-    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getByTestId } = render(<DetailedCalculateScreen />);
 
     fireEvent.press(getByText("Salaries & Services"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2025-01-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2025-01-01");
     fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
     fireEvent.press(getByText("Add This Category"));
     fireEvent.press(getByText("Save to History"));
@@ -749,10 +776,10 @@ describe("DetailedCalculateScreen", () => {
         }),
     );
 
-    const { getByText, getByPlaceholderText } = render(<DetailedCalculateScreen />);
+    const { getByText, getByPlaceholderText, getByTestId } = render(<DetailedCalculateScreen />);
     fireEvent.press(getByText("Salaries & Services"));
     fireEvent.press(getByText("Use custom date for this category"));
-    fireEvent.changeText(getByPlaceholderText("Hawl start date (YYYY-MM-DD)"), "2026-01-01");
+    pickIsoDate(getByTestId, "hawl-custom-date-input", "2026-01-01");
     fireEvent.changeText(getByPlaceholderText("Monthly services income"), "5000");
     fireEvent.press(getByText("Add This Category"));
 

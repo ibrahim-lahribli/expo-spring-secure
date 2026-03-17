@@ -182,6 +182,7 @@
       "dueNow": "Due now",
       "notDue": "Not due yet",
       "unknown": "Hawl date missing / unknown",
+      "unknownEvent": "Event date missing / unknown",
       "hawlDueDate": "Hawl due date",
       "eventDate": "Event date"
     },
@@ -349,6 +350,7 @@
       "question": "How do you track your zakat year?",
       "referenceDateLabel": "Reference date",
       "referenceDatePlaceholder": "YYYY-MM-DD",
+      "webDateHint": "Web tip: enter date as YYYY-MM-DD (example: 2026-03-17) if the picker is unavailable.",
       "options": {
         "yearly": "I have a yearly zakat date",
         "nisab": "I know when my wealth first reached nisab",
@@ -408,6 +410,7 @@
       "dueNowStatus": "Due now",
       "notDueYetStatus": "Not due yet",
       "dueStatusUnknown": "Hawl date missing / unknown",
+      "dueStatusUnknownEvent": "Event date missing / unknown",
       "dueStatusValue": "Due status: {value}",
       "hawlStartDateValue": "Hawl start date: {value}",
       "hawlDueDateValue": "Hawl due date: {value}",

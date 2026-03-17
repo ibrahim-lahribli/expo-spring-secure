@@ -9,29 +9,32 @@ import {
   SecondaryButton,
 } from "../../../components/ui";
 import { buildHistoryPdfHtml } from "../../../features/history/pdf";
-import { resolveHistoryCategoryLabel } from "../../../features/history/categoryLabels";
+import {
+  normalizeHistoryCategoryId,
+  resolveHistoryCategoryLabel,
+} from "../../../features/history/categoryLabels";
+import {
+  formatHistoryDateTime,
+  formatHistoryIsoDate,
+} from "../../../features/history/dateFormatting";
+import { resolveLineItemDetailRows } from "../../../features/history/detailRows";
 import { buildTotalDisplay, resolveNonCashDueSummary } from "../../../features/history/totalDisplay";
 import { resolveDetailedReminderDisplayState } from "../../../features/history/reminders";
 import { getGuestHistoryEntryById } from "../../../features/history/storage";
 import type { HistoryEntry } from "../../../features/history/types";
 import { formatMoney } from "../../../lib/currency";
-import { resolveEligibilityDueStatus } from "../../../lib/zakat-calculation";
+import {
+  formatDueItems,
+  getDueItemLabelKey,
+  resolveEligibilityDueStatus,
+} from "../../../lib/zakat-calculation";
 import { appColors, appRadius, appSpacing, appTypography } from "../../../theme/designSystem";
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
 
 export default function HistoryDetailsScreen() {
   const router = useRouter();
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
   const isRTL = I18nManager.isRTL;
+  const currentLocale = i18n?.resolvedLanguage ?? i18n?.language;
   const { id } = useLocalSearchParams<{ id: string }>();
   const [entry, setEntry] = useState<HistoryEntry | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -77,7 +80,11 @@ export default function HistoryDetailsScreen() {
       cashTotal: entry.totalZakat,
       currency: entry.currency,
       nonCashDue: resolveNonCashDueSummary(entry.summary.nonCashDue),
-      labels: { kgUnit: t("history.kgUnit", { defaultValue: "kg" }) },
+      labels: {
+        kgUnit: t("history.kgUnit"),
+        resolveLivestockTypeLabel: (type) => t(`detailedCalculator.livestock.types.${type}`),
+        formatDueItems: (items) => formatDueItems(items, (item) => t(getDueItemLabelKey(item))),
+      },
     });
   }, [entry, t]);
   const detailedPayload = entry?.payload.kind === "detailed" ? entry.payload : null;
@@ -90,9 +97,10 @@ export default function HistoryDetailsScreen() {
     const isMoneyCategory = (category: string) =>
       ["salary", "agri_other", "trade_sector", "industrial_sector"].includes(category);
     const classify = (item: (typeof detailedPayload.lineItems)[number]) => {
-      if (item.category === "debt") return "debt";
+      const canonicalCategory = normalizeHistoryCategoryId(item.category);
+      if (canonicalCategory === "debt") return "debt";
       const dueNow = item.meta?.dueNow ?? true;
-      const debtAdjustable = item.meta?.debtAdjustable ?? isMoneyCategory(item.category);
+      const debtAdjustable = item.meta?.debtAdjustable ?? isMoneyCategory(canonicalCategory);
       if (!dueNow) return "not_due";
       if (debtAdjustable) return "due_money";
       return "due_special";
@@ -135,25 +143,25 @@ export default function HistoryDetailsScreen() {
     if (!entry || isExporting) return;
 
     const html = buildHistoryPdfHtml(entry, {
-      kgUnit: t("history.kgUnit", { defaultValue: "kg" }),
+      locale: currentLocale,
+      documentTitle: t("history.historyDetails"),
+      kgUnit: t("history.kgUnit"),
       titleQuick: t("history.quickCalculation"),
       titleDetailed: t("history.detailedCalculation"),
-      savedPrefix: t("history.savedPrefix", { defaultValue: "Saved" }),
+      savedPrefix: t("history.savedPrefix"),
       totalLabel: t("history.totalZakatDue"),
       categoriesUsed: t("history.categoriesUsed"),
       quickSnapshotTitle: t("history.inputsSnapshot"),
       detailedBreakdownTitle: t("history.lineItemBreakdown"),
       finalCalculationTitle: t("history.finalCalculation.title"),
       debtAdjustmentTitle: t("history.finalCalculation.debtAdjustmentTitle"),
-      fieldHeader: t("history.pdf.field", { defaultValue: "Field" }),
-      categoryHeader: t("history.pdf.category", { defaultValue: "Category" }),
-      valueHeader: t("history.pdf.value", { defaultValue: "Value" }),
+      fieldHeader: t("history.pdf.field"),
+      categoryHeader: t("history.pdf.category"),
+      valueHeader: t("history.pdf.value"),
       netWealthHeader: t("history.detailRows.netWealth"),
       zakatDueHeader: t("history.zakatDue"),
       zakatBeforeAdjustmentsHeader: t("history.zakatBeforeAdjustments"),
-      generatedNote: t("history.pdf.generatedNote", {
-        defaultValue: "Generated from local history on this device.",
-      }),
+      generatedNote: t("history.pdf.generatedNote"),
       finalCalculationRows: {
         collectibleReceivables: t("history.finalCalculation.collectibleReceivables"),
         doubtfulReceivablesExcluded: t("history.finalCalculation.doubtfulReceivablesExcluded"),
@@ -175,6 +183,7 @@ export default function HistoryDetailsScreen() {
         dueNow: t("history.groupedRows.dueNow"),
         notDue: t("history.groupedRows.notDue"),
         unknown: t("history.groupedRows.unknown"),
+        unknownEvent: t("history.groupedRows.unknownEvent"),
         hawlDueDate: t("history.groupedRows.hawlDueDate"),
         eventDate: t("history.groupedRows.eventDate"),
       },
@@ -192,6 +201,8 @@ export default function HistoryDetailsScreen() {
         reminderNotScheduled: t("history.reminders.notScheduled"),
         noUpcomingDueReminder: t("history.reminders.none"),
       },
+      resolveLivestockTypeLabel: (type) => t(`detailedCalculator.livestock.types.${type}`),
+      formatDueItems: (items) => formatDueItems(items, (item) => t(getDueItemLabelKey(item))),
       resolveCategoryLabel,
     });
     if (Platform.OS === "web") {
@@ -274,7 +285,7 @@ export default function HistoryDetailsScreen() {
           entry.flowType === "quick"
             ? "history.savedQuickSubtitle"
             : "history.savedDetailedSubtitle",
-          { date: formatDate(entry.createdAt) },
+          { date: formatHistoryDateTime(entry.createdAt, currentLocale) },
         )}
       />
 
@@ -287,11 +298,16 @@ export default function HistoryDetailsScreen() {
       <AppCard style={styles.categoriesCard}>
         <Text style={styles.sectionTitle}>{t("history.categoriesUsed")}</Text>
         <View style={[styles.categoryList, isRTL && styles.rowReverse]}>
-          {entry.summary.categoriesUsed.map((category) => (
-            <View key={category} style={styles.categoryChip}>
-              <Text style={styles.categoryChipText}>{resolveCategoryLabel(category, category)}</Text>
-            </View>
-          ))}
+          {entry.summary.categoriesUsed.map((category, index) => {
+            const canonicalCategory = normalizeHistoryCategoryId(category);
+            return (
+              <View key={`${category}-${index}`} style={styles.categoryChip}>
+                <Text style={styles.categoryChipText}>
+                  {resolveCategoryLabel(canonicalCategory, category)}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       </AppCard>
 
@@ -325,7 +341,9 @@ export default function HistoryDetailsScreen() {
         {detailedPayload?.calculationContext?.calculationDate ? (
           <View style={[styles.snapshotRow, isRTL && styles.rowReverse]}>
             <Text style={styles.snapshotRowLabel}>{t("history.reminders.calculationDate")}</Text>
-            <Text style={styles.snapshotRowValue}>{detailedPayload.calculationContext.calculationDate}</Text>
+            <Text style={styles.snapshotRowValue}>
+              {formatHistoryIsoDate(detailedPayload.calculationContext.calculationDate, currentLocale)}
+            </Text>
           </View>
         ) : null}
       </AppCard>
@@ -336,55 +354,71 @@ export default function HistoryDetailsScreen() {
           {detailedLineItemGroups.map((group) => (
             <View key={group.key} style={styles.groupSection}>
               <Text style={styles.groupTitle}>{group.title}</Text>
-              {group.items.map((item) => (
-                <View key={item.id} style={styles.lineItem}>
-                  <View style={[styles.lineItemHeader, isRTL && styles.rowReverse]}>
-                    <Text style={styles.lineItemTitle}>
-                      {resolveCategoryLabel(item.category, item.label)}
-                    </Text>
-                    <Text style={styles.lineItemAmount}>{formatMoney(item.totalZakat, entry.currency)}</Text>
-                  </View>
-                  {detailedPayload.finalCalculation?.hasDebtLineItem &&
-                  ["salary", "agri_other", "trade_sector", "industrial_sector"].includes(item.category) ? (
+              {group.items.map((item) => {
+                const canonicalCategory = normalizeHistoryCategoryId(item.category);
+                const detailLines = resolveLineItemDetailRows({
+                  lineItem: item,
+                  currency: entry.currency,
+                  t,
+                  locale: currentLocale,
+                });
+                return (
+                  <View key={item.id} style={styles.lineItem}>
+                    <View style={[styles.lineItemHeader, isRTL && styles.rowReverse]}>
+                      <Text style={styles.lineItemTitle}>
+                        {resolveCategoryLabel(canonicalCategory, item.label ?? item.category)}
+                      </Text>
+                      <Text style={styles.lineItemAmount}>{formatMoney(item.totalZakat, entry.currency)}</Text>
+                    </View>
+                    {detailedPayload.finalCalculation?.hasDebtLineItem &&
+                    ["salary", "agri_other", "trade_sector", "industrial_sector"].includes(canonicalCategory) ? (
+                      <Text style={styles.lineItemMeta}>
+                        {t("history.categoryZakatBeforeAdjustmentsValue", {
+                          value: formatMoney(item.totalZakat, entry.currency),
+                        })}
+                      </Text>
+                    ) : null}
+                    {item.meta ? (
+                      <Text style={styles.lineItemMeta}>
+                        {(() => {
+                          const dueStatus = resolveEligibilityDueStatus(item.meta);
+                          const unknownLabel =
+                            item.meta.obligationMode === "event_based"
+                              ? t("history.groupedRows.unknownEvent")
+                              : t("history.groupedRows.unknown");
+                          const localizedDueStatus =
+                            dueStatus === "due_now"
+                              ? t("history.groupedRows.dueNow")
+                              : dueStatus === "unknown"
+                                ? unknownLabel
+                                : t("history.groupedRows.notDue");
+                          return `${t("history.groupedRows.dueStatus")}: ${localizedDueStatus}`;
+                        })()}
+                      </Text>
+                    ) : null}
+                    {item.meta?.hawlDueDate ? (
+                      <Text style={styles.lineItemMeta}>
+                        {t("history.groupedRows.hawlDueDate")}: {formatHistoryIsoDate(item.meta.hawlDueDate, currentLocale)}
+                      </Text>
+                    ) : null}
+                    {item.meta?.eventDate ? (
+                      <Text style={styles.lineItemMeta}>
+                        {t("history.groupedRows.eventDate")}: {formatHistoryIsoDate(item.meta.eventDate, currentLocale)}
+                      </Text>
+                    ) : null}
                     <Text style={styles.lineItemMeta}>
-                      {t("history.categoryZakatBeforeAdjustmentsValue", {
-                        value: formatMoney(item.totalZakat, entry.currency),
+                      {t("history.netWealthValue", {
+                        value: formatMoney(item.totalWealth, entry.currency),
                       })}
                     </Text>
-                  ) : null}
-                  {item.meta ? (
-                    <Text style={styles.lineItemMeta}>
-                      {t("history.groupedRows.dueStatus")}: {
-                        resolveEligibilityDueStatus(item.meta) === "due_now"
-                          ? t("history.groupedRows.dueNow")
-                          : resolveEligibilityDueStatus(item.meta) === "unknown"
-                            ? t("history.groupedRows.unknown")
-                            : t("history.groupedRows.notDue")
-                      }
-                    </Text>
-                  ) : null}
-                  {item.meta?.hawlDueDate ? (
-                    <Text style={styles.lineItemMeta}>
-                      {t("history.groupedRows.hawlDueDate")}: {item.meta.hawlDueDate}
-                    </Text>
-                  ) : null}
-                  {item.meta?.eventDate ? (
-                    <Text style={styles.lineItemMeta}>
-                      {t("history.groupedRows.eventDate")}: {item.meta.eventDate}
-                    </Text>
-                  ) : null}
-                  <Text style={styles.lineItemMeta}>
-                    {t("history.netWealthValue", {
-                      value: formatMoney(item.totalWealth, entry.currency),
-                    })}
-                  </Text>
-                  {item.details.map((detail) => (
-                    <Text key={`${item.id}-${detail}`} style={styles.lineItemMeta}>
-                      {detail}
-                    </Text>
-                  ))}
-                </View>
-              ))}
+                    {detailLines.map((detail) => (
+                      <Text key={`${item.id}-${detail}`} style={styles.lineItemMeta}>
+                        {detail}
+                      </Text>
+                    ))}
+                  </View>
+                );
+              })}
             </View>
           ))}
         </AppCard>
@@ -396,7 +430,7 @@ export default function HistoryDetailsScreen() {
             <>
               <Text style={styles.lineItemMeta}>{t("history.reminders.scheduled")}</Text>
               <Text style={styles.lineItemMeta}>
-                {t("history.reminders.nextDate")}: {detailedReminderState.reminderDate}
+                {t("history.reminders.nextDate")}: {formatHistoryIsoDate(detailedReminderState.reminderDate, currentLocale)}
               </Text>
             </>
           ) : null}
@@ -404,7 +438,7 @@ export default function HistoryDetailsScreen() {
             <>
               <Text style={styles.lineItemMeta}>{t("history.reminders.disabled")}</Text>
               <Text style={styles.lineItemMeta}>
-                {t("history.reminders.nextDate")}: {detailedReminderState.reminderDate}
+                {t("history.reminders.nextDate")}: {formatHistoryIsoDate(detailedReminderState.reminderDate, currentLocale)}
               </Text>
             </>
           ) : null}
@@ -413,7 +447,7 @@ export default function HistoryDetailsScreen() {
               <Text style={styles.lineItemMeta}>{t("history.reminders.notScheduled")}</Text>
               {detailedReminderState.reminderDate ? (
                 <Text style={styles.lineItemMeta}>
-                  {t("history.reminders.nextDate")}: {detailedReminderState.reminderDate}
+                  {t("history.reminders.nextDate")}: {formatHistoryIsoDate(detailedReminderState.reminderDate, currentLocale)}
                 </Text>
               ) : null}
             </>

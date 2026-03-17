@@ -121,7 +121,7 @@
     },
     "quickCalculation": "Calcul rapide",
     "detailedCalculation": "Calcul détaillé",
-    "zakatDue": "Zakat due",
+    "zakatDue": "Zakat à payer",
     "view": "Voir",
     "emptyStateLabel": "VUE VIDE",
     "emptyTitle": "Aucun historique trouvé",
@@ -173,6 +173,7 @@
       "dueNow": "Exigible maintenant",
       "notDue": "Pas encore exigible",
       "unknown": "Date du hawl manquante / inconnue",
+      "unknownEvent": "Date d'evenement manquante / inconnue",
       "hawlDueDate": "Date d'echeance du hawl",
       "eventDate": "Date d'evenement"
     },
@@ -194,12 +195,12 @@
     "exportFailedTitle": "Échec de l'export",
     "exportFailedBody": "Impossible de créer le PDF pour le moment.",
     "kgUnit": "kg",
-    "savedPrefix": "Enregistr?",
+    "savedPrefix": "Enregistré",
     "pdf": {
       "field": "Champ",
-      "category": "Cat?gorie",
+      "category": "Catégorie",
       "value": "Valeur",
-      "generatedNote": "G?n?r? depuis l'historique local sur cet appareil."
+      "generatedNote": "Généré depuis l'historique local sur cet appareil."
     },
     "reminders": {
       "title": "Rappel",
@@ -352,6 +353,7 @@
       "dueNowStatus": "Exigible maintenant",
       "notDueYetStatus": "Pas encore exigible",
       "dueStatusUnknown": "Date du hawl manquante / inconnue",
+      "dueStatusUnknownEvent": "Date d'evenement manquante / inconnue",
       "dueStatusValue": "Statut : {value}",
       "hawlStartDateValue": "Date de debut du hawl : {value}",
       "hawlDueDateValue": "Date d'echeance du hawl : {value}",
@@ -611,6 +613,7 @@
       "question": "Comment suivez-vous votre année de zakat ?",
       "referenceDateLabel": "Date de référence",
       "referenceDatePlaceholder": "YYYY-MM-DD",
+      "webDateHint": "Astuce web : saisissez la date au format YYYY-MM-DD (ex. 2026-03-17) si le calendrier est indisponible.",
       "options": {
         "yearly": "J’ai une date annuelle de zakat",
         "nisab": "Je connais la date où ma richesse a atteint le nisab",

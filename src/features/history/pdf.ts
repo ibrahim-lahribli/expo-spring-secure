@@ -3,6 +3,9 @@ import { formatMoney } from "../../lib/currency";
 import { resolveEligibilityDueStatus } from "../../lib/zakat-calculation/hawl";
 import { buildTotalDisplay, resolveNonCashDueSummary } from "./totalDisplay";
 import { resolveDetailedReminderDisplayState } from "./reminders";
+import { normalizeHistoryCategoryId } from "./categoryLabels";
+import { formatHistoryDateTime, formatHistoryIsoDate } from "./dateFormatting";
+import type { DueItem, LivestockType } from "../../lib/zakat-calculation";
 
 function escapeHtml(value: string): string {
   return value
@@ -13,25 +16,9 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatDateOnly(value: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
 export type HistoryPdfLabels = {
+  locale?: string;
+  documentTitle: string;
   kgUnit: string;
   titleQuick: string;
   titleDetailed: string;
@@ -70,6 +57,7 @@ export type HistoryPdfLabels = {
     dueNow: string;
     notDue: string;
     unknown: string;
+    unknownEvent: string;
     hawlDueDate: string;
     eventDate: string;
   };
@@ -79,7 +67,7 @@ export type HistoryPdfLabels = {
     debtsOwed: string;
     netWealth: string;
   };
-  reminderRows?: {
+  reminderRows: {
     calculationDate: string;
     reminderScheduled: string;
     nextReminderDate: string;
@@ -87,6 +75,8 @@ export type HistoryPdfLabels = {
     reminderNotScheduled: string;
     noUpcomingDueReminder: string;
   };
+  resolveLivestockTypeLabel?: (type: LivestockType) => string;
+  formatDueItems?: (items: DueItem[]) => string;
   resolveCategoryLabel?: (categoryIdOrLabel: string, fallbackLabel?: string) => string;
 };
 
@@ -94,14 +84,22 @@ export function buildHistoryPdfHtml(
   entry: HistoryEntry,
   labels: HistoryPdfLabels,
 ): string {
+  const locale = labels.locale;
   const totalDisplay = buildTotalDisplay({
     cashTotal: entry.totalZakat,
     currency: entry.currency,
     nonCashDue: resolveNonCashDueSummary(entry.summary.nonCashDue),
-    labels: { kgUnit: labels.kgUnit },
+    labels: {
+      kgUnit: labels.kgUnit,
+      resolveLivestockTypeLabel: labels.resolveLivestockTypeLabel,
+      formatDueItems: labels.formatDueItems,
+    },
   });
   const categories = entry.summary.categoriesUsed
-    .map((category) => `<li>${escapeHtml(labels.resolveCategoryLabel?.(category, category) ?? category)}</li>`)
+    .map((category) => {
+      const canonicalCategory = normalizeHistoryCategoryId(category);
+      return `<li>${escapeHtml(labels.resolveCategoryLabel?.(canonicalCategory, category) ?? category)}</li>`;
+    })
     .join("");
   const detailedCalculationDate =
     entry.payload.kind === "detailed" ? entry.payload.calculationContext?.calculationDate : undefined;
@@ -120,9 +118,10 @@ export function buildHistoryPdfHtml(
           const isMoneyCategory = (category: string) =>
             ["salary", "agri_other", "trade_sector", "industrial_sector"].includes(category);
           const classify = (item: (typeof entry.payload.lineItems)[number]) => {
-            if (item.category === "debt") return "debt";
+            const canonicalCategory = normalizeHistoryCategoryId(item.category);
+            if (canonicalCategory === "debt") return "debt";
             const dueNow = item.meta?.dueNow ?? true;
-            const debtAdjustable = item.meta?.debtAdjustable ?? isMoneyCategory(item.category);
+            const debtAdjustable = item.meta?.debtAdjustable ?? isMoneyCategory(canonicalCategory);
             if (!dueNow) return "not_due";
             if (debtAdjustable) return "due_money";
             return "due_special";
@@ -142,22 +141,28 @@ export function buildHistoryPdfHtml(
                   dueStatus === "due_now"
                     ? labels.groupedRows.dueNow
                     : dueStatus === "unknown"
-                      ? labels.groupedRows.unknown
+                      ? item.meta.obligationMode === "event_based"
+                        ? labels.groupedRows.unknownEvent
+                        : labels.groupedRows.unknown
                       : labels.groupedRows.notDue
                 }`,
               );
               if (item.meta.hawlDueDate) {
-                metaParts.push(`${labels.groupedRows.hawlDueDate}: ${item.meta.hawlDueDate}`);
+                metaParts.push(
+                  `${labels.groupedRows.hawlDueDate}: ${formatHistoryIsoDate(item.meta.hawlDueDate, locale)}`,
+                );
               }
               if (item.meta.eventDate) {
-                metaParts.push(`${labels.groupedRows.eventDate}: ${item.meta.eventDate}`);
+                metaParts.push(
+                  `${labels.groupedRows.eventDate}: ${formatHistoryIsoDate(item.meta.eventDate, locale)}`,
+                );
               }
             }
             return `
               <tr>
                 <td>
-                  ${escapeHtml(labels.resolveCategoryLabel?.(item.category, item.label) ?? item.label ?? item.category)}
-                  ${metaParts.length > 0 ? `<div class="meta-inline">${escapeHtml(metaParts.join(" · "))}</div>` : ""}
+                  ${escapeHtml(labels.resolveCategoryLabel?.(normalizeHistoryCategoryId(item.category), item.label ?? item.category) ?? item.label ?? item.category)}
+                  ${metaParts.length > 0 ? `<div class="meta-inline" dir="auto">${escapeHtml(metaParts.join(" | "))}</div>` : ""}
                 </td>
                 <td>${formatMoney(item.totalWealth, entry.currency)}</td>
                 <td>${formatMoney(item.totalZakat, entry.currency)}</td>
@@ -202,12 +207,17 @@ export function buildHistoryPdfHtml(
 
   return `
     <!DOCTYPE html>
-    <html lang="auto">
+    <html lang="auto" dir="auto">
       <head>
         <meta charset="utf-8" />
-        <title>History Details</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>${escapeHtml(labels.documentTitle)}</title>
         <style>
-          body { font-family: Arial, sans-serif; color: #173b34; padding: 32px; }
+          body {
+            font-family: "Noto Sans", "Noto Naskh Arabic", "Noto Sans Arabic", "Arial Unicode MS", "Segoe UI", Tahoma, Arial, sans-serif;
+            color: #173b34;
+            padding: 32px;
+          }
           h1 { margin: 0 0 8px; font-size: 28px; }
           h2 { margin: 28px 0 12px; font-size: 18px; }
           p, li, td, th { font-size: 14px; line-height: 1.5; }
@@ -221,21 +231,21 @@ export function buildHistoryPdfHtml(
           th, td { border-bottom: 1px solid #d9e5e1; padding: 10px 0; text-align: left; }
           th:last-child, td:last-child { text-align: right; }
           .group-row td { background: #f4f7f6; border-bottom-color: #d0dfda; padding: 8px 10px; }
-          .meta-inline { color: #57716b; font-size: 12px; margin-top: 2px; }
+          .meta-inline { color: #57716b; font-size: 12px; margin-top: 2px; unicode-bidi: plaintext; }
           .note { margin-top: 24px; color: #57716b; }
         </style>
       </head>
       <body>
         <h1>${escapeHtml(entry.flowType === "quick" ? labels.titleQuick : labels.titleDetailed)}</h1>
-        <p class="meta">${escapeHtml(labels.savedPrefix)} ${escapeHtml(formatDate(entry.createdAt))}</p>
+        <p class="meta" dir="auto">${escapeHtml(labels.savedPrefix)} ${escapeHtml(formatHistoryDateTime(entry.createdAt, locale))}</p>
         ${
           detailedCalculationDate
-            ? `<p class="meta">${escapeHtml(
-                labels.reminderRows?.calculationDate ?? "Calculation date",
-              )}: ${escapeHtml(formatDateOnly(detailedCalculationDate))}</p>`
+            ? `<p class="meta" dir="auto">${escapeHtml(
+                labels.reminderRows.calculationDate,
+              )}: ${escapeHtml(formatHistoryIsoDate(detailedCalculationDate, locale))}</p>`
             : ""
         }
-        ${reminderMetaLine ? `<p class="meta">${escapeHtml(reminderMetaLine)}</p>` : ""}
+        ${reminderMetaLine ? `<p class="meta" dir="auto">${escapeHtml(reminderMetaLine)}</p>` : ""}
         <div class="total">
           <div class="total-label">${escapeHtml(labels.totalLabel)}</div>
           <div class="total-value">${escapeHtml(totalDisplay.primaryDisplay)}</div>
@@ -272,23 +282,19 @@ export function buildHistoryPdfHtml(
 function buildReminderMetaLine(entry: HistoryEntry, labels: HistoryPdfLabels): string | null {
   if (entry.payload.kind !== "detailed") return null;
   const reminderState = resolveDetailedReminderDisplayState(entry.payload);
-  const reminderLabels = {
-    reminderScheduled: labels.reminderRows?.reminderScheduled ?? "Reminder scheduled",
-    nextReminderDate: labels.reminderRows?.nextReminderDate ?? "Next reminder date",
-    remindersDisabled: labels.reminderRows?.remindersDisabled ?? "Reminders disabled",
-    reminderNotScheduled: labels.reminderRows?.reminderNotScheduled ?? "Reminder not scheduled",
-    noUpcomingDueReminder: labels.reminderRows?.noUpcomingDueReminder ?? "No upcoming due reminder",
-  };
+  const reminderLabels = labels.reminderRows;
+  const locale = labels.locale;
+  const formatReminderDate = (value: string) => formatHistoryIsoDate(value, locale);
 
   if (reminderState.state === "scheduled") {
-    return `${reminderLabels.reminderScheduled} | ${reminderLabels.nextReminderDate}: ${reminderState.reminderDate}`;
+    return `${reminderLabels.reminderScheduled} | ${reminderLabels.nextReminderDate}: ${formatReminderDate(reminderState.reminderDate)}`;
   }
   if (reminderState.state === "disabled") {
-    return `${reminderLabels.remindersDisabled} | ${reminderLabels.nextReminderDate}: ${reminderState.reminderDate}`;
+    return `${reminderLabels.remindersDisabled} | ${reminderLabels.nextReminderDate}: ${formatReminderDate(reminderState.reminderDate)}`;
   }
   if (reminderState.state === "not_scheduled") {
     if (reminderState.reminderDate) {
-      return `${reminderLabels.reminderNotScheduled} | ${reminderLabels.nextReminderDate}: ${reminderState.reminderDate}`;
+      return `${reminderLabels.reminderNotScheduled} | ${reminderLabels.nextReminderDate}: ${formatReminderDate(reminderState.reminderDate)}`;
     }
     return reminderLabels.reminderNotScheduled;
   }

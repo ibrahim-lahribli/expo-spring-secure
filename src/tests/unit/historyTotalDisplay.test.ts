@@ -62,6 +62,31 @@ describe("buildTotalDisplay", () => {
     expect(result.hasNonCash).toBe(true);
   });
 
+  it("renders structured livestock summary with label resolvers", () => {
+    const result = buildTotalDisplay({
+      cashTotal: 1200,
+      currency: "MAD",
+      nonCashDue: {
+        livestock: [
+          {
+            livestockType: "camels",
+            dueItems: [{ kind: "sheep", count: 1 }],
+          },
+        ],
+        produceKg: 300,
+      },
+      labels: {
+        kgUnit: "kg",
+        resolveLivestockTypeLabel: (type) => ({ camels: "Chameaux" }[type] ?? type),
+        formatDueItems: () => "1 mouton",
+      },
+    });
+
+    expect(normalizeSpaces(result.primaryDisplay)).toBe("MAD 1,200.00");
+    expect(result.suffixDisplay).toBe("Chameaux: 1 mouton | 300.00 kg");
+    expect(result.hasNonCash).toBe(true);
+  });
+
   it("keeps MAD 0.00 and adds non-cash as suffix when cash total is zero", () => {
     const result = buildTotalDisplay({
       cashTotal: 0,

@@ -15,6 +15,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { appColors, appRadius, appShadows, appSpacing, appTypography, minTouchHeight } from "../../theme/designSystem";
+export { AppDatePickerField } from "./AppDatePickerField";
 
 type AppScreenProps = {
   children: React.ReactNode;

@@ -1,5 +1,6 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import React from "react";
+import { Platform } from "react-native";
 import DetailedSetupScreen from "../../app/(public)/calculate/detailed/setup";
 import { useDetailedHawlSetupDraftStore } from "../../store/detailedHawlSetupDraftStore";
 
@@ -13,9 +14,13 @@ jest.mock("react-i18next", () => ({
           next: "Next",
           "detailedSetup.validation.trackingModeRequired":
             "Please choose how you track your zakat year.",
+          "detailedSetup.form.webDateHint":
+            "Web tip: enter date as YYYY-MM-DD (example: 2026-03-17) if the picker is unavailable.",
         },
         fr: {
           next: "Suivant",
+          "detailedSetup.form.webDateHint":
+            "Astuce web : saisissez la date au format YYYY-MM-DD (ex. 2026-03-17) si le calendrier est indisponible.",
           "detailedSetup.validation.trackingModeRequired":
             "Veuillez choisir comment vous suivez votre année de zakat.",
         },
@@ -27,6 +32,15 @@ jest.mock("react-i18next", () => ({
 }));
 
 describe("DetailedSetupScreen", () => {
+  const originalPlatformOS = Platform.OS;
+
+  afterAll(() => {
+    Object.defineProperty(Platform, "OS", {
+      configurable: true,
+      value: originalPlatformOS,
+    });
+  });
+
   beforeEach(() => {
     const routerModule = require("expo-router") as {
       __routerMock: Record<string, jest.Mock>;
@@ -73,5 +87,46 @@ describe("DetailedSetupScreen", () => {
         }),
       }),
     );
+  });
+
+  it("stores selected yearly reference date via the paper date picker", () => {
+    const routerModule = require("expo-router") as {
+      __routerMock: { push: jest.Mock };
+    };
+    const { getByTestId } = render(<DetailedSetupScreen />);
+
+    fireEvent.press(getByTestId("tracking-mode-yearly"));
+    fireEvent.press(getByTestId("reference-date-input"));
+    fireEvent(getByTestId("reference-date-input-modal"), "onConfirm", {
+      date: new Date(2026, 2, 14),
+    });
+    fireEvent.press(getByTestId("detailed-setup-next"));
+
+    expect(routerModule.__routerMock.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: "/(public)/calculate/detailed",
+        params: expect.objectContaining({
+          hawlTrackingMode: "yearly_zakat_date",
+          hawlReferenceDate: "2026-03-14",
+        }),
+      }),
+    );
+  });
+
+  it("shows web date helper text when selecting a reference-date option on web", () => {
+    Object.defineProperty(Platform, "OS", {
+      configurable: true,
+      value: "web",
+    });
+
+    const { getByTestId, getByText } = render(<DetailedSetupScreen />);
+
+    fireEvent.press(getByTestId("tracking-mode-yearly"));
+
+    expect(
+      getByText(
+        "Web tip: enter date as YYYY-MM-DD (example: 2026-03-17) if the picker is unavailable.",
+      ),
+    ).toBeTruthy();
   });
 });

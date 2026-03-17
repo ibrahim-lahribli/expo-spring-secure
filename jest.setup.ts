@@ -68,6 +68,10 @@ jest.mock("expo-router", () => ({
   __routerMock: mockRouter,
   useRouter: () => mockRouter,
   useLocalSearchParams: jest.fn(() => ({})),
+  useFocusEffect: (effect: () => void | (() => void)) => {
+    const React = require("react");
+    React.useEffect(() => effect(), [effect]);
+  },
   useSegments: () => [],
   usePathname: () => "/",
   Link: ({ children }: any) => children,
@@ -94,22 +98,25 @@ jest.mock("@expo/vector-icons", () => {
   );
 });
 
-// datetime picker mock
-jest.mock(
-  "@react-native-community/datetimepicker",
-  () => {
-    const React = require("react");
-    const { View } = require("react-native");
-    const MockDateTimePicker = (props: any) =>
-      React.createElement(View, { ...props, testID: props.testID ?? "date-time-picker" });
+// react-native-paper-dates mock
+jest.mock("react-native-paper-dates", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  const MockDatePickerModal = (props: any) =>
+    React.createElement(View, {
+      ...props,
+      testID: props.testID ?? "paper-date-picker-modal",
+    });
 
-    return {
-      __esModule: true,
-      default: MockDateTimePicker,
-    };
-  },
-  { virtual: true },
-);
+  return {
+    __esModule: true,
+    DatePickerModal: MockDatePickerModal,
+    registerTranslation: jest.fn(),
+    en: {},
+    fr: {},
+    ar: {},
+  };
+});
 
 // expo-updates mock
 jest.mock("expo-updates", () => ({

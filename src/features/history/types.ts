@@ -1,5 +1,10 @@
 import type { SupportedCurrency } from "../../store/appPreferencesStore";
 import type { LineItemMeta } from "../../lib/zakat-calculation/hawl";
+import type {
+  DueItem,
+  LivestockType,
+  ProduceWateringMethod,
+} from "../../lib/zakat-calculation";
 
 export type HistoryFlowType = "quick" | "detailed";
 
@@ -15,10 +20,34 @@ export type HistorySummary = {
   itemCount: number;
   note?: string;
   nonCashDue?: {
-    livestock: string[];
+    livestock: DetailedHistoryNonCashLivestockEntry[];
     produceKg: number;
   };
 };
+
+export type DetailedHistoryNonCashLivestockStructured = {
+  livestockType: LivestockType;
+  dueItems: DueItem[];
+};
+
+export type DetailedHistoryNonCashLivestockEntry =
+  | string
+  | DetailedHistoryNonCashLivestockStructured;
+
+export type DetailedHistoryDetailRow =
+  | { kind: "mode"; mode: "monthly" | "annual" | "trade" | "harvest" }
+  | { kind: "nisab"; amount: number }
+  | { kind: "type"; livestockType: LivestockType }
+  | { kind: "owned"; count: number }
+  | { kind: "due"; dueItems: DueItem[] }
+  | { kind: "cash_estimate"; amount: number }
+  | { kind: "watering"; method: ProduceWateringMethod }
+  | { kind: "due_produce"; quantityKg: number }
+  | { kind: "cash_equivalent"; amount: number }
+  | { kind: "debt_collectible"; amount: number }
+  | { kind: "debt_doubtful"; amount: number }
+  | { kind: "debt_owed_now"; amount: number }
+  | { kind: "debt_net_impact"; amount: number };
 
 export type QuickHistoryPayload = {
   kind: "quick";
@@ -41,7 +70,8 @@ export type DetailedHistoryLineItem = {
   label?: string;
   totalZakat: number;
   totalWealth: number;
-  details: string[];
+  detailRows?: DetailedHistoryDetailRow[];
+  details?: string[];
   meta?: LineItemMeta;
 };
 

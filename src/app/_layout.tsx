@@ -5,10 +5,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { View } from "react-native";
 import { PaperProvider } from "react-native-paper";
+import { ar, en, fr, registerTranslation } from "react-native-paper-dates";
 import { NavigationStack } from "../components/NavigationStack";
 import i18n, { initializeI18n } from "../i18n/i18n";
 import { useAuthStore } from "../store/authStore";
 import { paperTheme } from "../theme/designSystem";
+
+registerTranslation("en", en);
+registerTranslation("fr", fr);
+registerTranslation("ar", ar);
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {

@@ -1,6 +1,3 @@
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -12,13 +9,12 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   UIManager,
   View,
 } from "react-native";
-import { AppCard, AppScreen, PrimaryButton, SectionTitle } from "../../../../components/ui";
+import { AppCard, AppDatePickerField, AppScreen, PrimaryButton, SectionTitle } from "../../../../components/ui";
 import {
-  formatDateAsIso,
+  isValidIsoDate,
   resolveCalculationDate,
 } from "../../../../lib/zakat-calculation/detailedCalculationContext";
 import {
@@ -30,122 +26,9 @@ import { appColors, appRadius, appSpacing } from "../../../../theme/designSystem
 
 type IntroCardId = "detailed" | "debt" | "hawl";
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-function parseDateFromIso(value?: string): Date | null {
-  if (!value || !DATE_PATTERN.test(value)) return null;
-  const [year, month, day] = value.split("-").map((item) => Number(item));
-  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
-  const parsed = new Date(year, month - 1, day);
-  if (
-    parsed.getFullYear() !== year ||
-    parsed.getMonth() !== month - 1 ||
-    parsed.getDate() !== day
-  ) {
-    return null;
-  }
-  return parsed;
-}
-
-function isValidIsoDate(value?: string): boolean {
-  return parseDateFromIso(value) !== null;
-}
-
 function toSingleParam(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) return toSingleParam(value[0]);
   return typeof value === "string" ? value : undefined;
-}
-
-function DateField({
-  label,
-  placeholder,
-  value,
-  onChange,
-  isArabic,
-  testID,
-}: {
-  label: string;
-  placeholder: string;
-  value?: string;
-  onChange: (next: string) => void;
-  isArabic: boolean;
-  testID: string;
-}) {
-  const [showAndroidPicker, setShowAndroidPicker] = useState(false);
-  const resolvedDate = useMemo(() => parseDateFromIso(value) ?? new Date(), [value]);
-
-  const onNativeDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (Platform.OS === "android") {
-      setShowAndroidPicker(false);
-    }
-    if (event.type === "dismissed" || !selectedDate) {
-      return;
-    }
-    onChange(formatDateAsIso(selectedDate));
-  };
-
-  if (Platform.OS === "web") {
-    return (
-      <View style={styles.fieldBlock}>
-        <Text style={[styles.fieldLabel, isArabic && styles.rtlText]}>{label}</Text>
-        <TextInput
-          testID={testID}
-          value={value ?? ""}
-          onChangeText={onChange}
-          placeholder={placeholder}
-          placeholderTextColor={appColors.textSecondary}
-          style={[styles.input, isArabic && styles.rtlText]}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-    );
-  }
-
-  if (Platform.OS === "ios") {
-    return (
-      <View style={styles.fieldBlock}>
-        <Text style={[styles.fieldLabel, isArabic && styles.rtlText]}>{label}</Text>
-        <View style={styles.datePreviewRow}>
-          <Text style={[styles.datePreviewValue, isArabic && styles.rtlText]}>
-            {value ?? placeholder}
-          </Text>
-        </View>
-        <DateTimePicker
-          testID={testID}
-          value={resolvedDate}
-          mode="date"
-          display="inline"
-          onChange={onNativeDateChange}
-        />
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.fieldBlock}>
-      <Text style={[styles.fieldLabel, isArabic && styles.rtlText]}>{label}</Text>
-      <Pressable
-        style={[styles.dateTrigger, isArabic && styles.rowReverse]}
-        onPress={() => setShowAndroidPicker(true)}
-        testID={testID}
-      >
-        <Text style={[styles.datePreviewValue, isArabic && styles.rtlText]}>
-          {value ?? placeholder}
-        </Text>
-        <Ionicons name="calendar-outline" size={18} color={appColors.primary} />
-      </Pressable>
-      {showAndroidPicker ? (
-        <DateTimePicker
-          testID={`${testID}-android`}
-          value={resolvedDate}
-          mode="date"
-          display="default"
-          onChange={onNativeDateChange}
-        />
-      ) : null}
-    </View>
-  );
 }
 
 function RadioOption({
@@ -181,8 +64,15 @@ export default function DetailedSetupScreen() {
   const setDraft = useDetailedHawlSetupDraftStore((state) => state.setDraft);
   const draft = useDetailedHawlSetupDraftStore((state) => state.draft);
   const isArabic = (i18n.resolvedLanguage ?? "en").startsWith("ar");
+  const datePickerLocale = useMemo(() => {
+    const languageTag = (i18n?.resolvedLanguage ?? i18n?.language ?? "en").toLowerCase();
+    if (languageTag.startsWith("ar")) return "ar";
+    if (languageTag.startsWith("fr")) return "fr";
+    return "en";
+  }, [i18n?.language, i18n?.resolvedLanguage]);
 
   const isRTL = I18nManager.isRTL;
+  const showWebDateHint = Platform.OS === "web";
   const [openCard, setOpenCard] = useState<IntroCardId | null>(null);
   const [trackingMode, setTrackingMode] = useState<HawlTrackingMode | null>(null);
   const [referenceDate, setReferenceDate] = useState<string>("");
@@ -425,17 +315,23 @@ export default function DetailedSetupScreen() {
         />
         {trackingMode === "yearly_zakat_date" ? (
           <View style={styles.followupBlock}>
-            <DateField
+            <AppDatePickerField
               testID="reference-date-input"
               label={t("detailedSetup.form.referenceDateLabel")}
               placeholder={t("detailedSetup.form.referenceDatePlaceholder")}
-              value={referenceDate}
-              onChange={(next) => {
+              valueIso={referenceDate}
+              onChangeIso={(next) => {
                 setReferenceDate(next);
                 setValidationErrorKey(null);
               }}
+              locale={datePickerLocale}
               isArabic={isArabic}
             />
+            {showWebDateHint ? (
+              <Text style={[styles.webDateHint, isArabic && styles.rtlText]}>
+                {t("detailedSetup.form.webDateHint")}
+              </Text>
+            ) : null}
             <Pressable
               onPress={() => setSaveAsDefault((prev) => !prev)}
               style={[styles.checkboxRow, isRTL && styles.rowReverse]}
@@ -460,17 +356,23 @@ export default function DetailedSetupScreen() {
         />
         {trackingMode === "nisab_reached_date" ? (
           <View style={styles.followupBlock}>
-            <DateField
+            <AppDatePickerField
               testID="reference-date-input"
               label={t("detailedSetup.form.referenceDateLabel")}
               placeholder={t("detailedSetup.form.referenceDatePlaceholder")}
-              value={referenceDate}
-              onChange={(next) => {
+              valueIso={referenceDate}
+              onChangeIso={(next) => {
                 setReferenceDate(next);
                 setValidationErrorKey(null);
               }}
+              locale={datePickerLocale}
               isArabic={isArabic}
             />
+            {showWebDateHint ? (
+              <Text style={[styles.webDateHint, isArabic && styles.rtlText]}>
+                {t("detailedSetup.form.webDateHint")}
+              </Text>
+            ) : null}
           </View>
         ) : null}
 
@@ -508,17 +410,25 @@ export default function DetailedSetupScreen() {
               isArabic={isArabic}
             />
             {useToday === false ? (
-              <DateField
-                testID="reference-date-input"
-                label={t("detailedSetup.form.referenceDateLabel")}
-                placeholder={t("detailedSetup.form.referenceDatePlaceholder")}
-                value={referenceDate}
-                onChange={(next) => {
-                  setReferenceDate(next);
-                  setValidationErrorKey(null);
-                }}
-                isArabic={isArabic}
-              />
+              <>
+                <AppDatePickerField
+                  testID="reference-date-input"
+                  label={t("detailedSetup.form.referenceDateLabel")}
+                  placeholder={t("detailedSetup.form.referenceDatePlaceholder")}
+                  valueIso={referenceDate}
+                  onChangeIso={(next) => {
+                    setReferenceDate(next);
+                    setValidationErrorKey(null);
+                  }}
+                  locale={datePickerLocale}
+                  isArabic={isArabic}
+                />
+                {showWebDateHint ? (
+                  <Text style={[styles.webDateHint, isArabic && styles.rtlText]}>
+                    {t("detailedSetup.form.webDateHint")}
+                  </Text>
+                ) : null}
+              </>
             ) : null}
           </View>
         ) : null}
@@ -646,56 +556,16 @@ const styles = StyleSheet.create({
     marginTop: -appSpacing.xs,
     marginBottom: appSpacing.xs,
   },
-  fieldBlock: {
-    gap: appSpacing.xs,
-  },
-  fieldLabel: {
-    color: appColors.textPrimary,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  datePreviewRow: {
-    minHeight: 42,
-    borderWidth: 1,
-    borderColor: appColors.border,
-    borderRadius: appRadius.md,
-    backgroundColor: appColors.surface,
-    justifyContent: "center",
-    paddingHorizontal: appSpacing.sm,
-  },
-  datePreviewValue: {
-    color: appColors.textPrimary,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  dateTrigger: {
-    minHeight: 46,
-    borderWidth: 1,
-    borderColor: appColors.border,
-    borderRadius: appRadius.md,
-    backgroundColor: appColors.surface,
-    paddingHorizontal: appSpacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: appSpacing.sm,
-  },
-  input: {
-    minHeight: 46,
-    borderWidth: 1,
-    borderColor: appColors.border,
-    borderRadius: appRadius.md,
-    backgroundColor: appColors.surface,
-    color: appColors.textPrimary,
-    paddingHorizontal: appSpacing.sm,
-    paddingVertical: appSpacing.sm,
-    fontSize: 16,
-  },
   subQuestion: {
     color: appColors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "600",
+  },
+  webDateHint: {
+    color: appColors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
   },
   checkboxRow: {
     minHeight: 40,
